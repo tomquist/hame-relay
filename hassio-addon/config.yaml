@@ -1,0 +1,25 @@
+name: "Hame Relay"
+version: "1.0.0"
+slug: "hame_relay"
+description: "Connect B2500 storage to Home Assistant while keeping mobile app functionality"
+url: "https://github.com/tomquist/hame-relay"
+image: "ghcr.io/tomquist/hame-relay-addon"
+arch:
+  - armv7
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+services:
+  - mqtt:need
+options:
+  mqtt_uri: ""
+  devices:
+    - device_id: "24-digit-device-id"
+      mac: "maccaddresswithoutcolons"
+schema:
+  mqtt_uri: str?
+  devices:
+    - device_id: str
+      mac: str
