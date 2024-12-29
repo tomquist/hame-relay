@@ -34,14 +34,15 @@ mkdir -p /app/config
 
 # Get MQTT URI
 BROKER_URL=$(get_mqtt_uri)
-bashio::log.info "Using MQTT broker: ${BROKER_URL}"
 
 # Create config.json
 bashio::log.info "Generating config file..."
-echo "{
-  \"broker_url\": \"${BROKER_URL}\",
-  \"devices\": $(bashio::config 'devices')
-}" > /app/config/config.json
+DEVICES=$(bashio::config 'devices' | jq -s '.')
+
+jq -n --arg url "$BROKER_URL" --argjson devices "$DEVICES" '{
+    broker_url: $url,
+    devices: $devices
+}' > /app/config/config.json
 
 # Start the application
 bashio::log.info "Starting MQTT forwarder..."
