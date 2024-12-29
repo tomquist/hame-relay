@@ -3,7 +3,7 @@ version: "1.0.0"
 slug: "hame_relay"
 description: "Connect B2500 storage to Home Assistant while keeping mobile app functionality"
 url: "https://github.com/tomquist/hame-relay"
-image: "ghcr.io/tomquist/hame-relay-addon:1.0.0"
+image: "ghcr.io/tomquist/hame-relay-addon"
 arch:
   - armv7
   - aarch64
