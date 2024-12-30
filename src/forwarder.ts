@@ -18,6 +18,7 @@ class MQTTForwarder {
   private hameBroker!: mqtt.MqttClient;
   private devices: Map<string, string>; // Maps device_id to mac and vice versa
   private config: Config;
+  private readonly RECONNECT_DELAY = 2000;
 
   constructor(configPath: string) {
     // Load and parse config file
@@ -48,14 +49,30 @@ class MQTTForwarder {
   }
 
   private initializeBrokers(): void {
-    // Connect to config broker
-    this.configBroker = mqtt.connect(this.config.broker_url);
+    const options = {
+      keepalive: 30,
+      reconnectPeriod: 1000,
+      connectTimeout: 30000,
+    };
+    this.configBroker = mqtt.connect(this.config.broker_url, options);
 
     // Load certificates and connect to Hame broker
     const certs = this.loadCertificates();
     this.hameBroker = mqtt.connect('mqtt://a40nr6osvmmaw-ats.iot.eu-central-1.amazonaws.com', {
       ...certs,
-      protocol: 'mqtts'
+      protocol: 'mqtts',
+      ...options,
+    });
+
+    this.setupBrokerEventHandlers();
+  }
+
+  private setupBrokerEventHandlers(): void {
+    // Config broker event handlers
+    this.configBroker.on('connect', () => {
+      console.log('Connected to config broker');
+      console.log('Successfully reconnected to config broker');
+      this.setupConfigSubscriptions();
     });
 
     // Set up error handlers
@@ -63,20 +80,64 @@ class MQTTForwarder {
       console.error('Config broker error:', error);
     });
 
+    this.configBroker.on('disconnect', () => {
+      console.warn('Config broker disconnected');
+    });
+
+    this.configBroker.on('offline', () => {
+      console.warn('Config broker went offline');
+      this.handleReconnect('config');
+    });
+
+    // Hame broker event handlers
+    this.hameBroker.on('connect', () => {
+      console.log('Connected to Hame broker');
+      console.log('Successfully reconnected to Hame broker');
+      this.setupHameSubscriptions();
+    });
+
     this.hameBroker.on('error', (error: Error) => {
       console.error('Hame broker error:', error);
     });
 
-    // Set up connection handlers
-    this.configBroker.on('connect', () => {
-      console.log('Connected to config broker');
-      this.setupConfigSubscriptions();
+    this.hameBroker.on('disconnect', () => {
+      console.warn('Hame broker disconnected');
     });
 
-    this.hameBroker.on('connect', () => {
-      console.log('Connected to Hame broker');
-      this.setupHameSubscriptions();
+    this.hameBroker.on('offline', () => {
+      console.warn('Hame broker went offline');
+      this.handleReconnect('hame');
     });
+
+    // Set up ping monitoring for both brokers
+    this.monitorConnections();
+  }
+
+  private handleReconnect(broker: 'config' | 'hame'): void {
+    const brokerClient = broker === 'config' ? this.configBroker : this.hameBroker;
+    console.log(`Attempting to reconnect ${broker} broker...`);
+    
+    setTimeout(() => {
+      if (!brokerClient.connected) {
+        brokerClient.reconnect();
+        // Schedule another reconnection attempt if this one fails
+        this.handleReconnect(broker);
+      }
+    }, this.RECONNECT_DELAY);
+  }
+
+  private monitorConnections(): void {
+    // Periodically check connection status and force reconnect if needed
+    setInterval(() => {
+      if (!this.configBroker.connected) {
+        console.warn('Config broker connection lost, attempting to reconnect...');
+        this.handleReconnect('config');
+      }
+      if (!this.hameBroker.connected) {
+        console.warn('Hame broker connection lost, attempting to reconnect...');
+        this.handleReconnect('hame');
+      }
+    }, 30000); // Check every 30 seconds
   }
 
   private setupConfigSubscriptions(): void {
