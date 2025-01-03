@@ -15,11 +15,13 @@ services:
   - mqtt:need
 options:
   mqtt_uri: ""
+  inverse_forwarding: false
   devices:
     - device_id: "24-digit-device-id"
       mac: "maccaddresswithoutcolons"
 schema:
   mqtt_uri: str?
+  inverse_forwarding: bool?
   devices:
     - device_id: str
       mac: str
