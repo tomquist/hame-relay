@@ -11,6 +11,7 @@ interface Device {
 interface Config {
   broker_url: string;
   devices: Device[];
+  inverse_forwarding?: boolean;
 }
 
 class MQTTForwarder {
@@ -141,8 +142,12 @@ class MQTTForwarder {
   }
 
   private setupConfigSubscriptions(): void {
-    // Subscribe to all device control messages on config broker
-    this.configBroker.subscribe('hame_energy/+/device/+/ctrl', (err: Error | null) => {
+    // Subscribe to topics based on inverse_forwarding setting
+    const topicPattern = this.config.inverse_forwarding ? 
+      'hame_energy/+/App/+/ctrl' : 
+      'hame_energy/+/device/+/ctrl';
+
+    this.configBroker.subscribe(topicPattern, (err: Error | null) => {
       if (err) {
         console.error('Error subscribing to config broker:', err);
         return;
@@ -152,48 +157,60 @@ class MQTTForwarder {
 
     // Handle messages from config broker
     this.configBroker.on('message', (topic: string, message: Buffer) => {
-      const matches = topic.match(/hame_energy\/.*\/device\/(.*)\/ctrl/);
+      const pattern = this.config.inverse_forwarding ? 
+        /hame_energy\/.*\/App\/(.*)\/ctrl/ :
+        /hame_energy\/.*\/device\/(.*)\/ctrl/;
+
+      const matches = topic.match(pattern);
       if (matches) {
-        const mac = matches[1];
-        const device_id = this.devices.get(mac);
+        const identifier = matches[1];
+        const mappedId = this.devices.get(identifier);
         
-        if (device_id) {
-          const newTopic = topic.replace(mac, device_id);
+        if (mappedId) {
+          const newTopic = topic.replace(identifier, mappedId);
           this.hameBroker.publish(newTopic, message);
           console.log(`Forwarded message from config to Hame: ${topic} -> ${newTopic}`);
         } else {
-          console.warn(`Unknown MAC address received: ${mac}`);
+          console.warn(`Unknown identifier received: ${identifier}`);
         }
       }
     });
   }
 
   private setupHameSubscriptions(): void {
-    // Subscribe to all app control messages on Hame broker
+    // Subscribe to topics based on inverse_forwarding setting
     this.config.devices.forEach(device => {
-      const topic = `hame_energy/+/App/${device.device_id}/ctrl`;
-      this.hameBroker.subscribe(topic, (err: Error | null) => {
+      const identifier = this.config.inverse_forwarding ? device.mac : device.device_id;
+      const topicPattern = this.config.inverse_forwarding ?
+        `hame_energy/+/device/${identifier}/ctrl` :
+        `hame_energy/+/App/${identifier}/ctrl`;
+
+      this.hameBroker.subscribe(topicPattern, (err: Error | null) => {
         if (err) {
-          console.error(`Error subscribing to Hame broker for device ${device.device_id}:`, err);
+          console.error(`Error subscribing to Hame broker for device ${identifier}:`, err);
           return;
         }
-        console.log(`Subscribed to Hame broker topic: ${topic}`);
+        console.log(`Subscribed to Hame broker topic: ${topicPattern}`);
       });
     });
 
     // Handle messages from Hame broker
     this.hameBroker.on('message', (topic: string, message: Buffer) => {
-      const matches = topic.match(/hame_energy\/.*\/App\/(.*)\/ctrl/);
+      const pattern = this.config.inverse_forwarding ?
+        /hame_energy\/.*\/device\/(.*)\/ctrl/ :
+        /hame_energy\/.*\/App\/(.*)\/ctrl/;
+
+      const matches = topic.match(pattern);
       if (matches) {
-        const device_id = matches[1];
-        const mac = this.devices.get(device_id);
+        const identifier = matches[1];
+        const mappedId = this.devices.get(identifier);
         
-        if (mac) {
-          const newTopic = topic.replace(device_id, mac);
+        if (mappedId) {
+          const newTopic = topic.replace(identifier, mappedId);
           this.configBroker.publish(newTopic, message);
           console.log(`Forwarded message from Hame to config: ${topic} -> ${newTopic}`);
         } else {
-          console.warn(`Unknown device ID received: ${device_id}`);
+          console.warn(`Unknown identifier received: ${identifier}`);
         }
       }
     });

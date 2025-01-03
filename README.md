@@ -1,60 +1,97 @@
 # Hame Relay
 
-This project allows you to connect your B2500 storage system to a local MQTT broker while maintaining the ability to use the official mobile app for remote access.
+This project helps you integrate your B2500 storage system with both the official mobile app and local home automation systems. It solves two common integration challenges:
+
+1. Using the official app with a locally configured storage system
+2. Using home automation with a storage system configured for the official Hame cloud
+
+## How It Works
+
+The B2500 storage system can be configured to use either:
+- The official Hame MQTT broker (default) - allows control via the mobile app but not local automation
+- A local MQTT broker - allows local automation but breaks mobile app control
+
+This tool bridges these two scenarios by forwarding MQTT messages between your local broker and the Hame broker. It has two modes controlled by the `inverse_forwarding` option:
+
+### Mode 1: Storage configured with local broker (`inverse_forwarding: false`)
+- Use this when your storage is configured to use your local MQTT broker
+- The relay forwards necessary messages to the Hame broker
+- Allows you to keep using the official mobile app while your storage runs on local MQTT
+
+### Mode 2: Storage configured with Hame broker (`inverse_forwarding: true`)
+- Use this when your storage is using the default Hame MQTT broker
+- The relay forwards messages from your local broker to Hame
+- Allows local home automation control without reconfiguring your storage
 
 ## Prerequisites
 
-- Either of the following two:
+- Either:
   - Docker environment
   - Home Assistant OS or a Home Assistant Supervised installation
 - Your storage's Device ID and MAC
-- Your storage needs to be configured to a custom MQTT broker
 
 You can get your Device ID and MAC address by logging into the [Energy Management System](https://eu.hamedata.com/app/AfterSales/login.html) with your account. The Device ID is the 24-digit value below "Device Configuration". The MAC address is listed below.
 
-## Configure Storage with custom MQTT broker
-
-1. If not already done, enable the MQTT option through the [Energy Management System](https://eu.hamedata.com/app/AfterSales/login.html) by toggling "MQTT enabled" on.
-2. Open the Power Zero/Marstek App and connect to your storage via Bluetooth
-3. Under "Settings" you'll see an option "MQTT" now
-4. Fill out your MQTT broker settings. Make sure to enable or disable the checkbox "SSL connection enabled", depending on whether your broker supports SSL (disable if unsure).
-4. Safe
-
-Now your storage can be controlled through your own MQTT broker. See [this document](https://eu.hamedata.com/ems/mqtt/index.html?version=2) for more information.
-
 ## Docker
 
-1. Pull and run the container:
+The relay can be run either directly with Docker or using Docker Compose.
+
+### Option 1: Using Docker
+
+1. Create a directory for your configuration:
 ```bash
-docker pull ghcr.io/tomquist/hame-relay:main
+mkdir hame-relay
+cd hame-relay
+mkdir config
 ```
 
-2. Create a config file (`config.json`):
+2. Create a config file (`config/config.json`):
 ```json
 {
   "broker_url": "mqtt://username:password@your-broker-url",
+  "inverse_forwarding": false,
   "devices": [
     { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons" }
   ]
 }
 ```
 
-3. Run with Docker Compose:
+3. Run the container:
+```bash
+docker run -d \
+  --name hame-relay \
+  --restart unless-stopped \
+  -v "$(pwd)/config:/app/config" \
+  ghcr.io/tomquist/hame-relay:main
+```
+
+### Option 2: Using Docker Compose
+
+1. Create a directory for your configuration:
+```bash
+mkdir hame-relay
+cd hame-relay
+mkdir config
+```
+
+2. Create a config file (`config/config.json`) with the same content as above.
+
+3. Create a `docker-compose.yml` file:
 ```yaml
-# docker-compose.yml
 version: '3.8'
 
 services:
   mqtt-forwarder:
     image: ghcr.io/tomquist/hame-relay:main
-    container_name: mqtt-forwarder
+    container_name: hame-relay
     restart: unless-stopped
     volumes:
       - ./config:/app/config
 ```
 
+4. Start the container:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 # Home Assistant
@@ -78,6 +115,9 @@ Example configuration:
 # Optional: only needed if not using Home Assistant's MQTT service
 mqtt_uri: "mqtt://username:password@host:1883"
 
+# Choose your operation mode (see "How It Works" section above)
+inverse_forwarding: false
+
 devices:
   - device_id: "0123456789abcdef01234567"
     mac: "01234567890a"
@@ -92,6 +132,12 @@ The add-on will automatically use your Home Assistant MQTT settings if configure
 ### Required Configuration
 
 - `devices`: List of your B2500 devices with their IDs and MAC addresses
+
+### Optional Configuration
+
+- `inverse_forwarding`: Choose your operation mode:
+  - `false` (default): Storage uses local broker, maintain app functionality
+  - `true`: Storage uses Hame broker, enable local control
 
 ## Development
 
