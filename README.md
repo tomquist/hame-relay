@@ -29,8 +29,23 @@ This tool bridges these two scenarios by forwarding MQTT messages between your l
   - Docker environment
   - Home Assistant OS or a Home Assistant Supervised installation
 - Your storage's Device ID and MAC
+- Optional: Configure storage with local MQTT broker (see below)
 
 You can get your Device ID and MAC address by logging into the [Energy Management System](https://eu.hamedata.com/app/AfterSales/login.html) with your account. The Device ID is the 24-digit value below "Device Configuration". The MAC address is listed below.
+
+## Configure Storage with Local MQTT Broker (Optional)
+
+This step is optional depending on your chosen setup:
+- If you want to use the storage with a local broker (`inverse_forwarding: false`), follow these steps
+- If you want to keep using the Hame broker (`inverse_forwarding: true`), skip this section
+
+1. Enable the MQTT option through the [Energy Management System](https://eu.hamedata.com/app/AfterSales/login.html) by toggling "MQTT enabled" on
+2. Open the Power Zero/Marstek App and connect to your storage via Bluetooth
+3. Under "Settings" you'll see an option "MQTT" now
+4. Fill out your MQTT broker settings. Make sure to enable or disable the checkbox "SSL connection enabled", depending on whether your broker supports SSL (disable if unsure)
+5. Save
+
+Now your storage can be controlled through your own MQTT broker. See [this document](https://eu.hamedata.com/ems/mqtt/index.html?version=2) for more information.
 
 ## Docker
 
