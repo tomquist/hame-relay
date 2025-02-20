@@ -180,7 +180,7 @@ class MQTTForwarder {
   private setupHameSubscriptions(): void {
     // Subscribe to topics based on inverse_forwarding setting
     this.config.devices.forEach(device => {
-      const identifier = this.config.inverse_forwarding ? device.mac : device.device_id;
+      const identifier = device.device_id;
       const topicPattern = this.config.inverse_forwarding ?
         `hame_energy/+/device/${identifier}/ctrl` :
         `hame_energy/+/App/${identifier}/ctrl`;
