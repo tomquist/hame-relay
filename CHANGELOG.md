@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.4] - 2025-02-24
+- Fixed inverse forwarding in HomeAssistant Addon
+
 ## [1.0.3] - 2025-02-20
 - Fixed issue with inverse forwarding not working as expected
 

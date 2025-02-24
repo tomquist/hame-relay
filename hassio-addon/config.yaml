@@ -1,5 +1,5 @@
 name: "Hame Relay"
-version: "1.0.3"
+version: "1.0.4"
 slug: "hame_relay"
 description: "Connect B2500 storage to Home Assistant while keeping mobile app functionality"
 url: "https://github.com/tomquist/hame-relay"
