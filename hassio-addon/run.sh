@@ -38,10 +38,12 @@ BROKER_URL=$(get_mqtt_uri)
 # Create config.json
 bashio::log.info "Generating config file..."
 DEVICES=$(bashio::config 'devices' | jq -s '.')
+INVERSE_FORWARDING=$(bashio::config 'inverse_forwarding' "false")
 
-jq -n --arg url "$BROKER_URL" --argjson devices "$DEVICES" '{
+jq -n --arg url "$BROKER_URL" --argjson devices "$DEVICES" --argjson inverse "$INVERSE_FORWARDING" '{
     broker_url: $url,
-    devices: $devices
+    devices: $devices,
+    inverse_forwarding: $inverse
 }' > /app/config/config.json
 
 # Start the application
