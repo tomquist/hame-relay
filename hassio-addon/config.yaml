@@ -1,5 +1,5 @@
 name: "Hame Relay"
-version: "1.0.4"
+version: "1.1.0"
 slug: "hame_relay"
 description: "Connect B2500 storage to Home Assistant while keeping mobile app functionality"
 url: "https://github.com/tomquist/hame-relay"
@@ -14,14 +14,16 @@ boot: auto
 services:
   - mqtt:need
 options:
-  mqtt_uri: ""
   inverse_forwarding: false
   devices:
     - device_id: "24-digit-device-id"
       mac: "maccaddresswithoutcolons"
+      type: "HMA-1"
 schema:
   mqtt_uri: str?
   inverse_forwarding: bool?
   devices:
     - device_id: str
       mac: str
+      type: str
+      inverse_forwarding: bool?

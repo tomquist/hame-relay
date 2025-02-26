@@ -28,10 +28,10 @@ This tool bridges these two scenarios by forwarding MQTT messages between your l
 - Either:
   - Docker environment
   - Home Assistant OS or a Home Assistant Supervised installation
-- Your storage's Device ID and MAC
+- Your storage's Device ID, MAC and device type (e.g. HMA-1, HMA-2, HMA-3 etc.)
 - Optional: Configure storage with local MQTT broker (see below)
 
-You can get your Device ID and MAC address by logging into the [Energy Management System](https://eu.hamedata.com/app/AfterSales/login.html) with your account. The Device ID is the 24-digit value below "Device Configuration". The MAC address is listed below.
+You can get your Device ID, MAC address and device type by logging into the [Energy Management System](https://eu.hamedata.com/app/AfterSales/login.html) with your account. The Device ID is the 22 to 24-digit value below "Device Configuration". The MAC address and type is listed below.
 
 ## Configure Storage with Local MQTT Broker (Optional)
 
@@ -66,7 +66,7 @@ mkdir config
   "broker_url": "mqtt://username:password@your-broker-url",
   "inverse_forwarding": false,
   "devices": [
-    { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons" }
+    { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons", "type": "HMA-1" }
   ]
 }
 ```
@@ -136,8 +136,10 @@ inverse_forwarding: false
 devices:
   - device_id: "0123456789abcdef01234567"
     mac: "01234567890a"
+    type: "HMA-1"
   - device_id: "0123456789abcdef01234567"
     mac: "01234567890a"
+    type: "HMA-1"
 ```
 
 ### MQTT Configuration
@@ -146,7 +148,11 @@ The add-on will automatically use your Home Assistant MQTT settings if configure
 
 ### Required Configuration
 
-- `devices`: List of your B2500 devices with their IDs and MAC addresses
+- `devices`: List of your B2500 devices with their IDs, MAC addresses and types
+  - `device_id`: Your device's 22 to 24-digit ID
+  - `mac`: Your device's MAC address without colons
+  - `type`: Your device's type (e.g. HMA-1, HMA-2, HMA-3 etc.)
+  - `inverse_forwarding`: (optional) Override the global setting for the operation mode of this device
 
 ### Optional Configuration
 
