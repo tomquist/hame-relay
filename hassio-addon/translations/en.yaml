@@ -1,0 +1,11 @@
+configuration:
+  mqtt_uri:
+    name: MQTT Broker URL
+    description: "URL of the MQTT broker to connect to"
+  inverse_forwarding:
+    name: Invert Forwarding
+    description: "If enabled, forwards messages from the cloud MQTT broker to the local MQTT broker instead of the other way around"
+  devices:
+    name: Devices
+    description: "List of forwarding devices"
+

@@ -1,11 +1,20 @@
 import * as mqtt from 'mqtt';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import {MqttClient} from 'mqtt';
+import {readFileSync} from 'fs';
+import {join} from 'path';
 
-// Types
+const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
+type DeviceGen = typeof deviceGenerations[number];
+const deviceTypes = ["A", "B", "D", "E", "F", "G", "J", "K"] as const;
+type DeviceType = typeof deviceTypes[number];
+type DeviceTypeIdentifier = `HM${DeviceType}-${DeviceGen}`;
+const knownDeviceTypes: DeviceTypeIdentifier[] = deviceGenerations.flatMap(gen => deviceTypes.map(type => `HM${type}-${gen}` satisfies DeviceTypeIdentifier));
+
 interface Device {
   device_id: string;
   mac: string;
+  type: DeviceTypeIdentifier;
+  inverse_forwarding?: boolean;
 }
 
 interface Config {
@@ -14,24 +23,48 @@ interface Config {
   inverse_forwarding?: boolean;
 }
 
+function cleanAndValidate(config: Config): void {
+  if (config.devices.length === 0) {
+    throw new Error('No devices specified in config file');
+  }
+  for (const device of config.devices) {
+    if (!device.device_id) {
+      throw new Error('Device ID is required');
+    }
+    if (!device.mac) {
+      throw new Error('MAC address is required');
+    }
+    if (!device.type) {
+      throw new Error('Device type is required');
+    }
+    device.device_id = device.device_id.trim();
+    // Remove colons from MAC address and convert to lowercase
+    device.mac = device.mac.trim().replace(/:/g, '').toLowerCase();
+    device.type = device.type.trim().toUpperCase() as DeviceTypeIdentifier;
+    if (device.device_id.length < 22 || device.device_id.length > 24) {
+      throw new Error('Device ID must be between 22 and 24 characters long');
+    }
+    if (!/^[0-9A-Fa-f]{12}$/.test(device.mac)) {
+      throw new Error('MAC address must be a 12-character hexadecimal string');
+    }
+    if (device.type && !knownDeviceTypes.includes(device.type)) {
+      console.warn(`Unknown device type: ${device.type}. This device will likely not be forwarded.`);
+    }
+  }
+}
+
 class MQTTForwarder {
   private configBroker!: mqtt.MqttClient;
   private hameBroker!: mqtt.MqttClient;
-  private devices: Map<string, string>; // Maps device_id to mac and vice versa
   private config: Config;
   private readonly RECONNECT_DELAY = 2000;
 
   constructor(configPath: string) {
     // Load and parse config file
     this.config = JSON.parse(readFileSync(configPath, 'utf8'));
-    
-    // Initialize device mappings
-    this.devices = new Map();
-    this.config.devices.forEach(device => {
-      this.devices.set(device.device_id, device.mac);
-      this.devices.set(device.mac, device.device_id);
-    });
 
+    cleanAndValidate(this.config);
+    
     // Initialize brokers
     this.initializeBrokers();
   }
@@ -72,7 +105,6 @@ class MQTTForwarder {
     // Config broker event handlers
     this.configBroker.on('connect', () => {
       console.log('Connected to config broker');
-      console.log('Successfully reconnected to config broker');
       this.setupConfigSubscriptions();
     });
 
@@ -93,7 +125,6 @@ class MQTTForwarder {
     // Hame broker event handlers
     this.hameBroker.on('connect', () => {
       console.log('Connected to Hame broker');
-      console.log('Successfully reconnected to Hame broker');
       this.setupHameSubscriptions();
     });
 
@@ -142,78 +173,78 @@ class MQTTForwarder {
   }
 
   private setupConfigSubscriptions(): void {
-    // Subscribe to topics based on inverse_forwarding setting
-    const topicPattern = this.config.inverse_forwarding ? 
-      'hame_energy/+/App/+/ctrl' : 
-      'hame_energy/+/device/+/ctrl';
-
-    this.configBroker.subscribe(topicPattern, (err: Error | null) => {
-      if (err) {
-        console.error('Error subscribing to config broker:', err);
-        return;
-      }
-      console.log('Subscribed to config broker topics');
-    });
-
-    // Handle messages from config broker
-    this.configBroker.on('message', (topic: string, message: Buffer) => {
-      const pattern = this.config.inverse_forwarding ? 
-        /hame_energy\/.*\/App\/(.*)\/ctrl/ :
-        /hame_energy\/.*\/device\/(.*)\/ctrl/;
-
-      const matches = topic.match(pattern);
-      if (matches) {
-        const identifier = matches[1];
-        const mappedId = this.devices.get(identifier);
-        
-        if (mappedId) {
-          const newTopic = topic.replace(identifier, mappedId);
-          this.hameBroker.publish(newTopic, message);
-          console.log(`Forwarded message from config to Hame: ${topic} -> ${newTopic}`);
-        } else {
-          console.warn(`Unknown identifier received: ${identifier}`);
-        }
-      }
-    });
+    this.setupSubscriptions(this.configBroker);
   }
 
   private setupHameSubscriptions(): void {
-    // Subscribe to topics based on inverse_forwarding setting
-    this.config.devices.forEach(device => {
-      const identifier = device.device_id;
-      const topicPattern = this.config.inverse_forwarding ?
-        `hame_energy/+/device/${identifier}/ctrl` :
-        `hame_energy/+/App/${identifier}/ctrl`;
+    this.setupSubscriptions(this.hameBroker);
+  }
 
-      this.hameBroker.subscribe(topicPattern, (err: Error | null) => {
-        if (err) {
-          console.error(`Error subscribing to Hame broker for device ${identifier}:`, err);
+  private setupSubscriptions(broker: MqttClient): void {
+    const key = broker === this.configBroker ? 'mac' : 'device_id';
+    const brokerName = broker === this.configBroker ? 'local' : 'Hame';
+    const topics = this.config.devices.map(device => {
+      const {[key]: identifier, type: type} = device;
+      let inverseForwarding = device.inverse_forwarding ?? this.config.inverse_forwarding;
+      if (broker === this.configBroker) {
+        inverseForwarding = !inverseForwarding;
+      }
+      return inverseForwarding ?
+          `hame_energy/${type}/device/${identifier}/ctrl` :
+          `hame_energy/${type}/App/${identifier}/ctrl`
+    });
+    console.log(`Subscribing to ${brokerName} broker topics:\n${topics.join("\n")}`);
+    broker.subscribe(topics, (err: Error | null) => {
+      if (err) {
+        console.error(`Error subscribing to ${brokerName} broker for device:`, err);
+        return;
+      }
+      console.log(`Subscribed to ${brokerName} broker topics`);
+    });
+
+    broker.on('message', (topic: string, message: Buffer) => {
+      this.forwardMessage(topic, message, broker === this.configBroker ? this.hameBroker : this.configBroker);
+    });
+  }
+
+  private forwardMessage(topic: string, message: Buffer<ArrayBufferLike>, targetClient: MqttClient): void {
+    const pattern = /hame_energy\/([^\/]+)\/(device|App)\/(.*)\/ctrl/;
+
+    const matches = topic.match(pattern);
+    if (matches) {
+      const type = matches[1];
+      const isDevice = matches[2] === 'device';
+      const identifier = matches[3];
+      const key = targetClient === this.configBroker ? 'device_id' : 'mac';
+      const device = this.config.devices.find(device => device[key] === identifier && device.type === type);
+      if (!device) {
+        console.warn(`Unknown device received (${type}): ${identifier}`);
+        return;
+      }
+      const inverseForwarding = device.inverse_forwarding ?? this.config.inverse_forwarding;
+      if (targetClient === this.configBroker) {
+        if (isDevice && !inverseForwarding) {
+          console.warn(`Ignoring remote device message for device without inverse forwarding: ${topic}`);
+          return;
+        } else if (!isDevice && inverseForwarding) {
+          console.warn(`Ignoring remote App message for device with direct forwarding: ${topic}`);
           return;
         }
-        console.log(`Subscribed to Hame broker topic: ${topicPattern}`);
-      });
-    });
-
-    // Handle messages from Hame broker
-    this.hameBroker.on('message', (topic: string, message: Buffer) => {
-      const pattern = this.config.inverse_forwarding ?
-        /hame_energy\/.*\/device\/(.*)\/ctrl/ :
-        /hame_energy\/.*\/App\/(.*)\/ctrl/;
-
-      const matches = topic.match(pattern);
-      if (matches) {
-        const identifier = matches[1];
-        const mappedId = this.devices.get(identifier);
-        
-        if (mappedId) {
-          const newTopic = topic.replace(identifier, mappedId);
-          this.configBroker.publish(newTopic, message);
-          console.log(`Forwarded message from Hame to config: ${topic} -> ${newTopic}`);
-        } else {
-          console.warn(`Unknown identifier received: ${identifier}`);
+      } else {
+        if (isDevice && inverseForwarding) {
+          console.warn(`Ignoring local device message for device with inverse forwarding: ${topic}`);
+          return;
+        } else if (!isDevice && !inverseForwarding) {
+          console.warn(`Ignoring local App message for device without direct forwarding: ${topic}`);
+          return;
         }
       }
-    });
+      const newTopic = topic.replace(identifier, device.mac);
+      const from = targetClient === this.configBroker ? 'Hame' : 'local';
+      const to = targetClient === this.configBroker ? 'local' : 'Hame';
+      targetClient.publish(newTopic, message);
+      console.log(`Forwarded message from ${from} to ${to}: ${topic} -> ${newTopic}`);
+    }
   }
 
   public close(): void {

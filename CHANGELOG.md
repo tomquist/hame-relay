@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.0] - 2025-02-26
+- Introduce device type configuration after Hame blocked subscription to wildcard topics. Make sure to update your configuration file with the new `device_type` field on each device.
+- Allow overriding forwarding direction per device through the `inverse_forwarding` field in the device configuration
+
 ## [1.0.4] - 2025-02-24
 - Fixed inverse forwarding in HomeAssistant Addon
 

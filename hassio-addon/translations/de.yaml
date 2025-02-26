@@ -1,0 +1,11 @@
+configuration:
+  mqtt_uri:
+    name: "MQTT Broker URL"
+    description: "URL des MQTT-Brokers, mit dem verbunden werden soll"
+  inverse_forwarding:
+    name: "Invertiere Weiterleitung"
+    description: "Wenn aktiviert, werden Nachrichten vom Cloud-MQTT-Broker an den lokalen MQTT-Broker weitergeleitet, anstatt umgekehrt"
+  devices:
+    name: "Geräte"
+    description: "Liste der Weiterleitungsgeräte"
+
