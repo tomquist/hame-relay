@@ -7,5 +7,5 @@ configuration:
     description: "Wenn aktiviert, werden Nachrichten vom Cloud-MQTT-Broker an den lokalen MQTT-Broker weitergeleitet, anstatt umgekehrt"
   devices:
     name: "Geräte"
-    description: "Liste der Weiterleitungsgeräte"
+    description: "Liste der Weiterleitungsgeräte. Die Informationen können hier abgerufen werden: https://eu.hamedata.com/app/AfterSales/login.html"
 
