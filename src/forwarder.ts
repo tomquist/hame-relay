@@ -56,15 +56,9 @@ function cleanAndValidate(config: Config): void {
 class MQTTForwarder {
   private configBroker!: mqtt.MqttClient;
   private hameBroker!: mqtt.MqttClient;
-  private config: Config;
   private readonly RECONNECT_DELAY = 2000;
 
-  constructor(configPath: string) {
-    // Load and parse config file
-    this.config = JSON.parse(readFileSync(configPath, 'utf8'));
-
-    cleanAndValidate(this.config);
-    
+  constructor(private readonly config: Config) {
     // Initialize brokers
     this.initializeBrokers();
   }
@@ -215,8 +209,9 @@ class MQTTForwarder {
       const type = matches[1];
       const isDevice = matches[2] === 'device';
       const identifier = matches[3];
-      const key = targetClient === this.configBroker ? 'device_id' : 'mac';
-      const device = this.config.devices.find(device => device[key] === identifier && device.type === type);
+      const sourceKey = targetClient === this.configBroker ? 'device_id' : 'mac';
+      const targetKey = targetClient === this.configBroker ? 'mac' : 'device_id';
+      const device = this.config.devices.find(device => device[sourceKey] === identifier && device.type === type);
       if (!device) {
         console.warn(`Unknown device received (${type}): ${identifier}`);
         return;
@@ -239,7 +234,7 @@ class MQTTForwarder {
           return;
         }
       }
-      const newTopic = topic.replace(identifier, device.mac);
+      const newTopic = topic.replace(identifier, device[targetKey]);
       const from = targetClient === this.configBroker ? 'Hame' : 'local';
       const to = targetClient === this.configBroker ? 'local' : 'Hame';
       targetClient.publish(newTopic, message);
@@ -253,11 +248,15 @@ class MQTTForwarder {
   }
 }
 
-// Entry point
-const configPath = process.env.CONFIG_PATH || './config/config.json';
-
 try {
-  const forwarder = new MQTTForwarder(configPath);
+  // Entry point
+  const configPath = process.env.CONFIG_PATH || './config/config.json';
+  // Load and parse config file
+  const config = JSON.parse(readFileSync(configPath, 'utf8'));
+
+  cleanAndValidate(config);
+
+  const forwarder = new MQTTForwarder(config);
 
   // Handle application shutdown
   process.on('SIGINT', () => {
