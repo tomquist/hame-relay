@@ -99,8 +99,8 @@ class MQTTForwarder {
     // Config broker event handlers
     this.configBroker.on('connect', () => {
       console.log('Connected to config broker');
-      this.setupConfigSubscriptions();
     });
+    this.setupConfigSubscriptions();
 
     // Set up error handlers
     this.configBroker.on('error', (error: Error) => {
@@ -119,8 +119,8 @@ class MQTTForwarder {
     // Hame broker event handlers
     this.hameBroker.on('connect', () => {
       console.log('Connected to Hame broker');
-      this.setupHameSubscriptions();
     });
+    this.setupHameSubscriptions();
 
     this.hameBroker.on('error', (error: Error) => {
       console.error('Hame broker error:', error);

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.1.2] - 2025-03-10
+- Fixed duplicate subscriptions after reconnect
+
 ## [1.1.1] - 2025-02-27
 - Fixed issue with non-inverse forwarding not working as expected
 
