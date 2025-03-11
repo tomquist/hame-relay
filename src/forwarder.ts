@@ -58,11 +58,60 @@ class MQTTForwarder {
   private hameBroker!: mqtt.MqttClient;
   private readonly RECONNECT_DELAY = 2000;
   private readonly MESSAGE_HISTORY_TIMEOUT = 1000; // 1 second timeout
+  private readonly RATE_LIMIT_INTERVAL = 59900; // Rate limit interval in milliseconds
   private appMessageHistory: Map<string, number> = new Map(); // Store when App messages were forwarded
+  private rateLimitedMessages: Map<string, number> = new Map(); // Store when rate-limited messages were last forwarded
+  private readonly RATE_LIMITED_CODES = [1, 13, 15, 16, 21, 26, 28, 30]; // Message codes to rate-limit (as numbers)
 
   constructor(private readonly config: Config) {
     // Initialize brokers
     this.initializeBrokers();
+  }
+
+  /**
+   * Checks if a message should be rate-limited based on its content
+   * @param message The message buffer to check
+   * @param deviceKey The unique device key
+   * @returns true if the message should be rate-limited, false otherwise
+   */
+  private shouldRateLimit(message: Buffer, deviceKey: string): boolean {
+    try {
+      const messageStr = message.toString();
+      
+      // Extract the code number from the message
+      const codeMatch = messageStr.match(/cd=0*(\d+)/);
+      if (!codeMatch) {
+        return false;
+      }
+      
+      // Convert the extracted code to a number
+      const messageCodeNum = parseInt(codeMatch[1], 10);
+      
+      // Check if the code is in our rate-limited list
+      if (!this.RATE_LIMITED_CODES.includes(messageCodeNum)) {
+        return false;
+      }
+      
+      // Create a unique key for this device and message type
+      const rateLimitKey = `${deviceKey}:${messageCodeNum}`;
+      
+      // Check if we've seen this message recently
+      const lastSentTime = this.rateLimitedMessages.get(rateLimitKey);
+      const currentTime = Date.now();
+      
+      if (lastSentTime && (currentTime - lastSentTime < this.RATE_LIMIT_INTERVAL)) {
+        const remainingTime = this.RATE_LIMIT_INTERVAL - (currentTime - lastSentTime);
+        console.log(`Devices configured with inverse_forwarding get rate limited. Rate limiting message with code cd=${messageCodeNum} for device ${deviceKey}. Please wait for ${remainingTime}ms before sending another message. Use inverse_forwarding=false to avoid rate limiting.`);
+        return true;
+      }
+      
+      // Update the last sent time for this message type
+      this.rateLimitedMessages.set(rateLimitKey, currentTime);
+      return false;
+    } catch (error) {
+      console.error('Error in rate limiting logic:', error);
+      return false; // On error, don't rate limit
+    }
   }
 
   private loadCertificates(): { ca: Buffer; cert: Buffer; key: Buffer } {
@@ -259,6 +308,11 @@ class MQTTForwarder {
       } else {
         // This is an App message, record it in history
         this.appMessageHistory.set(deviceKey, Date.now());
+        
+        // Apply rate limiting for messages going from local to Hame
+        if (targetClient === this.hameBroker && this.shouldRateLimit(message, deviceKey)) {
+          return;
+        }
       }
       
       const newTopic = topic.replace(identifier, device[targetKey]);
@@ -277,9 +331,17 @@ class MQTTForwarder {
   // Clean up old message history entries periodically
   private cleanupMessageHistory(): void {
     const now = Date.now();
+    // Clean up app message history
     for (const [key, timestamp] of this.appMessageHistory.entries()) {
       if (now - timestamp > this.MESSAGE_HISTORY_TIMEOUT * 2) {
         this.appMessageHistory.delete(key);
+      }
+    }
+    
+    // Clean up rate-limited message history
+    for (const [key, timestamp] of this.rateLimitedMessages.entries()) {
+      if (now - timestamp > this.RATE_LIMIT_INTERVAL * 2) {
+        this.rateLimitedMessages.delete(key);
       }
     }
   }

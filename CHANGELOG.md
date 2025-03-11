@@ -2,6 +2,7 @@
 
 ## [1.1.3]
 - Don't forward messages to Cloud when they've not previously been requested from the Cloud to reduce outbound traffic
+- Rate limit outbound requests to Cloud to reduce Cloud broker traffic
 
 ## [1.1.2] - 2025-03-10
 - Fixed duplicate subscriptions after reconnect
