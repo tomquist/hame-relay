@@ -57,6 +57,8 @@ class MQTTForwarder {
   private configBroker!: mqtt.MqttClient;
   private hameBroker!: mqtt.MqttClient;
   private readonly RECONNECT_DELAY = 2000;
+  private readonly MESSAGE_HISTORY_TIMEOUT = 1000; // 1 second timeout
+  private appMessageHistory: Map<string, number> = new Map(); // Store when App messages were forwarded
 
   constructor(private readonly config: Config) {
     // Initialize brokers
@@ -163,6 +165,9 @@ class MQTTForwarder {
         console.warn('Hame broker connection lost, attempting to reconnect...');
         this.handleReconnect('hame');
       }
+      
+      // Clean up old message history entries
+      this.cleanupMessageHistory();
     }, 30000); // Check every 30 seconds
   }
 
@@ -201,7 +206,7 @@ class MQTTForwarder {
     });
   }
 
-  private forwardMessage(topic: string, message: Buffer<ArrayBufferLike>, targetClient: MqttClient): void {
+  private forwardMessage(topic: string, message: Buffer, targetClient: MqttClient): void {
     const pattern = /hame_energy\/([^\/]+)\/(device|App)\/(.*)\/ctrl/;
 
     const matches = topic.match(pattern);
@@ -217,6 +222,10 @@ class MQTTForwarder {
         return;
       }
       const inverseForwarding = device.inverse_forwarding ?? this.config.inverse_forwarding;
+      
+      // Create a unique key for this device
+      const deviceKey = `${device.type}:${device.device_id}:${device.mac}`;
+      
       if (targetClient === this.configBroker) {
         if (isDevice && !inverseForwarding) {
           console.warn(`Ignoring remote device message for device without inverse forwarding: ${topic}`);
@@ -234,6 +243,24 @@ class MQTTForwarder {
           return;
         }
       }
+
+      if (isDevice) {
+        // Check if we previously forwarded an App message for this device
+        const lastAppMessageTime = this.appMessageHistory.get(deviceKey);
+        const currentTime = Date.now();
+
+        if (!lastAppMessageTime || (currentTime - lastAppMessageTime > this.MESSAGE_HISTORY_TIMEOUT)) {
+          console.warn(`Skipping device message forwarding to Hame for ${deviceKey}: no recent App message was forwarded`);
+          return;
+        } else if (currentTime - lastAppMessageTime > this.MESSAGE_HISTORY_TIMEOUT) {
+          console.warn(`Skipping device message forwarding to Hame for ${deviceKey}: recent App message was forwarded`);
+        }
+        this.appMessageHistory.delete(deviceKey);
+      } else {
+        // This is an App message, record it in history
+        this.appMessageHistory.set(deviceKey, Date.now());
+      }
+      
       const newTopic = topic.replace(identifier, device[targetKey]);
       const from = targetClient === this.configBroker ? 'Hame' : 'local';
       const to = targetClient === this.configBroker ? 'local' : 'Hame';
@@ -245,6 +272,16 @@ class MQTTForwarder {
   public close(): void {
     this.configBroker.end();
     this.hameBroker.end();
+  }
+  
+  // Clean up old message history entries periodically
+  private cleanupMessageHistory(): void {
+    const now = Date.now();
+    for (const [key, timestamp] of this.appMessageHistory.entries()) {
+      if (now - timestamp > this.MESSAGE_HISTORY_TIMEOUT * 2) {
+        this.appMessageHistory.delete(key);
+      }
+    }
   }
 }
 
