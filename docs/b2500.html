@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE Device Configuration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .success {
+            color: #27ae60;
+        }
+        
+        .error {
+            color: #e74c3c;
+        }
+        
+        .info-container {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            row-gap: 10px;
+            margin-top: 20px;
+        }
+        
+        label {
+            font-weight: bold;
+        }
+        
+        input[type="text"], input[type="number"], input[type="password"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .mqtt-form {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            align-items: center;
+            margin-top: 20px;
+        }
+        
+        .device-info {
+            background-color: #eaf2f8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        
+        .buttons-container {
+            margin-top: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .logs {
+            margin-top: 20px;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BLE Device Configuration</h1>
+        
+        <div class="info-note" style="background-color: #ffeeba; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            <strong>Disclaimer:</strong> Use this application at your own risk. The developers are not responsible for any issues arising from its use.
+
+        </div>
+        
+        <div>
+            <button id="connect-button">Connect to Device</button>
+            <button id="disconnect-button" disabled>Disconnect</button>
+            <div id="connection-status" class="status">Not connected</div>
+        </div>
+        
+        <div id="device-info-container" class="hidden">
+            <h2>Device Information</h2>
+            <button id="get-info-button">Get Device Info</button>
+            
+            <div id="device-info" class="device-info hidden">
+                <div class="info-container">
+                    <div>Type:</div>
+                    <div id="device-type">-</div>
+                    <div>ID:</div>
+                    <div id="device-id">-</div>
+                    <div>MAC:</div>
+                    <div id="device-mac">-</div>
+                    <div>Status:</div>
+                    <div id="info-status">Not fetched</div>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    Last updated: <span id="last-update-time">Never</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="mqtt-container" class="hidden">
+            <h2>MQTT Configuration</h2>
+            
+            <form id="mqtt-form" class="mqtt-form">
+                <label for="ssl">SSL Enabled:</label>
+                <input type="checkbox" id="ssl" name="ssl">
+                
+                <label for="host">Host:</label>
+                <input type="text" id="host" name="host" placeholder="mqtt.example.com" required>
+                
+                <label for="port">Port:</label>
+                <input type="number" id="port" name="port" placeholder="1883" required>
+                
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" placeholder="username">
+                
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" placeholder="password">
+            </form>
+            
+            <div class="buttons-container">
+                <button id="set-mqtt-button">Set MQTT Config</button>
+                <button id="reset-mqtt-button">Reset MQTT Config</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Debug Logs</h2>
+        <div id="logs" class="logs"></div>
+    </div>
+
+    <script>
+        // BLE Service and Characteristic UUIDs
+        const SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
+        const COMMAND_CHARACTERISTIC_UUID = '0000ff01-0000-1000-8000-00805f9b34fb';
+        const STATUS_CHARACTERISTIC_UUID = '0000ff02-0000-1000-8000-00805f9b34fb';
+        
+        // Command bytes
+        const START_BYTE = 0x73;
+        const IDENTIFIER_BYTE = 0x23;
+        const DEVICE_INFO_COMMAND = 0x04;
+        const SET_MQTT_COMMAND = 0x20;
+        const RESET_MQTT_COMMAND = 0x21;
+        
+        // Global variables
+        let bluetoothDevice;
+        let commandCharacteristic;
+        let statusCharacteristic;
+        
+        // DOM elements
+        const connectButton = document.getElementById('connect-button');
+        const disconnectButton = document.getElementById('disconnect-button');
+        const connectionStatus = document.getElementById('connection-status');
+        const deviceInfoContainer = document.getElementById('device-info-container');
+        const getInfoButton = document.getElementById('get-info-button');
+        const deviceInfo = document.getElementById('device-info');
+        const deviceType = document.getElementById('device-type');
+        const deviceId = document.getElementById('device-id');
+        const deviceMac = document.getElementById('device-mac');
+        const mqttContainer = document.getElementById('mqtt-container');
+        const mqttForm = document.getElementById('mqtt-form');
+        const setMqttButton = document.getElementById('set-mqtt-button');
+        const resetMqttButton = document.getElementById('reset-mqtt-button');
+        const logsElement = document.getElementById('logs');
+        
+        // Add a checkbox for auto-reconnect
+        const autoReconnectCheckbox = document.createElement('input');
+        autoReconnectCheckbox.type = 'checkbox';
+        autoReconnectCheckbox.id = 'auto-reconnect';
+        autoReconnectCheckbox.checked = true;
+        
+        const autoReconnectLabel = document.createElement('label');
+        autoReconnectLabel.htmlFor = 'auto-reconnect';
+        autoReconnectLabel.textContent = 'Auto-reconnect on disconnect';
+        autoReconnectLabel.style.marginLeft = '10px';
+        
+        // Insert auto-reconnect elements after the connection status
+        const connStatusParent = connectionStatus.parentNode;
+        connStatusParent.appendChild(document.createElement('br'));
+        connStatusParent.appendChild(autoReconnectCheckbox);
+        connStatusParent.appendChild(autoReconnectLabel);
+        
+        // Log function
+        function log(message) {
+            console.log(message);
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            logsElement.appendChild(logEntry);
+            logsElement.scrollTop = logsElement.scrollHeight;
+        }
+        
+        // Helper function to convert string to byte array
+        function stringToBytes(str) {
+            const encoder = new TextEncoder();
+            return encoder.encode(str);
+        }
+        
+        // Helper function to convert byte array to string
+        function bytesToString(bytes) {
+            const decoder = new TextDecoder('utf-8');
+            return decoder.decode(bytes);
+        }
+        
+        // Calculate checksum (XOR of all bytes)
+        function calculateChecksum(bytes) {
+            return bytes.reduce((xor, byte) => xor ^ byte, 0);
+        }
+        
+        // Connect to BLE device
+        async function connectToDevice() {
+            try {
+                // Get the service UUID (now hardcoded)
+                const currentServiceUuid = SERVICE_UUID;
+                
+                log('Requesting Bluetooth device...');
+                log(`Using Service UUID: ${currentServiceUuid}`);
+                
+                // Store for later use
+                window.currentServiceUuid = currentServiceUuid;
+                
+                // Use name prefix filter directly without prompting
+                log('Using name prefix filter: "HM_B2500"');
+                
+                // Apply the name prefix filter
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { namePrefix: 'HM_B2500' }
+                    ],
+                    // Include our service as an optional service
+                    optionalServices: [currentServiceUuid]
+                });
+                
+                log(`Selected device ID: ${bluetoothDevice.id}`);
+                log(`Selected device name: ${bluetoothDevice.name || 'unnamed device'}`);
+                
+                // Check for GATT connection
+                if (!bluetoothDevice.gatt) {
+                    throw new Error('Device does not support GATT');
+                }
+                
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                
+                log('Connecting to GATT server...');
+                const server = await bluetoothDevice.gatt.connect();
+                
+                log('Getting primary service...');
+                log(`Requesting service: ${SERVICE_UUID}`);
+                
+                try {
+                    const service = await server.getPrimaryService(SERVICE_UUID);
+                    log('Service found!');
+                } catch (serviceError) {
+                    log(`Error finding service: ${serviceError}`);
+                    
+                    // Offer to show all available services
+                    const showAllServices = confirm('Service not found. Would you like to see all available services?');
+                    
+                    if (showAllServices) {
+                        try {
+                            log('Discovering all services...');
+                            const services = await server.getPrimaryServices();
+                            log(`Found ${services.length} services:`);
+                            
+                            services.forEach(async (service, index) => {
+                                log(`Service ${index + 1}: ${service.uuid}`);
+                                
+                                try {
+                                    // Try to get characteristics for each service
+                                    const characteristics = await service.getCharacteristics();
+                                    log(`Service ${index + 1} has ${characteristics.length} characteristics:`);
+                                    
+                                    characteristics.forEach((characteristic, charIndex) => {
+                                        log(`- Characteristic ${charIndex + 1}: ${characteristic.uuid}`);
+                                    });
+                                } catch (error) {
+                                    log(`Could not read characteristics for service ${index + 1}: ${error}`);
+                                }
+                            });
+                            
+                            alert('Check the debug logs for a list of all available services and characteristics.');
+                            throw new Error('Required service not found. See logs for available services.');
+                        } catch (discoveryError) {
+                            log(`Error discovering services: ${discoveryError}`);
+                            throw discoveryError;
+                        }
+                    } else {
+                        throw serviceError;
+                    }
+                }
+                
+                // Try again with the service we now know exists
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                
+                log('Getting command characteristic...');
+                commandCharacteristic = await service.getCharacteristic(COMMAND_CHARACTERISTIC_UUID);
+                
+                log('Getting status characteristic...');
+                statusCharacteristic = await service.getCharacteristic(STATUS_CHARACTERISTIC_UUID);
+                
+                // Update UI
+                connectButton.disabled = true;
+                disconnectButton.disabled = false;
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.classList.add('success');
+                deviceInfoContainer.classList.remove('hidden');
+                mqttContainer.classList.remove('hidden');
+                
+                log('Connected successfully');
+                
+                // Automatically fetch device info after a short delay
+                setTimeout(() => {
+                    log('Automatically fetching device information...');
+                    getDeviceInformation();
+                }, 1000);
+            } catch (error) {
+                log(`Connection error: ${error}`);
+                connectionStatus.textContent = `Connection failed: ${error}`;
+                connectionStatus.classList.add('error');
+            }
+        }
+        
+        // Disconnect from BLE device
+        function disconnectFromDevice() {
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                bluetoothDevice.gatt.disconnect();
+            } else {
+                onDisconnected();
+            }
+        }
+        
+        // Handle disconnection
+        function onDisconnected() {
+            log('Device disconnected');
+            
+            // Update UI
+            connectButton.disabled = false;
+            disconnectButton.disabled = true;
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.classList.remove('success');
+            deviceInfoContainer.classList.add('hidden');
+            deviceInfo.classList.add('hidden');
+            mqttContainer.classList.add('hidden');
+            
+            // Reset device info
+            deviceType.textContent = '-';
+            deviceId.textContent = '-';
+            deviceMac.textContent = '-';
+            
+            // Save current device ID for potential reconnection
+            const lastDeviceId = bluetoothDevice ? bluetoothDevice.id : null;
+            
+            // Clear global variables
+            commandCharacteristic = null;
+            statusCharacteristic = null;
+            
+            // Check for auto-reconnect
+            const autoReconnect = document.getElementById('auto-reconnect').checked;
+            if (autoReconnect && lastDeviceId && bluetoothDevice) {
+                log('Auto-reconnect is enabled. Attempting to reconnect...');
+                
+                // Keep a reference to the device
+                const deviceToReconnect = bluetoothDevice;
+                bluetoothDevice = null;
+                
+                // Try to reconnect after a short delay
+                setTimeout(async () => {
+                    try {
+                        log(`Reconnecting to device ID: ${lastDeviceId}`);
+                        
+                        // Connect to GATT server
+                        log('Connecting to GATT server...');
+                        const server = await deviceToReconnect.gatt.connect();
+                        
+                        bluetoothDevice = deviceToReconnect;
+                        
+                        // Continue with normal connection process
+                        log('Getting primary service...');
+                        log(`Requesting service: ${SERVICE_UUID}`);
+                        const service = await server.getPrimaryService(SERVICE_UUID);
+                        
+                        log('Getting command characteristic...');
+                        commandCharacteristic = await service.getCharacteristic(COMMAND_CHARACTERISTIC_UUID);
+                        
+                        log('Getting status characteristic...');
+                        statusCharacteristic = await service.getCharacteristic(STATUS_CHARACTERISTIC_UUID);
+                        
+                        // Update UI
+                        connectButton.disabled = true;
+                        disconnectButton.disabled = false;
+                        connectionStatus.textContent = 'Reconnected';
+                        connectionStatus.classList.add('success');
+                        deviceInfoContainer.classList.remove('hidden');
+                        mqttContainer.classList.remove('hidden');
+                        
+                        log('Reconnected successfully');
+                        
+                        // Automatically fetch device info
+                        setTimeout(() => {
+                            log('Automatically fetching device information after reconnect...');
+                            getDeviceInformation();
+                        }, 1000);
+                    } catch (error) {
+                        log(`Reconnection failed: ${error}`);
+                        bluetoothDevice = null;
+                    }
+                }, 2000);
+            } else {
+                bluetoothDevice = null;
+            }
+        }
+        
+        // Send command to get device information - SIMPLIFIED TWO-PHASE APPROACH
+        async function getDeviceInformation() {
+            if (!commandCharacteristic || !statusCharacteristic) {
+                log('Cannot get device information: device not connected');
+                return;
+            }
+            
+            log('Requesting device information...');
+            
+            // Disable the Get Info button during the operation
+            const getInfoButton = document.getElementById('get-info-button');
+            getInfoButton.disabled = true;
+            getInfoButton.textContent = 'Getting Info...';
+            
+            // Update status
+            const infoStatus = document.getElementById('info-status');
+            infoStatus.textContent = 'Fetching...';
+            infoStatus.style.color = '#ff9900';
+            
+            try {
+                // TWO-PHASE APPROACH:
+                // This device consistently needs two commands, with the second one being the one that works
+                log('Using two-phase approach for this device');
+                
+                // FIRST PHASE - EXPECTED TO FAIL:
+                log('Phase 1: Sending initial command (expected to fail)');
+                
+                // Create and send the command
+                const phase1Command = [START_BYTE, 0, IDENTIFIER_BYTE, DEVICE_INFO_COMMAND];
+                phase1Command[1] = phase1Command.length + 1; // +1 for checksum
+                phase1Command.push(calculateChecksum(phase1Command));
+                
+                log(`Sending phase 1 command: ${phase1Command.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+                
+                // Set up notification for phase 1 (with short timeout)
+                let phase1Success = false;
+                
+                try {
+                    // Only wait briefly - we expect this to fail
+                    await new Promise((resolve, reject) => {
+                        // Set up notification listener
+                        const handler = (event) => {
+                            phase1Success = true;
+                            statusCharacteristic.removeEventListener('characteristicvaluechanged', handler);
+                            resolve('Unexpected phase 1 success');
+                        };
+                        
+                        // Add event listener
+                        statusCharacteristic.addEventListener('characteristicvaluechanged', handler);
+                        
+                        // Enable notifications
+                        statusCharacteristic.startNotifications()
+                            .then(() => {
+                                // Send command
+                                return commandCharacteristic.writeValue(new Uint8Array(phase1Command));
+                            })
+                            .then(() => {
+                                log('Phase 1 command sent and notifications started');
+                                
+                                // Add short timeout
+                                setTimeout(() => {
+                                    if (!phase1Success) {
+                                        statusCharacteristic.removeEventListener('characteristicvaluechanged', handler);
+                                        reject(new Error('Phase 1 timeout (expected)'));
+                                    }
+                                }, 2000); // Short 2-second timeout
+                            })
+                            .catch(err => reject(err));
+                    });
+                    
+                    log('Phase 1 unexpectedly succeeded - device may have changed behavior');
+                } catch (phase1Error) {
+                    // This is expected - phase 1 should time out
+                    log(`Phase 1 completed with expected timeout: ${phase1Error}`);
+                }
+                
+                // SECOND PHASE - EXPECTED TO SUCCEED:
+                log('Phase 2: Sending follow-up command (expected to succeed)');
+                
+                // Create the same command again for phase 2
+                const phase2Command = [START_BYTE, 0, IDENTIFIER_BYTE, DEVICE_INFO_COMMAND];
+                phase2Command[1] = phase2Command.length + 1; // +1 for checksum
+                phase2Command.push(calculateChecksum(phase2Command));
+                
+                log(`Sending phase 2 command: ${phase2Command.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+                
+                // Wait for response from phase 2
+                const responseData = await new Promise((resolve, reject) => {
+                    // Set up notification listener
+                    const handler = (event) => {
+                        const value = event.target.value;
+                        const response = bytesToString(new Uint8Array(value.buffer));
+                        log(`Received phase 2 response: ${response}`);
+                        statusCharacteristic.removeEventListener('characteristicvaluechanged', handler);
+                        resolve(response);
+                    };
+                    
+                    // Add event listener
+                    statusCharacteristic.addEventListener('characteristicvaluechanged', handler);
+                    
+                    // Enable notifications and send command
+                    statusCharacteristic.startNotifications()
+                        .then(() => {
+                            log('Phase 2 notifications started');
+                            return commandCharacteristic.writeValue(new Uint8Array(phase2Command));
+                        })
+                        .then(() => {
+                            log('Phase 2 command sent');
+                        })
+                        .catch(err => {
+                            statusCharacteristic.removeEventListener('characteristicvaluechanged', handler);
+                            reject(err);
+                        });
+                    
+                    // Set timeout for phase 2
+                    setTimeout(() => {
+                        statusCharacteristic.removeEventListener('characteristicvaluechanged', handler);
+                        reject(new Error('Phase 2 timeout - device not responding'));
+                    }, 10000); // 10-second timeout for phase 2
+                });
+                
+                // If we get here, we have a response
+                
+                // Parse the response
+                log(`Parsing response: ${responseData}`);
+                
+                // Clean the response (remove s<# prefix and control characters)
+                const cleanedResponse = responseData.slice(4, -1);
+                log(`Cleaned response: ${cleanedResponse}`);
+                
+                // Parse into key-value pairs
+                const parts = cleanedResponse.split(',');
+                const parsedInfo = {};
+                
+                parts.forEach(part => {
+                    const keyValue = part.trim().split('=');
+                    if (keyValue.length === 2) {
+                        const key = keyValue[0].trim();
+                        const value = keyValue[1].trim();
+                        if (key && value) {
+                            parsedInfo[key] = value;
+                        }
+                    }
+                });
+                
+                log(`Parsed info: ${JSON.stringify(parsedInfo)}`);
+                
+                // Update UI
+                deviceType.textContent = parsedInfo.type || 'Unknown';
+                deviceId.textContent = parsedInfo.id || 'Unknown';
+                deviceMac.textContent = parsedInfo.mac || 'Unknown';
+                deviceInfo.classList.remove('hidden');
+                
+                // Update status
+                document.getElementById('info-status').textContent = 'Success';
+                document.getElementById('info-status').style.color = 'green';
+                
+                // Update last update time
+                const now = new Date();
+                document.getElementById('last-update-time').textContent = now.toLocaleTimeString();
+                
+                log('Device information retrieved successfully');
+            } catch (error) {
+                log(`Error getting device information: ${error}`);
+                document.getElementById('info-status').textContent = 'Failed';
+                document.getElementById('info-status').style.color = 'red';
+                alert(`Failed to get device information: ${error}`);
+            } finally {
+                // Re-enable the button
+                getInfoButton.disabled = false;
+                getInfoButton.textContent = 'Get Device Info';
+            }
+        }
+        
+        // Send command to set MQTT configuration
+        async function setMqttConfig() {
+            try {
+                if (!commandCharacteristic) {
+                    throw new Error('Device not connected');
+                }
+                
+                // Get form values
+                const formData = new FormData(mqttForm);
+                const sslEnabled = document.getElementById('ssl').checked ? '1' : '0';
+                const host = document.getElementById('host').value;
+                const port = document.getElementById('port').value;
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                // Validate required fields
+                if (!host || !port) {
+                    throw new Error('Host and port are required');
+                }
+                
+                // Create MQTT config string
+                const configStr = `${sslEnabled}<.,.>${host}<.,.>${port}<.,.>${username}<.,.>${password}<.,.>`;
+                log(`MQTT Config String: ${configStr}`);
+                
+                // Convert config string to bytes
+                const configBytes = stringToBytes(configStr);
+                
+                // Prepare command
+                const commandPrefix = [START_BYTE, 0, IDENTIFIER_BYTE, SET_MQTT_COMMAND];
+                const command = new Uint8Array(commandPrefix.length + configBytes.length + 1); // +1 for checksum
+                
+                // Copy command prefix
+                command.set(commandPrefix);
+                
+                // Copy config bytes
+                command.set(configBytes, commandPrefix.length);
+                
+                // Set length
+                command[1] = command.length;
+                
+                // Calculate and set checksum
+                const checksumIndex = command.length - 1;
+                let checksum = 0;
+                for (let i = 0; i < checksumIndex; i++) {
+                    checksum ^= command[i];
+                }
+                command[checksumIndex] = checksum;
+                
+                log(`Sending MQTT config command (${command.length} bytes): ${Array.from(command).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+                
+                // Add a confirmation
+                if (!confirm(`Are you sure you want to configure MQTT with the following settings?\n\nHost: ${host}\nPort: ${port}\nSSL: ${sslEnabled === '1' ? 'Enabled' : 'Disabled'}\nUsername: ${username ? '(set)' : '(not set)'}\nPassword: ${password ? '(set)' : '(not set)'}`)) {
+                    log('Set MQTT operation cancelled by user');
+                    return;
+                }
+                
+                // Set a visual feedback that the command is being sent
+                setMqttButton.disabled = true;
+                setMqttButton.textContent = 'Sending...';
+                
+                try {
+                    // Send command
+                    await commandCharacteristic.writeValue(command);
+                    
+                    log('MQTT configuration sent successfully');
+                    alert('MQTT configuration set successfully');
+                } finally {
+                    // Reset button state
+                    setMqttButton.disabled = false;
+                    setMqttButton.textContent = 'Set MQTT Config';
+                }
+            } catch (error) {
+                log(`Error setting MQTT config: ${error}`);
+                alert(`Failed to set MQTT configuration: ${error}`);
+            }
+        }
+        
+        // Send command to reset MQTT configuration
+        async function resetMqttConfig() {
+            try {
+                if (!commandCharacteristic) {
+                    throw new Error('Device not connected');
+                }
+                
+                log('Resetting MQTT configuration...');
+                
+                // Prepare command
+                const command = [START_BYTE, 0, IDENTIFIER_BYTE, RESET_MQTT_COMMAND];
+                command[1] = command.length + 1; // +1 for checksum
+                command.push(calculateChecksum(command));
+                
+                log(`Sending reset MQTT command: ${command.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+                
+                // Add a confirmation
+                if (!confirm('Are you sure you want to reset the MQTT configuration?')) {
+                    log('Reset MQTT operation cancelled by user');
+                    return;
+                }
+                
+                // Send command
+                await commandCharacteristic.writeValue(new Uint8Array(command));
+                
+                log('MQTT configuration reset successfully');
+                alert('MQTT configuration reset successfully');
+            } catch (error) {
+                log(`Error resetting MQTT config: ${error}`);
+                alert(`Failed to reset MQTT configuration: ${error}`);
+            }
+        }
+        
+        // Function to analyze a connected device and provide filtering options
+        // This function was used for debugging but is now removed since we're using a hardcoded filter
+
+        // Event listeners
+        connectButton.addEventListener('click', connectToDevice);
+        disconnectButton.addEventListener('click', disconnectFromDevice);
+        getInfoButton.addEventListener('click', getDeviceInformation);
+        setMqttButton.addEventListener('click', setMqttConfig);
+        resetMqttButton.addEventListener('click', resetMqttConfig);
+        
+        // Check if Web Bluetooth API is supported
+        if (!navigator.bluetooth) {
+            log('Web Bluetooth API is not supported in this browser');
+            alert('Web Bluetooth is not supported in this browser. Please use Chrome, Edge, or Opera.');
+            connectButton.disabled = true;
+        } else {
+            log('Web Bluetooth API is supported');
+            
+            // Add information about device detection
+            log('Tips for device detection:');
+            log('1. Make sure your device is powered on and in range');
+            log('2. Ensure the device is advertising');
+            log('3. Try restarting your Bluetooth adapter if needed');
+            
+            // Display browser information
+            log(`Browser: ${navigator.userAgent}`);
+        }
+    </script>
+</body>
+</html>
