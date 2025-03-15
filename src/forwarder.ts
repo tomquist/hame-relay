@@ -2,6 +2,8 @@ import * as mqtt from 'mqtt';
 import {MqttClient} from 'mqtt';
 import {readFileSync} from 'fs';
 import {join} from 'path';
+import {createHash} from 'crypto';
+import fetch from 'node-fetch';
 
 const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 type DeviceGen = typeof deviceGenerations[number];
@@ -15,12 +17,83 @@ interface Device {
   mac: string;
   type: DeviceTypeIdentifier;
   inverse_forwarding?: boolean;
+  name?: string;
 }
 
 interface Config {
   broker_url: string;
   devices: Device[];
   inverse_forwarding?: boolean;
+  username?: string;
+  password?: string;
+}
+
+interface HameApiResponse {
+  code: string;
+  msg: string;
+  token?: string;
+  data: Array<{
+    devid: string;
+    name: string;
+    sn: string | null;
+    mac: string;
+    type: string;
+    access: string;
+    bluetooth_name: string;
+  }> | string;
+}
+
+/**
+ * Fetches device information from the Hame API
+ * @param username Email address used for the Hame account
+ * @param password Plain text password
+ * @returns Promise resolving to device information array
+ */
+async function fetchDevicesFromApi(username: string, password: string): Promise<Device[]> {
+  try {
+    // Hash password with MD5
+    const hashedPassword = createHash('md5').update(password).digest('hex');
+    
+    const url = new URL('https://eu.hamedata.com/app/Solar/v2_get_device.php');
+    url.searchParams.append('mailbox', username);
+    url.searchParams.append('pwd', hashedPassword);
+    
+    console.log(`Fetching device information for ${username}...`);
+    const response = await fetch(url.toString());
+    const data: HameApiResponse = await response.json();
+    
+    if (data.code === '2') {
+      console.log('Successfully fetched device information from API');
+      if (Array.isArray(data.data)) {
+        return data.data.map(device => {
+          // Map the API response to our Device interface
+          // Try to determine the device type based on the API response
+          let deviceType = device.type as DeviceTypeIdentifier;
+          if (!knownDeviceTypes.includes(deviceType)) {
+            console.warn(`Unknown device type from API: ${device.type}. Using as-is.`);
+          }
+          
+          return {
+            device_id: device.devid,
+            mac: device.mac,
+            type: deviceType,
+            name: device.name
+          };
+        });
+      } else {
+        throw new Error('Unexpected API response format: data is not an array');
+      }
+    } else if (data.code === '3') {
+      throw new Error('Email not registered with Hame');
+    } else if (data.code === '4') {
+      throw new Error('Incorrect password');
+    } else {
+      throw new Error(`Unknown API response code: ${data.code} - ${data.msg}`);
+    }
+  } catch (error) {
+    console.error('Error fetching devices from API:', error);
+    throw error;
+  }
 }
 
 function cleanAndValidate(config: Config): void {
@@ -347,23 +420,95 @@ class MQTTForwarder {
   }
 }
 
-try {
-  // Entry point
-  const configPath = process.env.CONFIG_PATH || './config/config.json';
-  // Load and parse config file
-  const config = JSON.parse(readFileSync(configPath, 'utf8'));
+async function start() {
+  try {
+    // Entry point
+    const configPath = process.env.CONFIG_PATH || './config/config.json';
+    // Load and parse config file
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Config;
 
-  cleanAndValidate(config);
+    // Initialize devices array if it doesn't exist
+    if (!config.devices) {
+      config.devices = [];
+    }
 
-  const forwarder = new MQTTForwarder(config);
+    // Create a map of user-configured devices for quick lookup and merging
+    const userDevicesMap = new Map<string, Device>();
+    config.devices.forEach(device => {
+      if (device.device_id) {
+        userDevicesMap.set(device.device_id, device);
+      }
+    });
+    
+    // If username and password are provided, fetch device information from API
+    if (config.username && config.password) {
+      try {
+        console.log('Credentials found in config, attempting to fetch devices from API...');
+        const apiDevices = await fetchDevicesFromApi(config.username, config.password);
+        
+        if (apiDevices.length > 0) {
+          console.log(`Retrieved ${apiDevices.length} devices from API`);
+          
+          // Process each API device
+          for (const apiDevice of apiDevices) {
+            if (userDevicesMap.has(apiDevice.device_id)) {
+              // Device already exists in user config - merge only missing information
+              const userDevice = userDevicesMap.get(apiDevice.device_id)!;
+              
+              // Only update fields if they're missing in user config
+              if (!userDevice.type) {
+                userDevice.type = apiDevice.type;
+              }
+              if (!userDevice.name) {
+                userDevice.name = apiDevice.name;
+              }
+              if (!userDevice.mac) {
+                userDevice.mac = apiDevice.mac;
+              }
+            } else {
+              // New device from API - add to config
+              config.devices.push(apiDevice);
+              userDevicesMap.set(apiDevice.device_id, apiDevice);
+            }
+          }
+          
+          console.log(`Config now contains ${config.devices.length} devices (${userDevicesMap.size} unique)`);
+        }
+      } catch (apiError) {
+        console.error('Failed to fetch devices from API:', apiError);
+        console.warn('Continuing with devices from config file only');
+      }
+    }
 
-  // Handle application shutdown
-  process.on('SIGINT', () => {
-    console.log('Shutting down...');
-    forwarder.close();
-    process.exit(0);
-  });
-} catch (error: unknown) {
-  console.error('Failed to start MQTT forwarder:', error);
-  process.exit(1);
+    cleanAndValidate(config);
+
+    // Log the list of devices
+    console.log(`\nConfigured devices: ${config.devices.length} total`);
+    console.log('------------------');
+    config.devices.forEach((device, index) => {
+      console.log(`Device ${index + 1}:`);
+      console.log(`  Name: ${device.name || 'Not specified'}`);
+      console.log(`  Device ID: ${device.device_id}`);
+      console.log(`  MAC: ${device.mac}`);
+      console.log(`  Type: ${device.type}`);
+      console.log(`  Inverse Forwarding: ${device.inverse_forwarding ?? config.inverse_forwarding ?? false}`);
+      console.log('------------------');
+    });
+    console.log('');
+
+    const forwarder = new MQTTForwarder(config);
+
+    // Handle application shutdown
+    process.on('SIGINT', () => {
+      console.log('Shutting down...');
+      forwarder.close();
+      process.exit(0);
+    });
+  } catch (error: unknown) {
+    console.error('Failed to start MQTT forwarder:', error);
+    process.exit(1);
+  }
 }
+
+// Start the application
+start();

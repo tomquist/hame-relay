@@ -5,6 +5,12 @@ configuration:
   inverse_forwarding:
     name: "Invertiere Weiterleitung"
     description: "Wenn aktiviert, werden Nachrichten vom Cloud-MQTT-Broker an den lokalen MQTT-Broker weitergeleitet, anstatt umgekehrt"
+  username:
+    name: "Hame Benutzername"
+    description: "E-Mail-Adresse für das Hame Energy Management System. Bei Angabe zusammen mit dem Passwort können Geräteinformationen automatisch abgerufen werden."
+  password:
+    name: "Hame Passwort"
+    description: "Passwort für das Hame Energy Management System"
   devices:
     name: "Geräte"
     description: "Liste der Weiterleitungsgeräte. Die Informationen können hier abgerufen werden: https://eu.hamedata.com/app/AfterSales/login.html"
