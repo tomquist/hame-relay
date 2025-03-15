@@ -2,6 +2,7 @@
 
 ## [1.1.4]
 - Added ability to fetch device information from the Hame API using username/password
+- Added message loop prevention
 
 ## [1.1.3]
 - Don't forward messages to Cloud when they've not previously been requested from the Cloud to reduce outbound traffic

@@ -132,8 +132,11 @@ class MQTTForwarder {
   private readonly RECONNECT_DELAY = 2000;
   private readonly MESSAGE_HISTORY_TIMEOUT = 1000; // 1 second timeout
   private readonly RATE_LIMIT_INTERVAL = 59900; // Rate limit interval in milliseconds
+  private readonly MESSAGE_CACHE_TIMEOUT = 1000; // 1 second timeout for message loop prevention
+  private readonly INSTANCE_ID = createHash('md5').update(`${Date.now()}-${Math.random()}`).digest('hex').substring(0, 8); // Unique ID for this instance
   private appMessageHistory: Map<string, number> = new Map(); // Store when App messages were forwarded
   private rateLimitedMessages: Map<string, number> = new Map(); // Store when rate-limited messages were last forwarded
+  private processedMessages: Map<string, number> = new Map(); // Store message hashes to prevent loops
   private readonly RATE_LIMITED_CODES = [1, 13, 15, 16, 21, 26, 28, 30]; // Message codes to rate-limit (as numbers)
 
   constructor(private readonly config: Config) {
@@ -323,16 +326,68 @@ class MQTTForwarder {
       console.log(`Subscribed to ${brokerName} broker topics`);
     });
 
-    broker.on('message', (topic: string, message: Buffer) => {
-      this.forwardMessage(topic, message, broker === this.configBroker ? this.hameBroker : this.configBroker);
+    broker.on('message', (topic: string, message: Buffer, packet: mqtt.IPublishPacket) => {
+      this.forwardMessage(topic, message, broker === this.configBroker ? this.hameBroker : this.configBroker, packet);
     });
   }
 
-  private forwardMessage(topic: string, message: Buffer, targetClient: MqttClient): void {
+  /**
+   * Checks if a message has been processed by this or another relay instance
+   * @param packet The MQTT packet containing message and properties
+   * @returns true if the message has been processed and should be skipped, false otherwise
+   */
+  private isMessageProcessed(packet: mqtt.IPublishPacket): boolean {
+    try {
+      // Check if this message has a relay header
+      if (packet.properties && packet.properties.userProperties) {
+        const userProps = packet.properties.userProperties;
+        
+        // Check if this message has our relay instance ID or another relay's
+        if (typeof userProps.relayInstanceId === "string") {
+          // Message has already been processed by a relay
+          if (userProps.relayInstanceId === this.INSTANCE_ID) {
+            // This is our own message coming back - definitely skip it
+            console.log('Skipping message from our own relay instance');
+            return true;
+          } else {
+            // Message from another relay instance - also skip it to prevent loops
+            console.log(`Skipping message from relay instance: ${userProps.relayInstanceId.substring(0, 8)}`);
+            return true;
+          }
+        }
+      }
+      
+      // If no relay headers, check content hash to catch messages with stripped headers
+      const messageHash = createHash('md5').update(packet.payload.toString()).digest('hex');
+      
+      // Check if we've seen this exact message content recently
+      const lastSeenTime = this.processedMessages.get(messageHash);
+      const currentTime = Date.now();
+      
+      if (lastSeenTime && (currentTime - lastSeenTime < this.MESSAGE_CACHE_TIMEOUT)) {
+        console.log(`Skipping duplicate message (hash: ${messageHash.substring(0, 8)})`);
+        return true;
+      }
+      
+      // Record this message hash with the current timestamp
+      this.processedMessages.set(messageHash, currentTime);
+      return false;
+    } catch (error) {
+      console.error('Error checking if message is processed:', error);
+      return false; // On error, don't skip the message
+    }
+  }
+  
+  private forwardMessage(topic: string, message: Buffer, targetClient: MqttClient, packet?: mqtt.IPublishPacket): void {
     const pattern = /hame_energy\/([^\/]+)\/(device|App)\/(.*)\/ctrl/;
 
     const matches = topic.match(pattern);
     if (matches) {
+      // Check if this is a looped message that should be skipped
+      if (packet && this.isMessageProcessed(packet)) {
+        return;
+      }
+      
       const type = matches[1];
       const isDevice = matches[2] === 'device';
       const identifier = matches[3];
@@ -391,7 +446,17 @@ class MQTTForwarder {
       const newTopic = topic.replace(identifier, device[targetKey]);
       const from = targetClient === this.configBroker ? 'Hame' : 'local';
       const to = targetClient === this.configBroker ? 'local' : 'Hame';
-      targetClient.publish(newTopic, message);
+      
+      // Add relay instance header to the message to prevent loops
+      const publishOptions = {
+        properties: {
+          userProperties: {
+            relayInstanceId: this.INSTANCE_ID
+          }
+        }
+      };
+      
+      targetClient.publish(newTopic, message, publishOptions);
       console.log(`Forwarded message from ${from} to ${to}: ${topic} -> ${newTopic}`);
     }
   }
@@ -415,6 +480,13 @@ class MQTTForwarder {
     for (const [key, timestamp] of this.rateLimitedMessages.entries()) {
       if (now - timestamp > this.RATE_LIMIT_INTERVAL * 2) {
         this.rateLimitedMessages.delete(key);
+      }
+    }
+    
+    // Clean up processed messages cache
+    for (const [key, timestamp] of this.processedMessages.entries()) {
+      if (now - timestamp > this.MESSAGE_CACHE_TIMEOUT * 2) {
+        this.processedMessages.delete(key);
       }
     }
   }
