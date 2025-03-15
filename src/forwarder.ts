@@ -100,28 +100,44 @@ function cleanAndValidate(config: Config): void {
   if (config.devices.length === 0) {
     throw new Error('No devices specified in config file');
   }
+  const remainingDevices = [];
+  const errors = [];
   for (const device of config.devices) {
-    if (!device.device_id) {
-      throw new Error('Device ID is required');
+    try {
+      if (!device.device_id) {
+        throw new Error('Device ID is required');
+      }
+      if (!device.mac) {
+        throw new Error('MAC address is required');
+      }
+      if (!device.type) {
+        throw new Error('Device type is required');
+      }
+      device.device_id = device.device_id.trim();
+      // Remove colons from MAC address and convert to lowercase
+      device.mac = device.mac.trim().replace(/:/g, '').toLowerCase();
+      device.type = device.type.trim().toUpperCase() as DeviceTypeIdentifier;
+      if (device.device_id.length < 22 || device.device_id.length > 24) {
+        throw new Error('Device ID must be between 22 and 24 characters long');
+      }
+      if (!/^[0-9A-Fa-f]{12}$/.test(device.mac)) {
+        throw new Error('MAC address must be a 12-character hexadecimal string');
+      }
+      if (device.type && !knownDeviceTypes.includes(device.type)) {
+        console.warn(`Unknown device type: ${device.type}. This device will likely not be forwarded.`);
+      }
+      remainingDevices.push(device);
+    } catch (error) {
+      errors.push(`Device ${device.device_id}: ${(error as Error).message}`);
     }
-    if (!device.mac) {
-      throw new Error('MAC address is required');
-    }
-    if (!device.type) {
-      throw new Error('Device type is required');
-    }
-    device.device_id = device.device_id.trim();
-    // Remove colons from MAC address and convert to lowercase
-    device.mac = device.mac.trim().replace(/:/g, '').toLowerCase();
-    device.type = device.type.trim().toUpperCase() as DeviceTypeIdentifier;
-    if (device.device_id.length < 22 || device.device_id.length > 24) {
-      throw new Error('Device ID must be between 22 and 24 characters long');
-    }
-    if (!/^[0-9A-Fa-f]{12}$/.test(device.mac)) {
-      throw new Error('MAC address must be a 12-character hexadecimal string');
-    }
-    if (device.type && !knownDeviceTypes.includes(device.type)) {
-      console.warn(`Unknown device type: ${device.type}. This device will likely not be forwarded.`);
+  }
+  config.devices = remainingDevices;
+
+  if (errors.length > 0) {
+    if (config.devices.length === 0) {
+      throw new Error(`All devices failed validation:\n${errors.join('\n')}`);
+    } else {
+      console.warn(`Some devices failed validation:\n${errors.join('\n')}`);
     }
   }
 }

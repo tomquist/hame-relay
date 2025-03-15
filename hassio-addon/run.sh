@@ -40,27 +40,63 @@ bashio::log.info "Generating config file..."
 DEVICES=$(bashio::config 'devices' | jq -s '.')
 INVERSE_FORWARDING=$(bashio::config 'inverse_forwarding' "false")
 
-# Check for optional username and password
-CONFIG="{
-    broker_url: \$url,
-    devices: \$devices,
-    inverse_forwarding: \$inverse
-}"
+# Create base configuration
+CONFIG='{
+  "broker_url": $url,
+  "devices": $devices,
+  "inverse_forwarding": $inverse
+}'
 
+# Check for optional username and password
 if bashio::config.has_value 'username'; then
     USERNAME=$(bashio::config 'username')
-    CONFIG=$(echo "$CONFIG" | jq -c --arg username "$USERNAME" '. + {username: $username}')
     bashio::log.info "Username found in configuration."
+    
+    # Add username to config
+    if bashio::config.has_value 'password'; then
+        PASSWORD=$(bashio::config 'password')
+        bashio::log.info "Password found in configuration."
+        
+        # Add both username and password to config
+        jq -n \
+          --arg url "$BROKER_URL" \
+          --argjson devices "$DEVICES" \
+          --argjson inverse "$INVERSE_FORWARDING" \
+          --arg username "$USERNAME" \
+          --arg password "$PASSWORD" \
+          '{
+            broker_url: $url, 
+            devices: $devices, 
+            inverse_forwarding: $inverse, 
+            username: $username, 
+            password: $password
+          }' > /app/config/config.json
+    else
+        # Add only username to config
+        jq -n \
+          --arg url "$BROKER_URL" \
+          --argjson devices "$DEVICES" \
+          --argjson inverse "$INVERSE_FORWARDING" \
+          --arg username "$USERNAME" \
+          '{
+            broker_url: $url, 
+            devices: $devices, 
+            inverse_forwarding: $inverse, 
+            username: $username
+          }' > /app/config/config.json
+    fi
+else
+    # Create config file without username/password
+    jq -n \
+      --arg url "$BROKER_URL" \
+      --argjson devices "$DEVICES" \
+      --argjson inverse "$INVERSE_FORWARDING" \
+      '{
+        broker_url: $url, 
+        devices: $devices, 
+        inverse_forwarding: $inverse
+      }' > /app/config/config.json
 fi
-
-if bashio::config.has_value 'password'; then
-    PASSWORD=$(bashio::config 'password')
-    CONFIG=$(echo "$CONFIG" | jq -c --arg password "$PASSWORD" '. + {password: $password}')
-    bashio::log.info "Password found in configuration."
-fi
-
-# Create the final config file
-jq -n --arg url "$BROKER_URL" --argjson devices "$DEVICES" --argjson inverse "$INVERSE_FORWARDING" "$CONFIG" > /app/config/config.json
 
 # Start the application
 bashio::log.info "Starting MQTT forwarder..."
