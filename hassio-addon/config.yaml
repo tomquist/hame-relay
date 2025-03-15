@@ -22,6 +22,8 @@ options:
 schema:
   mqtt_uri: str?
   inverse_forwarding: bool?
+  username: str?
+  password: password?
   devices:
     - device_id: str
       mac: str

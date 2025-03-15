@@ -5,6 +5,12 @@ configuration:
   inverse_forwarding:
     name: Invert Forwarding
     description: "If enabled, forwards messages from the cloud MQTT broker to the local MQTT broker instead of the other way around"
+  username:
+    name: Hame Username
+    description: "Your Hame Energy Management System email address. If provided along with password, device information can be fetched automatically."
+  password:
+    name: Hame Password
+    description: "Your Hame Energy Management System account password"
   devices:
     name: Devices
     description: "List of forwarding devices. Information can be obtained here: https://eu.hamedata.com/app/AfterSales/login.html"

@@ -65,11 +65,14 @@ mkdir config
 {
   "broker_url": "mqtt://username:password@your-broker-url",
   "inverse_forwarding": false,
+  "username": "your_hame_email@example.com",
+  "password": "your_hame_password",
   "devices": [
     { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons", "type": "HMA-1" }
   ]
 }
 ```
+Note: If you provide `username` and `password`, the relay can fetch your device information automatically from the Hame API.
 
 3. Run the container:
 ```bash
@@ -133,6 +136,10 @@ mqtt_uri: "mqtt://username:password@host:1883"
 # Choose your operation mode (see "How It Works" section above)
 inverse_forwarding: false
 
+# Optional: Hame account credentials to automatically fetch device information
+username: "your_hame_email@example.com"
+password: "your_hame_password"
+
 devices:
   - device_id: "0123456789abcdef01234567"
     mac: "01234567890a"
@@ -159,6 +166,9 @@ The add-on will automatically use your Home Assistant MQTT settings if configure
 - `inverse_forwarding`: Choose your operation mode:
   - `false` (default): Storage uses local broker, maintain app functionality
   - `true`: Storage uses Hame broker, enable local control
+- `username`: Your Hame Energy Management System email address. If provided along with password, 
+  the tool can automatically fetch device information from the Hame API.
+- `password`: Your Hame Energy Management System password
 
 ## Development
 
