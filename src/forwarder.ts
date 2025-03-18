@@ -149,7 +149,6 @@ function cleanAndValidate(config: Config): void {
 class MQTTForwarder {
   private configBroker!: mqtt.MqttClient;
   private hameBroker!: mqtt.MqttClient;
-  private readonly RECONNECT_DELAY = 2000;
   private readonly MESSAGE_HISTORY_TIMEOUT = 1000; // 1 second timeout
   private readonly RATE_LIMIT_INTERVAL = 59900; // Rate limit interval in milliseconds
   private readonly MESSAGE_CACHE_TIMEOUT = 1000; // 1 second timeout for message loop prevention
@@ -226,8 +225,6 @@ class MQTTForwarder {
   private initializeBrokers(): void {
     const options = {
       keepalive: 30,
-      reconnectPeriod: 1000,
-      connectTimeout: 30000,
     };
     this.configBroker = mqtt.connect(this.config.broker_url, options);
 
@@ -260,7 +257,6 @@ class MQTTForwarder {
 
     this.configBroker.on('offline', () => {
       console.warn('Config broker went offline');
-      this.handleReconnect('config');
     });
 
     // Hame broker event handlers
@@ -279,41 +275,7 @@ class MQTTForwarder {
 
     this.hameBroker.on('offline', () => {
       console.warn('Hame broker went offline');
-      this.handleReconnect('hame');
     });
-
-    // Set up ping monitoring for both brokers
-    this.monitorConnections();
-  }
-
-  private handleReconnect(broker: 'config' | 'hame'): void {
-    const brokerClient = broker === 'config' ? this.configBroker : this.hameBroker;
-    console.log(`Attempting to reconnect ${broker} broker...`);
-    
-    setTimeout(() => {
-      if (!brokerClient.connected) {
-        brokerClient.reconnect();
-        // Schedule another reconnection attempt if this one fails
-        this.handleReconnect(broker);
-      }
-    }, this.RECONNECT_DELAY);
-  }
-
-  private monitorConnections(): void {
-    // Periodically check connection status and force reconnect if needed
-    setInterval(() => {
-      if (!this.configBroker.connected) {
-        console.warn('Config broker connection lost, attempting to reconnect...');
-        this.handleReconnect('config');
-      }
-      if (!this.hameBroker.connected) {
-        console.warn('Hame broker connection lost, attempting to reconnect...');
-        this.handleReconnect('hame');
-      }
-      
-      // Clean up old message history entries
-      this.cleanupMessageHistory();
-    }, 30000); // Check every 30 seconds
   }
 
   private setupConfigSubscriptions(): void {

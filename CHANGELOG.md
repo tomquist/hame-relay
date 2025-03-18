@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.1.6]
+- Simplify reconnect logic
+
 ## [1.1.5]
 - Improve message loop prevention
 
