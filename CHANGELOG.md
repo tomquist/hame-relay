@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.1.5]
+- Improve message loop prevention
+
 ## [1.1.4]
 - Added ability to fetch device information from the Hame API using username/password
 - Added message loop prevention

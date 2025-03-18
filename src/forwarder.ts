@@ -59,7 +59,11 @@ async function fetchDevicesFromApi(username: string, password: string): Promise<
     url.searchParams.append('pwd', hashedPassword);
     
     console.log(`Fetching device information for ${username}...`);
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'Dart/2.19 (dart:io)',
+      }
+    });
     const data: HameApiResponse = await response.json();
     
     if (data.code === '2') {
@@ -372,21 +376,6 @@ class MQTTForwarder {
           }
         }
       }
-      
-      // If no relay headers, check content hash to catch messages with stripped headers
-      const messageHash = createHash('md5').update(packet.payload.toString()).digest('hex');
-      
-      // Check if we've seen this exact message content recently
-      const lastSeenTime = this.processedMessages.get(messageHash);
-      const currentTime = Date.now();
-      
-      if (lastSeenTime && (currentTime - lastSeenTime < this.MESSAGE_CACHE_TIMEOUT)) {
-        console.log(`Skipping duplicate message (hash: ${messageHash.substring(0, 8)})`);
-        return true;
-      }
-      
-      // Record this message hash with the current timestamp
-      this.processedMessages.set(messageHash, currentTime);
       return false;
     } catch (error) {
       console.error('Error checking if message is processed:', error);
@@ -445,8 +434,6 @@ class MQTTForwarder {
         if (!lastAppMessageTime || (currentTime - lastAppMessageTime > this.MESSAGE_HISTORY_TIMEOUT)) {
           console.warn(`Skipping device message forwarding to Hame for ${deviceKey}: no recent App message was forwarded`);
           return;
-        } else if (currentTime - lastAppMessageTime > this.MESSAGE_HISTORY_TIMEOUT) {
-          console.warn(`Skipping device message forwarding to Hame for ${deviceKey}: recent App message was forwarded`);
         }
         this.appMessageHistory.delete(deviceKey);
       } else {
