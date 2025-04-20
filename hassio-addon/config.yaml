@@ -13,6 +13,7 @@ startup: application
 boot: auto
 services:
   - mqtt:need
+watchdog: "http://[HOST]:[PORT:8080]/health"
 options:
   inverse_forwarding: false
   devices:

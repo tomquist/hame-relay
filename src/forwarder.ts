@@ -4,8 +4,9 @@ import {readFileSync} from 'fs';
 import {join} from 'path';
 import {createHash} from 'crypto';
 import fetch from 'node-fetch';
+import { HealthServer } from './health';
 
-const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
+const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 50] as const;
 type DeviceGen = typeof deviceGenerations[number];
 const deviceTypes = ["A", "B", "D", "E", "F", "G", "J", "K"] as const;
 type DeviceType = typeof deviceTypes[number];
@@ -149,6 +150,7 @@ function cleanAndValidate(config: Config): void {
 class MQTTForwarder {
   private configBroker!: mqtt.MqttClient;
   private hameBroker!: mqtt.MqttClient;
+  private healthServer!: HealthServer;
   private readonly MESSAGE_HISTORY_TIMEOUT = 1000; // 1 second timeout
   private readonly RATE_LIMIT_INTERVAL = 59900; // Rate limit interval in milliseconds
   private readonly MESSAGE_CACHE_TIMEOUT = 1000; // 1 second timeout for message loop prevention
@@ -161,6 +163,8 @@ class MQTTForwarder {
   constructor(private readonly config: Config) {
     // Initialize brokers
     this.initializeBrokers();
+    // Initialize health server
+    this.healthServer = new HealthServer(this.configBroker, this.hameBroker);
   }
 
   /**
@@ -429,6 +433,7 @@ class MQTTForwarder {
   public close(): void {
     this.configBroker.end();
     this.hameBroker.end();
+    this.healthServer.close();
   }
   
   // Clean up old message history entries periodically
