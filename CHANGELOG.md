@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.7]
+- Added health check endpoint for better monitoring and automatic recovery
+- Added Docker health check configuration
+
 ## [1.1.6]
 - Simplify reconnect logic
 
