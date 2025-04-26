@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.1.8]
+- Fix connection to remove broker by using the correct client ID pattern
+
 ## [1.1.7]
 - Added health check endpoint for better monitoring and automatic recovery
 - Added Docker health check configuration

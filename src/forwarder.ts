@@ -229,6 +229,7 @@ class MQTTForwarder {
   private initializeBrokers(): void {
     const options = {
       keepalive: 30,
+      clientId: this.generateClientId()
     };
     this.configBroker = mqtt.connect(this.config.broker_url, options);
 
@@ -241,6 +242,14 @@ class MQTTForwarder {
     });
 
     this.setupBrokerEventHandlers();
+  }
+
+  private generateClientId() {
+    let randomClientId = "";
+    for (let i = 0; i < 24; i++) {
+      randomClientId += Math.floor(Math.random() * 16).toString(16);
+    }
+    return `hm_${randomClientId}`;
   }
 
   private setupBrokerEventHandlers(): void {
