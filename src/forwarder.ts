@@ -122,8 +122,8 @@ function cleanAndValidate(config: Config): void {
       // Remove colons from MAC address and convert to lowercase
       device.mac = device.mac.trim().replace(/:/g, '').toLowerCase();
       device.type = device.type.trim().toUpperCase() as DeviceTypeIdentifier;
-      if (device.device_id.length < 22 || device.device_id.length > 24) {
-        throw new Error('Device ID must be between 22 and 24 characters long');
+      if (device.device_id.length === 12 || (device.device_id.length < 22 || device.device_id.length > 24)) {
+        throw new Error('Device ID must be between 22 and 24 or exactly 12 characters long');
       }
       if (!/^[0-9A-Fa-f]{12}$/.test(device.mac)) {
         throw new Error('MAC address must be a 12-character hexadecimal string');
