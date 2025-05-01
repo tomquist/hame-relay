@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.1.10]
+- Fixed device ID length validation (@seybsen)
+
 ## [1.1.9]
 - Added support for HMI-1 (800 W Inverter) (@seybsen)
 
