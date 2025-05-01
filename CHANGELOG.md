@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.1.9]
+- Added support for HMI-1 (800 W Inverter) (@seybsen)
+
 ## [1.1.8]
 - Fix connection to remove broker by using the correct client ID pattern
 
