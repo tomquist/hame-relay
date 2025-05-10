@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.1.11]
+- Add support for HMM-1 (Jupiter)
+
 ## [1.1.10]
 - Fixed device ID length validation (@seybsen)
 

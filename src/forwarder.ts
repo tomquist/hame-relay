@@ -8,7 +8,7 @@ import { HealthServer } from './health';
 
 const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 50] as const;
 type DeviceGen = typeof deviceGenerations[number];
-const deviceTypes = ["A", "B", "D", "E", "F", "G", "J", "K", "I", "N"] as const;
+const deviceTypes = ["A", "B", "D", "E", "F", "G", "J", "K", "I", "M", "N"] as const;
 type DeviceType = typeof deviceTypes[number];
 type DeviceTypeIdentifier = `HM${DeviceType}-${DeviceGen}`;
 const knownDeviceTypes: DeviceTypeIdentifier[] = deviceGenerations.flatMap(gen => deviceTypes.map(type => `HM${type}-${gen}` satisfies DeviceTypeIdentifier));
