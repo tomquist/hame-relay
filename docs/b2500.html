@@ -61,9 +61,15 @@
         
         .info-container {
             display: grid;
-            grid-template-columns: 100px 1fr;
+            grid-template-columns: 190px 1fr;
             row-gap: 10px;
             margin-top: 20px;
+        }
+        
+        .topic-mono {
+            font-family: monospace;
+            font-size: 13px;
+            word-break: break-all;
         }
         
         label {
@@ -181,6 +187,7 @@
         <div id="logs" class="logs"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/aes-js@3.1.2/index.min.js"></script>
     <script>
         // BLE Service and Characteristic UUIDs
         const SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
@@ -612,6 +619,23 @@
                 deviceType.textContent = parsedInfo.type || 'Unknown';
                 deviceId.textContent = parsedInfo.id || 'Unknown';
                 deviceMac.textContent = parsedInfo.mac || 'Unknown';
+                // Always show both topics, and set correct threshold in label
+                let mac = parsedInfo.mac || '';
+                let type = parsedInfo.type || '';
+                let macNoColons = mac.replace(/:/g, '').toLowerCase();
+                let encryptedMac = calculateNewVersionTopicId(macNoColons);
+                let oldTopic = `hame_energy/${type}/device/${macNoColons}/ctrl`;
+                let newTopic = `marstek_energy/${type}/device/${encryptedMac}/ctrl`;
+                let oldAppTopic = `hame_energy/${type}/App/${macNoColons}/ctrl`;
+                let newAppTopic = `marstek_energy/${type}/App/${encryptedMac}/ctrl`;
+                // Determine threshold
+                let threshold = /^HMJ-\d+$/i.test(type) ? 108 : 226;
+                document.getElementById('device-topic-ge-label').textContent = `Topic for firmware >=${threshold}:`;
+                document.getElementById('device-topic-ge').textContent = newTopic;
+                document.getElementById('device-topic-ge-app').textContent = newAppTopic;
+                document.getElementById('device-topic-lt-label').textContent = `Topic for firmware <${threshold}:`;
+                document.getElementById('device-topic-lt').textContent = oldTopic;
+                document.getElementById('device-topic-lt-app').textContent = oldAppTopic;
                 deviceInfo.classList.remove('hidden');
                 
                 // Update status
@@ -745,8 +769,58 @@
             }
         }
         
-        // Function to analyze a connected device and provide filtering options
-        // This function was used for debugging but is now removed since we're using a hardcoded filter
+        // --- Topic Calculation Helpers ---
+        // AES key and IV for new topic
+        const NEW_TOPIC_KEY = [33,64,35,36,37,94,38,42,40,41,95,43,123,125,91,93];
+        const NEW_TOPIC_IV = new Array(16).fill(0);
+
+        // Pad to 16 bytes (PKCS7)
+        function pkcs7Pad(bytes) {
+            const padLen = 16 - (bytes.length % 16);
+            const padded = new Uint8Array(bytes.length + padLen);
+            padded.set(bytes);
+            padded.fill(padLen, bytes.length);
+            return padded;
+        }
+
+        // Calculate new version topic encrypted MAC (browser version)
+        function calculateNewVersionTopicId(mac) {
+            const aesCbc = new aesjs.ModeOfOperation.cbc(NEW_TOPIC_KEY, NEW_TOPIC_IV);
+            // MAC is a string, encode as UTF-8 bytes
+            const macBytes = aesjs.utils.utf8.toBytes(mac);
+            const padded = pkcs7Pad(macBytes);
+            const encryptedBytes = aesCbc.encrypt(padded);
+            return aesjs.utils.hex.fromBytes(encryptedBytes);
+        }
+
+        // --- Topic Calculation Logic ---
+        function getDeviceTopic(type, version, mac) {
+            // type: string, version: string or number, mac: string
+            // If device type is HMJ-X (X is an arbitrary number) and version >=108,
+            // or if device type is not HMJ-X and version >=226, use new topic
+            // else use old topic
+            let topic = '';
+            let encryptedMac = '';
+            let macNoColons = (mac || '').replace(/:/g, '').toLowerCase();
+            let typeUpper = (type || '').toUpperCase();
+            let versionNum = parseInt(version, 10);
+            if (/^HMJ-\d+$/i.test(typeUpper)) {
+                if (versionNum >= 108) {
+                    encryptedMac = calculateNewVersionTopicId(macNoColons);
+                    topic = `marstek_energy/${type}/device/${encryptedMac}/ctrl`;
+                } else {
+                    topic = `hame_energy/${type}/device/${macNoColons}/ctrl`;
+                }
+            } else {
+                if (versionNum >= 226) {
+                    encryptedMac = calculateNewVersionTopicId(macNoColons);
+                    topic = `marstek_energy/${type}/device/${encryptedMac}/ctrl`;
+                } else {
+                    topic = `hame_energy/${type}/device/${macNoColons}/ctrl`;
+                }
+            }
+            return topic;
+        }
 
         // Event listeners
         connectButton.addEventListener('click', connectToDevice);
@@ -772,6 +846,46 @@
             // Display browser information
             log(`Browser: ${navigator.userAgent}`);
         }
+
+        // --- Add topic display to device info UI ---
+        // Add rows for both topics and an info note, but use generic placeholders for now
+        (function addTopicRows() {
+            const infoContainer = document.querySelector('.info-container');
+            // For >= threshold
+            const topicGELabel = document.createElement('div');
+            topicGELabel.id = 'device-topic-ge-label';
+            topicGELabel.textContent = 'Topic for firmware >=XXX:';
+            const topicGEValue = document.createElement('div');
+            topicGEValue.id = 'device-topic-ge';
+            topicGEValue.className = 'topic-mono';
+            infoContainer.appendChild(topicGELabel);
+            infoContainer.appendChild(topicGEValue);
+            // App topic for >= threshold
+            const topicGEAppLabel = document.createElement('div');
+            topicGEAppLabel.id = 'device-topic-ge-app-label';
+            const topicGEAppValue = document.createElement('div');
+            topicGEAppValue.id = 'device-topic-ge-app';
+            topicGEAppValue.className = 'topic-mono';
+            infoContainer.appendChild(topicGEAppLabel);
+            infoContainer.appendChild(topicGEAppValue);
+            // For < threshold
+            const topicLTLabel = document.createElement('div');
+            topicLTLabel.id = 'device-topic-lt-label';
+            topicLTLabel.textContent = 'Topic for firmware <XXX:';
+            const topicLTValue = document.createElement('div');
+            topicLTValue.id = 'device-topic-lt';
+            topicLTValue.className = 'topic-mono';
+            infoContainer.appendChild(topicLTLabel);
+            infoContainer.appendChild(topicLTValue);
+            // App topic for < threshold
+            const topicLTAppLabel = document.createElement('div');
+            topicLTAppLabel.id = 'device-topic-lt-app-label';
+            const topicLTAppValue = document.createElement('div');
+            topicLTAppValue.id = 'device-topic-lt-app';
+            topicLTAppValue.className = 'topic-mono';
+            infoContainer.appendChild(topicLTAppLabel);
+            infoContainer.appendChild(topicLTAppValue);
+        })();
     </script>
 </body>
 </html>
