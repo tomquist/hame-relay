@@ -14,7 +14,7 @@ RUN npm ci
 COPY src/ ./src/
 
 # Copy brokers configuration
-COPY brokers.json ./brokers.json
+COPY config/brokers.json ./config/brokers.json
 
 # Build the application
 RUN npm run build
@@ -40,7 +40,7 @@ COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist/ ./dist/
 
 # Copy brokers configuration
-COPY --from=builder /build/brokers.json ./brokers.json
+COPY --from=builder /build/config/brokers.json ./config/brokers.json
 
 # Copy certificates
 COPY certs/ ./certs/

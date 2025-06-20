@@ -34,8 +34,9 @@ jobs:
       - name: Write certificates to files
         run: |
           echo "${{ secrets.CA_CERTIFICATE }}" > certs/ca.crt
-          echo "${{ secrets.CLIENT_CERTIFICATE }}" > certs/client.crt
-          echo "${{ secrets.CLIENT_KEY }}" > certs/client.key
+          echo "${{ secrets.CLIENT_CERTIFICATE_2024 }}" > certs/hame-2024.crt
+          echo "${{ secrets.CLIENT_KEY_2024 }}" > certs/hame-2024.key
+          echo "${{ secrets.HAME_2024_URL }}" > certs/hame-2024-url
         shell: bash
 
       - name: Set up QEMU
@@ -169,8 +170,9 @@ jobs:
       - name: Write certificates to files
         run: |
           echo "${{ secrets.CA_CERTIFICATE }}" > certs/ca.crt
-          echo "${{ secrets.CLIENT_CERTIFICATE }}" > certs/client.crt
-          echo "${{ secrets.CLIENT_KEY }}" > certs/client.key
+          echo "${{ secrets.CLIENT_CERTIFICATE_2024 }}" > certs/hame-2024.crt
+          echo "${{ secrets.CLIENT_KEY_2024 }}" > certs/hame-2024.key
+          echo "${{ secrets.HAME_2024_URL }}" > certs/hame-2024-url
         shell: bash
 
       - name: Set up QEMU
