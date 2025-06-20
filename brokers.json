@@ -4,6 +4,7 @@
     "ca": "ca.crt",
     "cert": "client.crt",
     "key": "client.key",
-    "topic_prefix": "hame_energy/"
+    "topic_prefix": "hame_energy/",
+    "client_id_prefix": "hm_"
   }
 }

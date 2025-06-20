@@ -104,6 +104,9 @@ mkdir config
 - `username` and `password`: Your Hame account credentials for automatic device information retrieval
 - `default_broker_id`: Identifier of the remote broker to use (defaults to `hame-2024`)
 - `devices`: Your storage systems' details (can use dummy values initially if using automatic retrieval)
+- Remote broker settings are loaded from `brokers.json`. Each broker can specify
+  `topic_prefix`, `client_id_prefix` (defaults to `hm_`), and an optional
+  `topic_encryption_key` used to generate remote device identifiers.
 
 **Getting Device Information:**
 - **Recommended**: If you provide `username` and `password`, the relay can fetch your device information automatically from the Hame API. Check the container logs to see the retrieved device details, then update your configuration with the actual values.

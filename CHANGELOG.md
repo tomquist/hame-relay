@@ -5,6 +5,8 @@
 - Added `default_broker_id` config option and per-device broker selection
 - Single health server now checks all broker connections
 - Home Assistant addon updated for new settings
+- Remote ID now falls back to provided value; encryption key renamed to
+  `topic_encryption_key` and brokers can set `client_id_prefix`
 
 ## [1.1.11]
 - Add support for HMM-1 (Jupiter)

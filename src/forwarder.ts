@@ -30,7 +30,8 @@ interface BrokerDefinition {
   cert: string;
   key: string;
   topic_prefix?: string;
-  encryption_key?: string;
+  topic_encryption_key?: string;
+  client_id_prefix?: string;
 }
 
 interface ForwarderConfig {
@@ -253,28 +254,30 @@ class MQTTForwarder {
   }
 
   private initializeBrokers(): void {
-    const options = {
+    const configOptions = {
       keepalive: 30,
-      clientId: this.generateClientId()
+      clientId: this.generateClientId('config_')
     };
-    this.configBroker = mqtt.connect(this.config.broker_url, options);
+    this.configBroker = mqtt.connect(this.config.broker_url, configOptions);
 
     const certs = this.loadCertificates();
-    this.remoteBroker = mqtt.connect(this.config.remote.url, {
+    const remoteOptions = {
       ...certs,
-      protocol: 'mqtts',
-      ...options,
-    });
+      protocol: 'mqtts' as const,
+      keepalive: 30,
+      clientId: this.generateClientId(this.config.remote.client_id_prefix || 'hm_')
+    };
+    this.remoteBroker = mqtt.connect(this.config.remote.url, remoteOptions);
 
     this.setupBrokerEventHandlers();
   }
 
-  private generateClientId() {
-    let randomClientId = "";
+  private generateClientId(prefix: string): string {
+    let randomClientId = '';
     for (let i = 0; i < 24; i++) {
       randomClientId += Math.floor(Math.random() * 16).toString(16);
     }
-    return `hm_${randomClientId}`;
+    return `${prefix}${randomClientId}`;
   }
 
   private setupBrokerEventHandlers(): void {
@@ -509,7 +512,8 @@ async function start() {
         ca: 'ca.crt',
         cert: 'client.crt',
         key: 'client.key',
-        topic_prefix: 'hame_energy/'
+        topic_prefix: 'hame_energy/',
+        client_id_prefix: 'hm_'
       }
     };
     try {
@@ -582,10 +586,12 @@ async function start() {
         throw new Error(`Broker '${brokerId}' not defined`);
       }
       device.broker_id = brokerId;
-      if (broker.encryption_key) {
-        device.remote_id = calculateNewVersionTopicId(Buffer.from(broker.encryption_key, 'hex'), device.mac);
-      } else {
-        device.remote_id = device.device_id;
+      if (!device.remote_id) {
+        if (broker.topic_encryption_key) {
+          device.remote_id = calculateNewVersionTopicId(Buffer.from(broker.topic_encryption_key, 'hex'), device.mac);
+        } else {
+          device.remote_id = device.device_id;
+        }
       }
       (devicesByBroker[brokerId] ||= []).push(device);
     }
