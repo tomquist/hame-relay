@@ -506,20 +506,12 @@ async function start() {
     const configPath = process.env.CONFIG_PATH || './config/config.json';
     const brokersPath = process.env.BROKERS_PATH || './config/brokers.json';
     const config = JSON.parse(readFileSync(configPath, 'utf8')) as MainConfig;
-    let brokers: Record<string, BrokerDefinition> = {
-      'hame-2024': {
-        url: 'mqtt://a40nr6osvmmaw-ats.iot.eu-central-1.amazonaws.com',
-        ca: 'ca.crt',
-        cert: 'client.crt',
-        key: 'client.key',
-        topic_prefix: 'hame_energy/',
-        client_id_prefix: 'hm_'
-      }
-    };
+    let brokers: Record<string, BrokerDefinition>;
     try {
       brokers = JSON.parse(readFileSync(brokersPath, 'utf8')) as Record<string, BrokerDefinition>;
     } catch (err) {
-      console.warn(`Could not load brokers config at ${brokersPath}, using default broker`);
+      console.error(`Failed to load brokers config at ${brokersPath}:`, err);
+      throw err;
     }
 
     // Initialize devices array if it doesn't exist
@@ -602,6 +594,7 @@ async function start() {
       console.log(`Device ${index + 1}:`);
       console.log(`  Name: ${device.name || 'Not specified'}`);
       console.log(`  Device ID: ${device.device_id}`);
+      console.log(`  Remote ID: ${device.remote_id}`);
       console.log(`  MAC: ${device.mac}`);
       console.log(`  Type: ${device.type}`);
       console.log(`  Broker: ${device.broker_id}`);
