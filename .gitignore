@@ -19,7 +19,7 @@ certs/
 *.pem
 
 # Configuration files
-config.json
+config/config.json
 
 # IDE
 .idea/
