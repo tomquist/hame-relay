@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.0]
+- Support multiple remote brokers via new `brokers.json`
+- Added `default_broker_id` config option and per-device broker selection
+- Single health server now checks all broker connections
+- Home Assistant addon updated for new settings
+
 ## [1.1.11]
 - Add support for HMM-1 (Jupiter)
 

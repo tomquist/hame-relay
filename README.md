@@ -88,6 +88,7 @@ mkdir config
 {
   "broker_url": "mqtt://username:password@your-broker-url",
   "inverse_forwarding": false,
+  "default_broker_id": "hame-2024",
   "username": "your_hame_email@example.com",
   "password": "your_hame_password",
   "devices": [
@@ -101,6 +102,7 @@ mkdir config
   - `false` (default): Storage uses local broker, maintain app functionality (**Only available for Saturn/B2500**)
   - `true`: Storage uses Hame broker, enable local control (**Required for Venus/Jupiter, optional for Saturn/B2500**)
 - `username` and `password`: Your Hame account credentials for automatic device information retrieval
+- `default_broker_id`: Identifier of the remote broker to use (defaults to `hame-2024`)
 - `devices`: Your storage systems' details (can use dummy values initially if using automatic retrieval)
 
 **Getting Device Information:**
