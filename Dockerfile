@@ -16,7 +16,7 @@ COPY src/ ./src/
 COPY config/brokers.json ./src/config/brokers.json
 
 # Copy certificates during build
-COPY certs/ca.crt certs/client.crt certs/client.key ./src/certs/
+COPY certs/ ./src/certs/
 
 # Build the application
 RUN npm run build
