@@ -37,6 +37,10 @@ jobs:
           echo "${{ secrets.CLIENT_CERTIFICATE_2024 }}" > certs/hame-2024.crt
           echo "${{ secrets.CLIENT_KEY_2024 }}" > certs/hame-2024.key
           echo "${{ secrets.HAME_2024_URL }}" > certs/hame-2024-url
+          echo "${{ secrets.CLIENT_CERTIFICATE_2025 }}" > certs/hame-2025.crt
+          echo "${{ secrets.CLIENT_KEY_2025 }}" > certs/hame-2025.key
+          echo "${{ secrets.HAME_2025_URL }}" > certs/hame-2025-url
+          echo "${{ secrets.TOPIC_ENCRYPTION_KEY_2025 }}" > certs/hame-2025-topic-encryption-key
         shell: bash
 
       - name: Set up QEMU
@@ -177,6 +181,10 @@ jobs:
           echo "${{ secrets.CLIENT_CERTIFICATE_2024 }}" > certs/hame-2024.crt
           echo "${{ secrets.CLIENT_KEY_2024 }}" > certs/hame-2024.key
           echo "${{ secrets.HAME_2024_URL }}" > certs/hame-2024-url
+          echo "${{ secrets.CLIENT_CERTIFICATE_2025 }}" > certs/hame-2025.crt
+          echo "${{ secrets.CLIENT_KEY_2025 }}" > certs/hame-2025.key
+          echo "${{ secrets.HAME_2025_URL }}" > certs/hame-2025-url
+          echo "${{ secrets.TOPIC_ENCRYPTION_KEY_2025 }}" > certs/hame-2025-topic-encryption-key
         shell: bash
 
       - name: Set up QEMU
