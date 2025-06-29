@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.2.0]
+- Support multiple remote brokers via new `brokers.json`
+
 ## [1.1.11]
 - Add support for HMM-1 (Jupiter)
 

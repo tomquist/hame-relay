@@ -13,6 +13,9 @@ RUN npm ci
 # Copy source code
 COPY src/ ./src/
 
+# Copy brokers configuration
+COPY config/brokers.json ./config/brokers.json
+
 # Build the application
 RUN npm run build
 
@@ -35,6 +38,9 @@ COPY package.json ./
 # Copy production dependencies and built application from builder
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist/ ./dist/
+
+# Copy brokers configuration
+COPY --from=builder /build/config/brokers.json ./config/brokers.json
 
 # Copy certificates
 COPY certs/ ./certs/

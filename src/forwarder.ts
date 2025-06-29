@@ -1,10 +1,11 @@
 import * as mqtt from 'mqtt';
 import {MqttClient} from 'mqtt';
 import {readFileSync} from 'fs';
-import {join} from 'path';
+import {join, dirname} from 'path';
 import {createHash} from 'crypto';
 import fetch from 'node-fetch';
-import { HealthServer } from './health';
+import {calculateNewVersionTopicId} from './encryption';
+import {HealthServer} from './health';
 
 const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 50] as const;
 type DeviceGen = typeof deviceGenerations[number];
@@ -19,14 +20,38 @@ interface Device {
   type: DeviceTypeIdentifier;
   inverse_forwarding?: boolean;
   name?: string;
+  broker_id?: string;
+  remote_id?: string;
+  use_remote_topic_id?: boolean;
 }
 
-interface Config {
+interface BrokerDefinition {
+  url: string;
+  ca: string;
+  cert: string;
+  key: string;
+  topic_prefix?: string;
+  local_topic_prefix?: string;
+  topic_encryption_key?: string;
+  client_id_prefix?: string;
+}
+
+interface ForwarderConfig {
   broker_url: string;
   devices: Device[];
   inverse_forwarding?: boolean;
   username?: string;
   password?: string;
+  remote: BrokerDefinition;
+}
+
+interface MainConfig {
+  broker_url: string;
+  devices: Device[];
+  inverse_forwarding?: boolean;
+  username?: string;
+  password?: string;
+  default_broker_id?: string;
 }
 
 interface HameApiResponse {
@@ -50,6 +75,41 @@ interface HameApiResponse {
  * @param password Plain text password
  * @returns Promise resolving to device information array
  */
+/**
+ * Processes broker properties to handle file path references (prefixed with @)
+ * @param brokers The brokers configuration object
+ * @param brokersConfigPath The path to the brokers configuration file
+ * @returns The processed brokers configuration with file contents loaded
+ */
+function processBrokerProperties(brokers: Record<string, BrokerDefinition>, brokersConfigPath: string): Record<string, BrokerDefinition> {
+  const processedBrokers: Record<string, BrokerDefinition> = {};
+  const configDir = dirname(brokersConfigPath);
+  
+  for (const [brokerId, broker] of Object.entries(brokers)) {
+    const processedBroker: BrokerDefinition = { ...broker };
+    
+    for (const prop of Object.keys(processedBroker)) {
+      const value = processedBroker[prop as keyof BrokerDefinition];
+      if (typeof value === 'string' && value.startsWith('@')) {
+        // Remove the @ prefix and treat as file path relative to brokers.json
+        const filePath = value.substring(1);
+        try {
+          const absolutePath = join(configDir, filePath);
+          processedBroker[prop as keyof BrokerDefinition] = readFileSync(absolutePath, 'utf8').trim();
+          console.log(`Loaded ${prop} from file: ${absolutePath}`);
+        } catch (error) {
+          console.error(`Failed to load ${prop} from file ${filePath} for broker ${brokerId}:`, error);
+          throw error;
+        }
+      }
+    }
+    
+    processedBrokers[brokerId] = processedBroker;
+  }
+  
+  return processedBrokers;
+}
+
 async function fetchDevicesFromApi(username: string, password: string): Promise<Device[]> {
   try {
     // Hash password with MD5
@@ -101,7 +161,7 @@ async function fetchDevicesFromApi(username: string, password: string): Promise<
   }
 }
 
-function cleanAndValidate(config: Config): void {
+function cleanAndValidate(config: {devices: Device[]}): void {
   if (config.devices.length === 0) {
     throw new Error('No devices specified in config file');
   }
@@ -149,8 +209,7 @@ function cleanAndValidate(config: Config): void {
 
 class MQTTForwarder {
   private configBroker!: mqtt.MqttClient;
-  private hameBroker!: mqtt.MqttClient;
-  private healthServer!: HealthServer;
+  private remoteBroker!: mqtt.MqttClient;
   private readonly MESSAGE_HISTORY_TIMEOUT = 1000; // 1 second timeout
   private readonly RATE_LIMIT_INTERVAL = 59900; // Rate limit interval in milliseconds
   private readonly MESSAGE_CACHE_TIMEOUT = 1000; // 1 second timeout for message loop prevention
@@ -160,11 +219,16 @@ class MQTTForwarder {
   private processedMessages: Map<string, number> = new Map(); // Store message hashes to prevent loops
   private readonly RATE_LIMITED_CODES = [1, 13, 15, 16, 21, 26, 28, 30]; // Message codes to rate-limit (as numbers)
 
-  constructor(private readonly config: Config) {
-    // Initialize brokers
+  constructor(private readonly config: ForwarderConfig) {
     this.initializeBrokers();
-    // Initialize health server
-    this.healthServer = new HealthServer(this.configBroker, this.hameBroker);
+  }
+
+  public getRemoteBroker(): MqttClient {
+    return this.remoteBroker;
+  }
+
+  public getConfigBroker(): MqttClient {
+    return this.configBroker;
   }
 
   /**
@@ -216,9 +280,9 @@ class MQTTForwarder {
   private loadCertificates(): { ca: Buffer; cert: Buffer; key: Buffer } {
     try {
       return {
-        ca: readFileSync(join(process.env.CERT_PATH || './certs', 'ca.crt')),
-        cert: readFileSync(join(process.env.CERT_PATH || './certs', 'client.crt')),
-        key: readFileSync(join(process.env.CERT_PATH || './certs', 'client.key'))
+        ca: Buffer.from(this.config.remote.ca, 'utf8'),
+        cert: Buffer.from(this.config.remote.cert, 'utf8'),
+        key: Buffer.from(this.config.remote.key, 'utf8')
       };
     } catch (error: unknown) {
       console.error('Failed to load certificates:', error);
@@ -227,29 +291,30 @@ class MQTTForwarder {
   }
 
   private initializeBrokers(): void {
-    const options = {
+    const configOptions = {
       keepalive: 30,
-      clientId: this.generateClientId()
+      clientId: this.generateClientId('config_')
     };
-    this.configBroker = mqtt.connect(this.config.broker_url, options);
+    this.configBroker = mqtt.connect(this.config.broker_url, configOptions);
 
-    // Load certificates and connect to Hame broker
     const certs = this.loadCertificates();
-    this.hameBroker = mqtt.connect('mqtt://a40nr6osvmmaw-ats.iot.eu-central-1.amazonaws.com', {
+    const remoteOptions = {
       ...certs,
-      protocol: 'mqtts',
-      ...options,
-    });
+      protocol: 'mqtts' as const,
+      keepalive: 30,
+      clientId: this.generateClientId(this.config.remote.client_id_prefix || 'hm_')
+    };
+    this.remoteBroker = mqtt.connect(this.config.remote.url, remoteOptions);
 
     this.setupBrokerEventHandlers();
   }
 
-  private generateClientId() {
-    let randomClientId = "";
+  private generateClientId(prefix: string): string {
+    let randomClientId = '';
     for (let i = 0; i < 24; i++) {
       randomClientId += Math.floor(Math.random() * 16).toString(16);
     }
-    return `hm_${randomClientId}`;
+    return `${prefix}${randomClientId}`;
   }
 
   private setupBrokerEventHandlers(): void {
@@ -272,22 +337,22 @@ class MQTTForwarder {
       console.warn('Config broker went offline');
     });
 
-    // Hame broker event handlers
-    this.hameBroker.on('connect', () => {
-      console.log('Connected to Hame broker');
+    // Remote broker event handlers
+    this.remoteBroker.on('connect', () => {
+      console.log('Connected to remote broker');
     });
-    this.setupHameSubscriptions();
+    this.setupRemoteSubscriptions();
 
-    this.hameBroker.on('error', (error: Error) => {
-      console.error('Hame broker error:', error);
-    });
-
-    this.hameBroker.on('disconnect', () => {
-      console.warn('Hame broker disconnected');
+    this.remoteBroker.on('error', (error: Error) => {
+      console.error('Remote broker error:', error);
     });
 
-    this.hameBroker.on('offline', () => {
-      console.warn('Hame broker went offline');
+    this.remoteBroker.on('disconnect', () => {
+      console.warn('Remote broker disconnected');
+    });
+
+    this.remoteBroker.on('offline', () => {
+      console.warn('Remote broker went offline');
     });
   }
 
@@ -295,23 +360,68 @@ class MQTTForwarder {
     this.setupSubscriptions(this.configBroker);
   }
 
-  private setupHameSubscriptions(): void {
-    this.setupSubscriptions(this.hameBroker);
+  private setupRemoteSubscriptions(): void {
+    this.setupSubscriptions(this.remoteBroker);
+  }
+
+  /**
+   * Determines the appropriate topic prefix and identifier for a device on a specific broker
+   * 
+   * This centralized method handles all the logic for determining which topic structure to use:
+   * 
+   * For LOCAL broker (configBroker):
+   *   - If use_remote_topic_id=true: Uses remote structure (topic_prefix + remote_id)
+   *   - If use_remote_topic_id=false: Uses local structure (local_topic_prefix + mac)
+   * 
+   * For REMOTE broker (remoteBroker):
+   *   - Always uses remote structure (topic_prefix + remote_id)
+   * 
+   * @param device The device configuration
+   * @param broker The MQTT broker (configBroker for local, remoteBroker for remote)
+   * @returns Object containing prefix and identifier to use for this device on this broker
+   */
+  private getTopicStructureForDevice(device: Device, broker: MqttClient): { prefix: string; identifier: string } {
+    if (broker === this.configBroker) {
+      // Local broker
+      if (device.use_remote_topic_id) {
+        // Use remote topic structure on local broker
+        return {
+          prefix: this.config.remote.topic_prefix || 'hame_energy/',
+          identifier: device.remote_id!
+        };
+      } else {
+        // Use local topic structure
+        return {
+          prefix: this.config.remote.local_topic_prefix || this.config.remote.topic_prefix || 'hame_energy/',
+          identifier: device.mac
+        };
+      }
+    } else {
+      // Remote broker - always use remote structure
+      return {
+        prefix: this.config.remote.topic_prefix || 'hame_energy/',
+        identifier: device.remote_id!
+      };
+    }
   }
 
   private setupSubscriptions(broker: MqttClient): void {
-    const key = broker === this.configBroker ? 'mac' : 'device_id';
-    const brokerName = broker === this.configBroker ? 'local' : 'Hame';
+    const brokerName = broker === this.configBroker ? 'local' : 'remote';
+    
     const topics = this.config.devices.map(device => {
-      const {[key]: identifier, type: type} = device;
+      // Get the appropriate topic structure for this device on this broker
+      const { prefix, identifier } = this.getTopicStructureForDevice(device, broker);
+      
       let inverseForwarding = device.inverse_forwarding ?? this.config.inverse_forwarding;
       if (broker === this.configBroker) {
         inverseForwarding = !inverseForwarding;
       }
+      
       return inverseForwarding ?
-          `hame_energy/${type}/device/${identifier}/ctrl` :
-          `hame_energy/${type}/App/${identifier}/ctrl`
+          `${prefix}${device.type}/device/${identifier}/ctrl` :
+          `${prefix}${device.type}/App/${identifier}/ctrl`;
     });
+    
     console.log(`Subscribing to ${brokerName} broker topics:\n${topics.join("\n")}`);
     broker.subscribe(topics, (err: Error | null) => {
       if (err) {
@@ -322,7 +432,7 @@ class MQTTForwarder {
     });
 
     broker.on('message', (topic: string, message: Buffer, packet: mqtt.IPublishPacket) => {
-      this.forwardMessage(topic, message, broker === this.configBroker ? this.hameBroker : this.configBroker, packet);
+      this.forwardMessage(topic, message, broker === this.configBroker ? this.remoteBroker : this.configBroker, packet);
     });
   }
 
@@ -359,90 +469,109 @@ class MQTTForwarder {
   }
   
   private forwardMessage(topic: string, message: Buffer, targetClient: MqttClient, packet?: mqtt.IPublishPacket): void {
-    const pattern = /hame_energy\/([^\/]+)\/(device|App)\/(.*)\/ctrl/;
-
-    const matches = topic.match(pattern);
-    if (matches) {
-      // Check if this is a looped message that should be skipped
-      if (packet && this.isMessageProcessed(packet)) {
-        return;
-      }
-      
-      const type = matches[1];
-      const isDevice = matches[2] === 'device';
-      const identifier = matches[3];
-      const sourceKey = targetClient === this.configBroker ? 'device_id' : 'mac';
-      const targetKey = targetClient === this.configBroker ? 'mac' : 'device_id';
-      const device = this.config.devices.find(device => device[sourceKey] === identifier && device.type === type);
-      if (!device) {
-        console.warn(`Unknown device received (${type}): ${identifier}`);
-        return;
-      }
-      const inverseForwarding = device.inverse_forwarding ?? this.config.inverse_forwarding;
-      
-      // Create a unique key for this device
-      const deviceKey = `${device.type}:${device.device_id}:${device.mac}`;
-      
-      if (targetClient === this.configBroker) {
-        if (isDevice && !inverseForwarding) {
-          console.warn(`Ignoring remote device message for device without inverse forwarding: ${topic}`);
-          return;
-        } else if (!isDevice && inverseForwarding) {
-          console.warn(`Ignoring remote App message for device with direct forwarding: ${topic}`);
-          return;
-        }
-      } else {
-        if (isDevice && inverseForwarding) {
-          console.warn(`Ignoring local device message for device with inverse forwarding: ${topic}`);
-          return;
-        } else if (!isDevice && !inverseForwarding) {
-          console.warn(`Ignoring local App message for device without direct forwarding: ${topic}`);
-          return;
-        }
-      }
-
-      if (isDevice) {
-        // Check if we previously forwarded an App message for this device
-        const lastAppMessageTime = this.appMessageHistory.get(deviceKey);
-        const currentTime = Date.now();
-
-        if (!lastAppMessageTime || (currentTime - lastAppMessageTime > this.MESSAGE_HISTORY_TIMEOUT)) {
-          console.warn(`Skipping device message forwarding to Hame for ${deviceKey}: no recent App message was forwarded`);
-          return;
-        }
-        this.appMessageHistory.delete(deviceKey);
-      } else {
-        // This is an App message, record it in history
-        this.appMessageHistory.set(deviceKey, Date.now());
-        
-        // Apply rate limiting for messages going from local to Hame
-        if (targetClient === this.hameBroker && this.shouldRateLimit(message, deviceKey)) {
-          return;
-        }
-      }
-      
-      const newTopic = topic.replace(identifier, device[targetKey]);
-      const from = targetClient === this.configBroker ? 'Hame' : 'local';
-      const to = targetClient === this.configBroker ? 'local' : 'Hame';
-      
-      // Add relay instance header to the message to prevent loops
-      const publishOptions = {
-        properties: {
-          userProperties: {
-            relayInstanceId: this.INSTANCE_ID
-          }
-        }
-      };
-      
-      targetClient.publish(newTopic, message, publishOptions);
-      console.log(`Forwarded message from ${from} to ${to}: ${topic} -> ${newTopic}`);
+    // Check if this is a looped message that should be skipped
+    if (packet && this.isMessageProcessed(packet)) {
+      return;
     }
+
+    // Try to match the topic and find the corresponding device
+    let matchedDevice: Device | undefined;
+    let topicType = '';
+    let isDevice = false;
+
+    // Try to match against all possible topic patterns for all devices
+    for (const device of this.config.devices) {
+      const sourceClient = targetClient === this.configBroker ? this.remoteBroker : this.configBroker;
+      
+      // Get the expected topic structure for this device on the source broker
+      const { prefix: expectedPrefix, identifier: expectedIdentifier } = this.getTopicStructureForDevice(device, sourceClient);
+      
+      // Try to match this device's topic pattern
+      const pattern = new RegExp(`^${expectedPrefix.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}([^/]+)/(device|App)/(.*)/ctrl$`);
+      const matches = topic.match(pattern);
+      
+      if (matches && matches[1] === device.type && matches[3] === expectedIdentifier) {
+        matchedDevice = device;
+        topicType = matches[1];
+        isDevice = matches[2] === 'device';
+        break;
+      }
+    }
+
+    if (!matchedDevice) {
+      console.warn(`No matching device found for topic: ${topic}`);
+      return;
+    }
+
+    const inverseForwarding = matchedDevice.inverse_forwarding ?? this.config.inverse_forwarding;
+    
+    // Create a unique key for this device
+    const deviceKey = `${matchedDevice.type}:${matchedDevice.device_id}:${matchedDevice.mac}`;
+    
+    if (targetClient === this.configBroker) {
+      if (isDevice && !inverseForwarding) {
+        console.warn(`Ignoring remote device message for device without inverse forwarding: ${topic}`);
+        return;
+      } else if (!isDevice && inverseForwarding) {
+        console.warn(`Ignoring remote App message for device with direct forwarding: ${topic}`);
+        return;
+      }
+    } else {
+      if (isDevice && inverseForwarding) {
+        console.warn(`Ignoring local device message for device with inverse forwarding: ${topic}`);
+        return;
+      } else if (!isDevice && !inverseForwarding) {
+        console.warn(`Ignoring local App message for device without direct forwarding: ${topic}`);
+        return;
+      }
+    }
+
+    if (isDevice) {
+      // Check if we previously forwarded an App message for this device
+      const lastAppMessageTime = this.appMessageHistory.get(deviceKey);
+      const currentTime = Date.now();
+
+      if (!lastAppMessageTime || (currentTime - lastAppMessageTime > this.MESSAGE_HISTORY_TIMEOUT)) {
+        console.warn(`Skipping device message forwarding to remote for ${deviceKey}: no recent App message was forwarded`);
+        return;
+      }
+      this.appMessageHistory.delete(deviceKey);
+    } else {
+      // This is an App message, record it in history
+      this.appMessageHistory.set(deviceKey, Date.now());
+
+      // Apply rate limiting for messages going from local to Hame
+      if (targetClient === this.remoteBroker && this.shouldRateLimit(message, deviceKey)) {
+        return;
+      }
+    }
+    
+    // Get the target topic structure for this device on the target broker
+    const { prefix: targetPrefix, identifier: targetIdentifier } = this.getTopicStructureForDevice(matchedDevice, targetClient);
+    
+    // Build the new topic
+    const deviceOrApp = isDevice ? 'device' : 'App';
+    const newTopic = `${targetPrefix}${topicType}/${deviceOrApp}/${targetIdentifier}/ctrl`;
+    
+    const from = targetClient === this.configBroker ? 'remote' : 'local';
+    const to = targetClient === this.configBroker ? 'local' : 'remote';
+    
+    // Add relay instance header to the message to prevent loops
+    const publishOptions = {
+      properties: {
+        userProperties: {
+          relayInstanceId: this.INSTANCE_ID
+        }
+      }
+    };
+    
+    targetClient.publish(newTopic, message, publishOptions);
+    console.log(`Forwarded message from ${from} to ${to}: ${topic} -> ${newTopic}`);
   }
 
   public close(): void {
     this.configBroker.end();
-    this.hameBroker.end();
-    this.healthServer.close();
+    this.remoteBroker.end();
   }
   
   // Clean up old message history entries periodically
@@ -473,10 +602,17 @@ class MQTTForwarder {
 
 async function start() {
   try {
-    // Entry point
     const configPath = process.env.CONFIG_PATH || './config/config.json';
-    // Load and parse config file
-    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Config;
+    const brokersPath = process.env.BROKERS_PATH || './config/brokers.json';
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as MainConfig;
+    let brokers: Record<string, BrokerDefinition>;
+    try {
+      const rawBrokers = JSON.parse(readFileSync(brokersPath, 'utf8')) as Record<string, BrokerDefinition>;
+      brokers = processBrokerProperties(rawBrokers, brokersPath);
+    } catch (err) {
+      console.error(`Failed to load brokers config at ${brokersPath}:`, err);
+      throw err;
+    }
 
     // Initialize devices array if it doesn't exist
     if (!config.devices) {
@@ -533,26 +669,65 @@ async function start() {
 
     cleanAndValidate(config);
 
-    // Log the list of devices
+    const defaultId = config.default_broker_id || 'hame-2024';
+    const devicesByBroker: Record<string, Device[]> = {};
+    for (const device of config.devices) {
+      const brokerId = device.broker_id || defaultId;
+      const broker = brokers[brokerId];
+      if (!broker) {
+        throw new Error(`Broker '${brokerId}' not defined`);
+      }
+      device.broker_id = brokerId;
+      if (!device.remote_id) {
+        if (broker.topic_encryption_key) {
+          device.remote_id = calculateNewVersionTopicId(Buffer.from(broker.topic_encryption_key, 'hex'), device.mac);
+        } else {
+          device.remote_id = device.device_id;
+        }
+      }
+      (devicesByBroker[brokerId] ||= []).push(device);
+    }
+
     console.log(`\nConfigured devices: ${config.devices.length} total`);
     console.log('------------------');
     config.devices.forEach((device, index) => {
       console.log(`Device ${index + 1}:`);
       console.log(`  Name: ${device.name || 'Not specified'}`);
       console.log(`  Device ID: ${device.device_id}`);
+      console.log(`  Remote ID: ${device.remote_id}`);
       console.log(`  MAC: ${device.mac}`);
       console.log(`  Type: ${device.type}`);
+      console.log(`  Broker: ${device.broker_id}`);
       console.log(`  Inverse Forwarding: ${device.inverse_forwarding ?? config.inverse_forwarding ?? false}`);
+      console.log(`  Use Remote Topic ID: ${device.use_remote_topic_id ?? false}`);
       console.log('------------------');
     });
     console.log('');
 
-    const forwarder = new MQTTForwarder(config);
+    const forwarders: MQTTForwarder[] = [];
+    const healthServer = new HealthServer();
 
-    // Handle application shutdown
+    for (const [id, devices] of Object.entries(devicesByBroker)) {
+      const fconfig: ForwarderConfig = {
+        broker_url: config.broker_url,
+        devices,
+        inverse_forwarding: config.inverse_forwarding,
+        username: config.username,
+        password: config.password,
+        remote: brokers[id]
+      };
+      const fw = new MQTTForwarder(fconfig);
+      forwarders.push(fw);
+      healthServer.addBroker(id, fw.getRemoteBroker());
+    }
+    if (forwarders.length > 0) {
+      healthServer.addBroker('local', forwarders[0].getConfigBroker());
+    }
+
     process.on('SIGINT', () => {
       console.log('Shutting down...');
-      forwarder.close();
+      forwarders.forEach(f => f.close());
+      healthServer.close();
       process.exit(0);
     });
   } catch (error: unknown) {
