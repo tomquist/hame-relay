@@ -43,6 +43,7 @@ bashio::log.info "Generating config file..."
 DEVICES=$(bashio::config 'devices' | jq -s '.')
 INVERSE_FORWARDING=$(bashio::config 'inverse_forwarding' "false")
 DEFAULT_BROKER_ID=$(bashio::config 'default_broker_id' "hame-2024")
+LOG_LEVEL=$(bashio::config 'log_level' "info")
 
 # Create base configuration
 CONFIG='{
@@ -109,5 +110,6 @@ else
 fi
 
 # Start the application
+export LOG_LEVEL
 bashio::log.info "Starting MQTT forwarder..."
 cd /app && node dist/forwarder.js

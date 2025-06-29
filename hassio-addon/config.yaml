@@ -17,6 +17,7 @@ watchdog: "http://[HOST]:[PORT:8080]/health"
 options:
   inverse_forwarding: false
   default_broker_id: hame-2024
+  log_level: info
   devices:
     - device_id: "24-digit-device-id"
       mac: "maccaddresswithoutcolons"
@@ -25,6 +26,7 @@ schema:
   mqtt_uri: str?
   inverse_forwarding: bool?
   default_broker_id: str?
+  log_level: list(trace|debug|info|warn|error|fatal)?
   username: str?
   password: password?
   devices:

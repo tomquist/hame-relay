@@ -120,6 +120,7 @@ docker run -d \
   -v "$(pwd)/config:/app/config" \
   ghcr.io/tomquist/hame-relay:main
 ```
+Set `LOG_LEVEL` to control verbosity, e.g. `-e LOG_LEVEL=debug`.
 
 ### Option 2: Using Docker Compose
 
@@ -143,7 +144,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./config:/app/config
+    environment:
+      - LOG_LEVEL=debug
 ```
+Set `LOG_LEVEL` to control verbosity.
 
 4. Start the container:
 ```bash
@@ -212,6 +216,7 @@ The add-on will automatically use your Home Assistant MQTT settings if configure
 - `username`: Your Hame account email address. When provided along with password, 
   the tool will automatically fetch device information from the Hame API and display it in the logs.
 - `password`: Your Hame account password. Required when using automatic device information retrieval.
+- `log_level`: Adjust log verbosity (`trace`, `debug`, `info`, `warn`, `error`, `fatal`).
 
 ## Development
 
