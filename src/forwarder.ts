@@ -8,12 +8,15 @@ import {calculateNewVersionTopicId} from './encryption';
 import {HealthServer} from './health';
 import {logger} from './logger';
 
-const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 50] as const;
+const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 50] as const;
 type DeviceGen = typeof deviceGenerations[number];
 const deviceTypes = ["A", "B", "D", "E", "F", "G", "J", "K", "I", "M", "N"] as const;
 type DeviceType = typeof deviceTypes[number];
-type DeviceTypeIdentifier = `HM${DeviceType}-${DeviceGen}`;
-const knownDeviceTypes: DeviceTypeIdentifier[] = deviceGenerations.flatMap(gen => deviceTypes.map(type => `HM${type}-${gen}` satisfies DeviceTypeIdentifier));
+type DeviceTypeIdentifier = `HM${DeviceType}-${DeviceGen}` | `JPLS-8H`;
+const knownDeviceTypes: DeviceTypeIdentifier[] = [
+  ...(deviceGenerations.flatMap(gen => deviceTypes.map(type => `HM${type}-${gen}` satisfies DeviceTypeIdentifier))),
+  "JPLS-8H",
+];
 
 interface Device {
   device_id: string;
