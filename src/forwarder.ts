@@ -6,6 +6,7 @@ import {createHash} from 'crypto';
 import fetch from 'node-fetch';
 import {calculateNewVersionTopicId} from './encryption';
 import {HealthServer} from './health';
+import {logger} from './logger';
 
 const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 50] as const;
 type DeviceGen = typeof deviceGenerations[number];
@@ -96,9 +97,9 @@ function processBrokerProperties(brokers: Record<string, BrokerDefinition>, brok
         try {
           const absolutePath = join(configDir, filePath);
           processedBroker[prop as keyof BrokerDefinition] = readFileSync(absolutePath, 'utf8').trim();
-          console.log(`Loaded ${prop} from file: ${absolutePath}`);
+          logger.info(`Loaded ${prop} from file: ${absolutePath}`);
         } catch (error) {
-          console.error(`Failed to load ${prop} from file ${filePath} for broker ${brokerId}:`, error);
+          logger.error(`Failed to load ${prop} from file ${filePath} for broker ${brokerId}:`, error);
           throw error;
         }
       }
@@ -119,7 +120,7 @@ async function fetchDevicesFromApi(username: string, password: string): Promise<
     url.searchParams.append('mailbox', username);
     url.searchParams.append('pwd', hashedPassword);
     
-    console.log(`Fetching device information for ${username}...`);
+    logger.info(`Fetching device information for ${username}...`);
     const response = await fetch(url.toString(), {
       headers: {
         'User-Agent': 'Dart/2.19 (dart:io)',
@@ -128,14 +129,14 @@ async function fetchDevicesFromApi(username: string, password: string): Promise<
     const data: HameApiResponse = await response.json();
     
     if (data.code === '2') {
-      console.log('Successfully fetched device information from API');
+      logger.info('Successfully fetched device information from API');
       if (Array.isArray(data.data)) {
         return data.data.map(device => {
           // Map the API response to our Device interface
           // Try to determine the device type based on the API response
           let deviceType = device.type as DeviceTypeIdentifier;
           if (!knownDeviceTypes.includes(deviceType)) {
-            console.warn(`Unknown device type from API: ${device.type}. Using as-is.`);
+            logger.warn(`Unknown device type from API: ${device.type}. Using as-is.`);
           }
           
           return {
@@ -156,7 +157,7 @@ async function fetchDevicesFromApi(username: string, password: string): Promise<
       throw new Error(`Unknown API response code: ${data.code} - ${data.msg}`);
     }
   } catch (error) {
-    console.error('Error fetching devices from API:', error);
+    logger.error('Error fetching devices from API:', error);
     throw error;
   }
 }
@@ -189,7 +190,7 @@ function cleanAndValidate(config: {devices: Device[]}): void {
         throw new Error('MAC address must be a 12-character hexadecimal string');
       }
       if (device.type && !knownDeviceTypes.includes(device.type)) {
-        console.warn(`Unknown device type: ${device.type}. This device will likely not be forwarded.`);
+        logger.warn(`Unknown device type: ${device.type}. This device will likely not be forwarded.`);
       }
       remainingDevices.push(device);
     } catch (error) {
@@ -202,7 +203,7 @@ function cleanAndValidate(config: {devices: Device[]}): void {
     if (config.devices.length === 0) {
       throw new Error(`All devices failed validation:\n${errors.join('\n')}`);
     } else {
-      console.warn(`Some devices failed validation:\n${errors.join('\n')}`);
+      logger.warn(`Some devices failed validation:\n${errors.join('\n')}`);
     }
   }
 }
@@ -264,7 +265,7 @@ class MQTTForwarder {
       
       if (lastSentTime && (currentTime - lastSentTime < this.RATE_LIMIT_INTERVAL)) {
         const remainingTime = this.RATE_LIMIT_INTERVAL - (currentTime - lastSentTime);
-        console.log(`Devices configured with inverse_forwarding get rate limited. Rate limiting message with code cd=${messageCodeNum} for device ${deviceKey}. Please wait for ${remainingTime}ms before sending another message. Use inverse_forwarding=false to avoid rate limiting.`);
+        logger.info(`Devices configured with inverse_forwarding get rate limited. Rate limiting message with code cd=${messageCodeNum} for device ${deviceKey}. Please wait for ${remainingTime}ms before sending another message. Use inverse_forwarding=false to avoid rate limiting.`);
         return true;
       }
       
@@ -272,7 +273,7 @@ class MQTTForwarder {
       this.rateLimitedMessages.set(rateLimitKey, currentTime);
       return false;
     } catch (error) {
-      console.error('Error in rate limiting logic:', error);
+      logger.error('Error in rate limiting logic:', error);
       return false; // On error, don't rate limit
     }
   }
@@ -285,7 +286,7 @@ class MQTTForwarder {
         key: Buffer.from(this.config.remote.key, 'utf8')
       };
     } catch (error: unknown) {
-      console.error('Failed to load certificates:', error);
+      logger.error('Failed to load certificates:', error);
       throw error;
     }
   }
@@ -320,39 +321,39 @@ class MQTTForwarder {
   private setupBrokerEventHandlers(): void {
     // Config broker event handlers
     this.configBroker.on('connect', () => {
-      console.log('Connected to config broker');
+      logger.info('Connected to config broker');
     });
     this.setupConfigSubscriptions();
 
     // Set up error handlers
     this.configBroker.on('error', (error: Error) => {
-      console.error('Config broker error:', error);
+      logger.error('Config broker error:', error);
     });
 
     this.configBroker.on('disconnect', () => {
-      console.warn('Config broker disconnected');
+      logger.warn('Config broker disconnected');
     });
 
     this.configBroker.on('offline', () => {
-      console.warn('Config broker went offline');
+      logger.warn('Config broker went offline');
     });
 
     // Remote broker event handlers
     this.remoteBroker.on('connect', () => {
-      console.log('Connected to remote broker');
+      logger.info('Connected to remote broker');
     });
     this.setupRemoteSubscriptions();
 
     this.remoteBroker.on('error', (error: Error) => {
-      console.error('Remote broker error:', error);
+      logger.error('Remote broker error:', error);
     });
 
     this.remoteBroker.on('disconnect', () => {
-      console.warn('Remote broker disconnected');
+      logger.warn('Remote broker disconnected');
     });
 
     this.remoteBroker.on('offline', () => {
-      console.warn('Remote broker went offline');
+      logger.warn('Remote broker went offline');
     });
   }
 
@@ -422,13 +423,13 @@ class MQTTForwarder {
           `${prefix}${device.type}/App/${identifier}/ctrl`;
     });
     
-    console.log(`Subscribing to ${brokerName} broker topics:\n${topics.join("\n")}`);
+    logger.info(`Subscribing to ${brokerName} broker topics:\n${topics.join("\n")}`);
     broker.subscribe(topics, (err: Error | null) => {
       if (err) {
-        console.error(`Error subscribing to ${brokerName} broker for device:`, err);
+        logger.error(`Error subscribing to ${brokerName} broker for device:`, err);
         return;
       }
-      console.log(`Subscribed to ${brokerName} broker topics`);
+      logger.info(`Subscribed to ${brokerName} broker topics`);
     });
 
     broker.on('message', (topic: string, message: Buffer, packet: mqtt.IPublishPacket) => {
@@ -452,18 +453,18 @@ class MQTTForwarder {
           // Message has already been processed by a relay
           if (userProps.relayInstanceId === this.INSTANCE_ID) {
             // This is our own message coming back - definitely skip it
-            console.log('Skipping message from our own relay instance');
+            logger.debug('Skipping message from our own relay instance');
             return true;
           } else {
             // Message from another relay instance - also skip it to prevent loops
-            console.log(`Skipping message from relay instance: ${userProps.relayInstanceId.substring(0, 8)}`);
+            logger.debug(`Skipping message from relay instance: ${userProps.relayInstanceId.substring(0, 8)}`);
             return true;
           }
         }
       }
       return false;
     } catch (error) {
-      console.error('Error checking if message is processed:', error);
+      logger.error('Error checking if message is processed:', error);
       return false; // On error, don't skip the message
     }
   }
@@ -499,7 +500,7 @@ class MQTTForwarder {
     }
 
     if (!matchedDevice) {
-      console.warn(`No matching device found for topic: ${topic}`);
+      logger.warn(`No matching device found for topic: ${topic}`);
       return;
     }
 
@@ -510,18 +511,18 @@ class MQTTForwarder {
     
     if (targetClient === this.configBroker) {
       if (isDevice && !inverseForwarding) {
-        console.warn(`Ignoring remote device message for device without inverse forwarding: ${topic}`);
+        logger.warn(`Ignoring remote device message for device without inverse forwarding: ${topic}`);
         return;
       } else if (!isDevice && inverseForwarding) {
-        console.warn(`Ignoring remote App message for device with direct forwarding: ${topic}`);
+        logger.warn(`Ignoring remote App message for device with direct forwarding: ${topic}`);
         return;
       }
     } else {
       if (isDevice && inverseForwarding) {
-        console.warn(`Ignoring local device message for device with inverse forwarding: ${topic}`);
+        logger.warn(`Ignoring local device message for device with inverse forwarding: ${topic}`);
         return;
       } else if (!isDevice && !inverseForwarding) {
-        console.warn(`Ignoring local App message for device without direct forwarding: ${topic}`);
+        logger.warn(`Ignoring local App message for device without direct forwarding: ${topic}`);
         return;
       }
     }
@@ -532,7 +533,7 @@ class MQTTForwarder {
       const currentTime = Date.now();
 
       if (!lastAppMessageTime || (currentTime - lastAppMessageTime > this.MESSAGE_HISTORY_TIMEOUT)) {
-        console.warn(`Skipping device message forwarding to remote for ${deviceKey}: no recent App message was forwarded`);
+        logger.warn(`Skipping device message forwarding to remote for ${deviceKey}: no recent App message was forwarded`);
         return;
       }
       this.appMessageHistory.delete(deviceKey);
@@ -566,7 +567,7 @@ class MQTTForwarder {
     };
     
     targetClient.publish(newTopic, message, publishOptions);
-    console.log(`Forwarded message from ${from} to ${to}: ${topic} -> ${newTopic}`);
+    logger.info(`Forwarded message from ${from} to ${to}: ${topic} -> ${newTopic}`);
   }
 
   public close(): void {
@@ -610,7 +611,7 @@ async function start() {
       const rawBrokers = JSON.parse(readFileSync(brokersPath, 'utf8')) as Record<string, BrokerDefinition>;
       brokers = processBrokerProperties(rawBrokers, brokersPath);
     } catch (err) {
-      console.error(`Failed to load brokers config at ${brokersPath}:`, err);
+      logger.error(`Failed to load brokers config at ${brokersPath}:`, err);
       throw err;
     }
 
@@ -630,11 +631,11 @@ async function start() {
     // If username and password are provided, fetch device information from API
     if (config.username && config.password) {
       try {
-        console.log('Credentials found in config, attempting to fetch devices from API...');
+        logger.info('Credentials found in config, attempting to fetch devices from API...');
         const apiDevices = await fetchDevicesFromApi(config.username, config.password);
         
         if (apiDevices.length > 0) {
-          console.log(`Retrieved ${apiDevices.length} devices from API`);
+          logger.info(`Retrieved ${apiDevices.length} devices from API`);
           
           // Process each API device
           for (const apiDevice of apiDevices) {
@@ -659,11 +660,11 @@ async function start() {
             }
           }
           
-          console.log(`Config now contains ${config.devices.length} devices (${userDevicesMap.size} unique)`);
+          logger.info(`Config now contains ${config.devices.length} devices (${userDevicesMap.size} unique)`);
         }
       } catch (apiError) {
-        console.error('Failed to fetch devices from API:', apiError);
-        console.warn('Continuing with devices from config file only');
+        logger.error('Failed to fetch devices from API:', apiError);
+        logger.warn('Continuing with devices from config file only');
       }
     }
 
@@ -688,21 +689,21 @@ async function start() {
       (devicesByBroker[brokerId] ||= []).push(device);
     }
 
-    console.log(`\nConfigured devices: ${config.devices.length} total`);
-    console.log('------------------');
+    logger.info(`\nConfigured devices: ${config.devices.length} total`);
+    logger.info('------------------');
     config.devices.forEach((device, index) => {
-      console.log(`Device ${index + 1}:`);
-      console.log(`  Name: ${device.name || 'Not specified'}`);
-      console.log(`  Device ID: ${device.device_id}`);
-      console.log(`  Remote ID: ${device.remote_id}`);
-      console.log(`  MAC: ${device.mac}`);
-      console.log(`  Type: ${device.type}`);
-      console.log(`  Broker: ${device.broker_id}`);
-      console.log(`  Inverse Forwarding: ${device.inverse_forwarding ?? config.inverse_forwarding ?? false}`);
-      console.log(`  Use Remote Topic ID: ${device.use_remote_topic_id ?? false}`);
-      console.log('------------------');
+      logger.info(`Device ${index + 1}:`);
+      logger.info(`  Name: ${device.name || 'Not specified'}`);
+      logger.info(`  Device ID: ${device.device_id}`);
+      logger.info(`  Remote ID: ${device.remote_id}`);
+      logger.info(`  MAC: ${device.mac}`);
+      logger.info(`  Type: ${device.type}`);
+      logger.info(`  Broker: ${device.broker_id}`);
+      logger.info(`  Inverse Forwarding: ${device.inverse_forwarding ?? config.inverse_forwarding ?? false}`);
+      logger.info(`  Use Remote Topic ID: ${device.use_remote_topic_id ?? false}`);
+      logger.info('------------------');
     });
-    console.log('');
+    logger.info('');
 
     const forwarders: MQTTForwarder[] = [];
     const healthServer = new HealthServer();
@@ -725,13 +726,13 @@ async function start() {
     }
 
     process.on('SIGINT', () => {
-      console.log('Shutting down...');
+      logger.info('Shutting down...');
       forwarders.forEach(f => f.close());
       healthServer.close();
       process.exit(0);
     });
   } catch (error: unknown) {
-    console.error('Failed to start MQTT forwarder:', error);
+    logger.error('Failed to start MQTT forwarder:', error);
     process.exit(1);
   }
 }
