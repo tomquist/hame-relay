@@ -2,7 +2,7 @@ name: Build and Deploy Hame Relay
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     tags: [ "*.*.*" ]
   pull_request:
     branches: [ "main" ]
@@ -54,6 +54,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
 
       - name: Log in to Container registry
         uses: docker/login-action@v3
@@ -129,6 +131,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
 
       - name: Log in to Container registry
         uses: docker/login-action@v3
@@ -190,6 +194,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
 
       - name: Log in to Container registry
         uses: docker/login-action@v3
@@ -267,6 +273,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
 
       - name: Log in to Container registry
         uses: docker/login-action@v3
