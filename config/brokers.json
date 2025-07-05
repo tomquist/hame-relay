@@ -5,7 +5,17 @@
     "cert": "@../certs/hame-2024.crt",
     "key": "@../certs/hame-2024.key",
     "topic_prefix": "hame_energy/",
-    "client_id_prefix": "hm_"
+    "client_id_prefix": "hm_",
+    "min_versions": {
+      "HMA": 0,
+      "HMB": 0,
+      "HMF": 0,
+      "HMJ": 0,
+      "HMG": 0,
+      "HMM": 0,
+      "HMN": 0,
+      "JPLS": 0
+    }
   },
   "hame-2025": {
     "url": "@../certs/hame-2025-url",
@@ -15,6 +25,13 @@
     "topic_prefix": "marstek_energy/",
     "local_topic_prefix": "hame_energy/",
     "client_id_prefix": "mst_",
-    "topic_encryption_key": "@../certs/hame-2025-topic-encryption-key"
+    "topic_encryption_key": "@../certs/hame-2025-topic-encryption-key",
+    "min_versions": {
+      "HMA": 226,
+      "HMF": 226,
+      "HMJ": 108,
+      "HMK": 226,
+      "HMG": 153
+    }
   }
 }
