@@ -1,5 +1,4 @@
 # Changelog
-
 ## [1.2.0]
 - Support multiple remote brokers via new `brokers.json`
 
