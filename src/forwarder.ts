@@ -711,6 +711,7 @@ async function start() {
       logger.info(`  Remote ID: ${device.remote_id}`);
       logger.info(`  MAC: ${device.mac}`);
       logger.info(`  Type: ${device.type}`);
+      logger.info(`  Version: ${device.version ?? 'Unknown'}`);
       logger.info(`  Broker: ${device.broker_id}`);
       logger.info(`  Inverse Forwarding: ${device.inverse_forwarding ?? config.inverse_forwarding ?? false}`);
       logger.info(`  Use Remote Topic ID: ${device.use_remote_topic_id ?? false}`);
