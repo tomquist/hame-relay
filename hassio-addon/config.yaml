@@ -22,6 +22,7 @@ options:
     - device_id: "24-digit-device-id"
       mac: "maccaddresswithoutcolons"
       type: "HMA-1"
+      version: 0
 schema:
   mqtt_uri: str?
   inverse_forwarding: bool?
@@ -33,4 +34,5 @@ schema:
     - device_id: str
       mac: str
       type: str
+      version: int?
       inverse_forwarding: bool?

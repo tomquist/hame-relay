@@ -92,7 +92,7 @@ mkdir config
   "username": "your_hame_email@example.com",
   "password": "your_hame_password",
   "devices": [
-    { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons", "type": "HMA-1" }
+    { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons", "type": "HMA-1", "version": 0 }
   ]
 }
 ```
@@ -186,6 +186,7 @@ devices:
   - device_id: "0123456789abcdef01234567"
     mac: "01234567890a"
     type: "HMA-1"
+    version: 151
   - device_id: "0123456789abcdef01234567"
     mac: "01234567890a"
     type: "HMA-1"
@@ -206,6 +207,7 @@ The add-on will automatically use your Home Assistant MQTT settings if configure
   - `device_id`: Your device's 22 to 24-digit ID
   - `mac`: Your device's MAC address without colons
   - `type`: Your device's type (e.g. HMA-1, HMA-2, HMA-3 etc.)
+  - `version`: (optional) Firmware version used for automatic broker selection. Enter the number without any decimal point (e.g. firmware `226.1` becomes `226`)
   - `inverse_forwarding`: (optional) Override the global setting for the operation mode of this device
 
 ### Optional Configuration

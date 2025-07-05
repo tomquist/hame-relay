@@ -3,10 +3,11 @@ import {MqttClient} from 'mqtt';
 import {readFileSync} from 'fs';
 import {join, dirname} from 'path';
 import {createHash} from 'crypto';
-import fetch from 'node-fetch';
+
 import {calculateNewVersionTopicId} from './encryption';
 import {HealthServer} from './health';
 import {logger} from './logger';
+import {HameApi, DeviceInfo} from './hame_api';
 
 const deviceGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 50] as const;
 type DeviceGen = typeof deviceGenerations[number];
@@ -22,6 +23,7 @@ interface Device {
   device_id: string;
   mac: string;
   type: DeviceTypeIdentifier;
+  version?: number;
   inverse_forwarding?: boolean;
   name?: string;
   broker_id?: string;
@@ -38,6 +40,7 @@ interface BrokerDefinition {
   local_topic_prefix?: string;
   topic_encryption_key?: string;
   client_id_prefix?: string;
+  min_versions?: Record<string, number>;
 }
 
 interface ForwarderConfig {
@@ -59,27 +62,8 @@ interface MainConfig {
   default_broker_id?: string;
 }
 
-interface HameApiResponse {
-  code: string;
-  msg: string;
-  token?: string;
-  data: Array<{
-    devid: string;
-    name: string;
-    sn: string | null;
-    mac: string;
-    type: string;
-    access: string;
-    bluetooth_name: string;
-  }> | string;
-}
 
-/**
- * Fetches device information from the Hame API
- * @param username Email address used for the Hame account
- * @param password Plain text password
- * @returns Promise resolving to device information array
- */
+
 /**
  * Processes broker properties to handle file path references (prefixed with @)
  * @param brokers The brokers configuration object
@@ -94,13 +78,13 @@ function processBrokerProperties(brokers: Record<string, BrokerDefinition>, brok
     const processedBroker: BrokerDefinition = { ...broker };
     
     for (const prop of Object.keys(processedBroker)) {
-      const value = processedBroker[prop as keyof BrokerDefinition];
+      const key = prop as keyof BrokerDefinition;
+      const value = processedBroker[key];
       if (typeof value === 'string' && value.startsWith('@')) {
-        // Remove the @ prefix and treat as file path relative to brokers.json
         const filePath = value.substring(1);
         try {
           const absolutePath = join(configDir, filePath);
-          processedBroker[prop as keyof BrokerDefinition] = readFileSync(absolutePath, 'utf8').trim();
+          (processedBroker as any)[key] = readFileSync(absolutePath, 'utf8').trim();
           logger.debug(`Loaded ${prop} from file: ${absolutePath}`);
         } catch (error) {
           logger.error(error, `Failed to load ${prop} from file ${filePath} for broker ${brokerId}`);
@@ -115,55 +99,30 @@ function processBrokerProperties(brokers: Record<string, BrokerDefinition>, brok
   return processedBrokers;
 }
 
-async function fetchDevicesFromApi(username: string, password: string): Promise<Device[]> {
-  try {
-    // Hash password with MD5
-    const hashedPassword = createHash('md5').update(password).digest('hex');
-    
-    const url = new URL('https://eu.hamedata.com/app/Solar/v2_get_device.php');
-    url.searchParams.append('mailbox', username);
-    url.searchParams.append('pwd', hashedPassword);
-    
-    logger.info(`Fetching device information for ${username}...`);
-    const response = await fetch(url.toString(), {
-      headers: {
-        'User-Agent': 'Dart/2.19 (dart:io)',
-      }
-    });
-    const data: HameApiResponse = await response.json();
-    
-    if (data.code === '2') {
-      logger.info('Successfully fetched device information from API');
-      if (Array.isArray(data.data)) {
-        return data.data.map(device => {
-          // Map the API response to our Device interface
-          // Try to determine the device type based on the API response
-          let deviceType = device.type as DeviceTypeIdentifier;
-          if (!knownDeviceTypes.includes(deviceType)) {
-            logger.warn(`Unknown device type from API: ${device.type}. Using as-is.`);
-          }
-          
-          return {
-            device_id: device.devid,
-            mac: device.mac,
-            type: deviceType,
-            name: device.name
-          };
-        });
-      } else {
-        throw new Error('Unexpected API response format: data is not an array');
-      }
-    } else if (data.code === '3') {
-      throw new Error('Email not registered with Hame');
-    } else if (data.code === '4') {
-      throw new Error('Incorrect password');
-    } else {
-      throw new Error(`Unknown API response code: ${data.code} - ${data.msg}`);
-    }
-  } catch (error) {
-    logger.error(error, 'Error fetching devices from API');
-    throw error;
+
+function autoDetermineBroker(device: Device, brokers: Record<string, BrokerDefinition>): string | undefined {
+  if (device.version == null) {
+    return undefined;
   }
+  const regex = /(.*)-[\d\w]+/;
+  const match = regex.exec(device.type);
+  if (!match) {
+    return undefined;
+  }
+  const baseType = match[1];
+  let chosen: string | undefined;
+  let highest = -Infinity;
+  for (const [id, broker] of Object.entries(brokers)) {
+    const minVersions = broker.min_versions;
+    if (minVersions && Object.prototype.hasOwnProperty.call(minVersions, baseType)) {
+      const min = minVersions[baseType];
+      if (device.version >= min && min > highest) {
+        chosen = id;
+        highest = min;
+      }
+    }
+  }
+  return chosen;
 }
 
 function cleanAndValidate(config: {devices: Device[]}): void {
@@ -651,7 +610,22 @@ async function start() {
     if (config.username && config.password) {
       try {
         logger.info('Credentials found in config, attempting to fetch devices from API...');
-        const apiDevices = await fetchDevicesFromApi(config.username, config.password);
+        const api = new HameApi();
+        const apiDevicesRaw: DeviceInfo[] = await api.fetchDevices(config.username, config.password);
+        const apiDevices: Device[] = apiDevicesRaw.map(device => {
+          let deviceType = device.type as DeviceTypeIdentifier;
+          if (!knownDeviceTypes.includes(deviceType)) {
+            logger.warn(`Unknown device type from API: ${device.type}. Using as-is.`);
+          }
+          const v = parseInt(device.version, 10);
+          return {
+            device_id: device.devid,
+            mac: device.mac,
+            type: deviceType,
+            name: device.name,
+            version: isNaN(v) ? undefined : v,
+          } as Device;
+        });
         
         if (apiDevices.length > 0) {
           logger.info(`Retrieved ${apiDevices.length} devices from API`);
@@ -672,6 +646,9 @@ async function start() {
               if (!userDevice.mac) {
                 userDevice.mac = apiDevice.mac;
               }
+              if (userDevice.version == null) {
+                userDevice.version = apiDevice.version;
+              }
             } else {
               // New device from API - add to config
               config.devices.push(apiDevice);
@@ -684,6 +661,17 @@ async function start() {
       } catch (apiError) {
         logger.error(apiError, 'Failed to fetch devices from API');
         logger.warn('Continuing with devices from config file only');
+      }
+    }
+
+    // Auto determine broker for devices when version information is available
+    for (const device of config.devices) {
+      if (!device.broker_id) {
+        const auto = autoDetermineBroker(device, brokers);
+        if (auto) {
+          device.broker_id = auto;
+          logger.info(`Auto-selected broker ${auto} for device ${device.device_id}`);
+        }
       }
     }
 
