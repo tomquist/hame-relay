@@ -29,11 +29,8 @@ get_mqtt_uri() {
     fi
 }
 
-# Create config directory
+# Create config directory and ensure bundled broker config is available
 mkdir -p /app/config
-
-# Copy default brokers configuration
-cp /app/brokers.json /app/config/brokers.json
 
 # Get MQTT URI
 BROKER_URL=$(get_mqtt_uri)
