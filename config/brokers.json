@@ -26,6 +26,12 @@
     "local_topic_prefix": "hame_energy/",
     "client_id_prefix": "mst_",
     "topic_encryption_key": "@../certs/hame-2025-topic-encryption-key",
+    "use_remote_topic_id_versions": {
+      "HMA": [226],
+      "HMF": [226],
+      "HMK": [226],
+      "HMJ": [108]
+    },
     "min_versions": {
       "HMA": 226,
       "HMF": 226,

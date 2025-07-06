@@ -40,6 +40,7 @@ interface BrokerDefinition {
   local_topic_prefix?: string;
   topic_encryption_key?: string;
   client_id_prefix?: string;
+  use_remote_topic_id_versions?: Record<string, number[]>;
   min_versions?: Record<string, number>;
 }
 
@@ -123,6 +124,24 @@ function autoDetermineBroker(device: Device, brokers: Record<string, BrokerDefin
     }
   }
   return chosen;
+}
+
+function shouldUseRemoteTopicId(device: Device, broker: BrokerDefinition): boolean {
+  if (device.version == null) {
+    return false;
+  }
+  const regex = /(.*)-[\d\w]+/;
+  const match = regex.exec(device.type);
+  if (!match) {
+    return false;
+  }
+  const baseType = match[1];
+  const mapping = broker.use_remote_topic_id_versions;
+  if (!mapping || !Object.prototype.hasOwnProperty.call(mapping, baseType)) {
+    return false;
+  }
+  const versions = mapping[baseType];
+  return versions.includes(device.version);
 }
 
 function cleanAndValidate(config: {devices: Device[]}): void {
@@ -696,6 +715,13 @@ async function start() {
         } else {
           logger.debug(`No topic encryption key found for device ${device.device_id}, using device ID as remote ID`);
           device.remote_id = device.device_id;
+        }
+      }
+      if (device.use_remote_topic_id == null) {
+        const autoRemote = shouldUseRemoteTopicId(device, broker);
+        if (autoRemote) {
+          device.use_remote_topic_id = true;
+          logger.debug(`Enabled remote topic ID for device ${device.device_id}`);
         }
       }
       logger.debug(`Adding device ${device.device_id} to broker ${brokerId}`);
