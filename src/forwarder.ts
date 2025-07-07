@@ -601,7 +601,7 @@ class MQTTForwarder {
 async function start() {
   try {
     const configPath = process.env.CONFIG_PATH || './config/config.json';
-    const brokersPath = process.env.BROKERS_PATH || './config/brokers.json';
+    const brokersPath = process.env.BROKERS_PATH || './brokers.json';
     const config = JSON.parse(readFileSync(configPath, 'utf8')) as MainConfig;
     let brokers: Record<string, BrokerDefinition>;
     try {

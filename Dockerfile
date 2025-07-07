@@ -12,9 +12,6 @@ RUN npm ci
 # Copy source code
 COPY src/ ./src/
 
-# Copy brokers configuration
-COPY config/brokers.json ./src/config/brokers.json
-
 # Copy certificates during build
 COPY certs/ ./src/certs/
 
@@ -39,7 +36,7 @@ COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist/ ./dist/
 
 # Copy brokers configuration
-COPY --from=builder /build/src/config/brokers.json ./config/brokers.json
+COPY --from=builder /build/src/brokers.json ./brokers.json
 
 # Copy embedded certificates
 COPY --from=builder /build/src/certs/ ./certs/
