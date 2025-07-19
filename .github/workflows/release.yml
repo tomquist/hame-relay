@@ -36,12 +36,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.event.inputs.version }}
+          tag_name: ${{ github.event.inputs.version }}
           name: Release v${{ github.event.inputs.version }}
           body: |
             Release v${{ github.event.inputs.version }}
             
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/v${{ github.event.inputs.version }}/CHANGELOG.md) for detailed changes.
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.event.inputs.version }}/CHANGELOG.md) for detailed changes.
           draft: false
           prerelease: false
         env:
@@ -55,10 +55,10 @@ jobs:
           echo "📋 Summary:"
           echo "- Release branch: release/v${VERSION} (kept for potential hotfixes)"
           echo "- Main branch: Updated to v${VERSION}"
-          echo "- Tag: v${VERSION} created"
+          echo "- Tag: ${VERSION} created"
           echo "- GitHub Release: Created"
           echo "- Develop branch: Ready for next development cycle"
           echo ""
           echo "🔗 Links:"
-          echo "- Release: https://github.com/${{ github.repository }}/releases/tag/v${VERSION}"
+          echo "- Release: https://github.com/${{ github.repository }}/releases/tag/${VERSION}"
           echo "- Release branch: https://github.com/${{ github.repository }}/tree/release/v${VERSION}" 
