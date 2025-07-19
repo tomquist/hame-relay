@@ -146,6 +146,8 @@
                     <div id="device-id">-</div>
                     <div>MAC:</div>
                     <div id="device-mac">-</div>
+                    <div>Firmware Version:</div>
+                    <div id="device-version">-</div>
                     <div>Status:</div>
                     <div id="info-status">Not fetched</div>
                 </div>
@@ -163,7 +165,7 @@
                 <input type="checkbox" id="ssl" name="ssl">
                 
                 <label for="host">Host:</label>
-                <input type="text" id="host" name="host" placeholder="mqtt.example.com" required>
+                <input type="text" id="host" name="host" placeholder="192.168.1.100" required>
                 
                 <label for="port">Port:</label>
                 <input type="number" id="port" name="port" placeholder="1883" required>
@@ -178,6 +180,103 @@
             <div class="buttons-container">
                 <button id="set-mqtt-button">Set MQTT Config</button>
                 <button id="reset-mqtt-button">Reset MQTT Config</button>
+            </div>
+        </div>
+        
+        <div id="hame-relay-container" class="hidden">
+            <h2>Hame Relay Configuration</h2>
+            
+            <div style="margin-bottom: 20px;">
+                <h3>Choose Relay Mode:</h3>
+                <div style="margin: 10px 0;">
+                    <input type="radio" id="mode1" name="relay-mode" value="false" checked>
+                    <label for="mode1" style="margin-left: 5px; font-weight: normal;">
+                        <strong>Mode 1 (Recommended):</strong> Device uses local MQTT broker - use the MQTT config above (inverse_forwarding: false)
+                    </label>
+                </div>
+                <div style="margin: 10px 0;">
+                    <input type="radio" id="mode2" name="relay-mode" value="true">
+                    <label for="mode2" style="margin-left: 5px; font-weight: normal;">
+                        <strong>Mode 2:</strong> Device uses Hame cloud MQTT broker (inverse_forwarding: true)
+                    </label>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3>MQTT Topic for Local Automation:</h3>
+                <div style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; word-break: break-all; margin-bottom: 10px;" id="local-topic">
+                    Subscribe to this topic in your local MQTT broker
+                </div>
+                <button onclick="copyToClipboard('local-topic')" style="font-size: 12px;">Copy Topic</button>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3>Home Assistant Add-on Configuration:</h3>
+                <pre id="ha-config" style="background-color: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 10px;">inverse_forwarding: false
+devices:
+  - device_id: "your-device-id"
+    mac: "your-mac-address"
+    type: "your-device-type"
+    version: 0</pre>
+                <button onclick="copyToClipboard('ha-config')" style="font-size: 12px;">Copy HA Config</button>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3>Docker Configuration (config/config.json):</h3>
+                <pre id="docker-config" style="background-color: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 10px;">{
+  "broker_url": "mqtt://username:password@your-broker-url",
+  "inverse_forwarding": false,
+  "devices": [
+    {
+      "device_id": "your-device-id",
+      "mac": "your-mac-address",
+      "type": "your-device-type",
+      "version": 0
+    }
+  ]
+}</pre>
+                <button onclick="copyToClipboard('docker-config')" style="font-size: 12px;">Copy Docker Config</button>
+            </div>
+            
+            <div class="info-note" style="background-color: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <strong>Installation:</strong> 
+                <a href="https://github.com/tomquist/hame-relay#docker" target="_blank">Docker instructions</a> | 
+                <a href="https://github.com/tomquist/hame-relay#home-assistant" target="_blank">Home Assistant Add-on</a>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3>Optional: Monitor Your Device with hm2mqtt</h3>
+                <div class="info-note" style="background-color: #e8f5e8; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+                    After setting up Hame Relay, you can also install <strong>hm2mqtt</strong> to get detailed monitoring data in Home Assistant.
+                </div>
+                
+                <h4>Home Assistant Add-on (Recommended):</h4>
+                <div style="margin-bottom: 10px;">
+                    1. Add repository: <a href="https://github.com/tomquist/hm2mqtt" target="_blank">https://github.com/tomquist/hm2mqtt</a><br>
+                    2. Install "hm2mqtt" add-on<br>
+                    3. Use this device configuration:
+                </div>
+                <pre id="hm2mqtt-ha-config" style="background-color: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 10px;">pollingInterval: 60
+responseTimeout: 30
+topicPrefix: hm2mqtt
+devices:
+  - deviceType: "your-device-type"
+    deviceId: "your-device-mac"</pre>
+                <button onclick="copyToClipboard('hm2mqtt-ha-config')" style="font-size: 12px;">Copy hm2mqtt Config</button>
+                
+                <h4 style="margin-top: 15px;">Docker:</h4>
+                <pre id="hm2mqtt-docker-config" style="background-color: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 10px;">docker run -d --name hm2mqtt \
+  -e MQTT_BROKER_URL=mqtt://192.168.1.100:1883 \
+  -e MQTT_USERNAME=your-username \
+  -e MQTT_PASSWORD=your-password \
+  -e DEVICE_0=your-device-type:your-device-mac \
+  --restart=unless-stopped \
+  ghcr.io/tomquist/hm2mqtt:latest</pre>
+                <button onclick="copyToClipboard('hm2mqtt-docker-config')" style="font-size: 12px;">Copy Docker Command</button>
+                
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <strong>Note:</strong> hm2mqtt provides detailed battery monitoring data like cell voltages, temperature, and power flow - perfect for comprehensive energy management in Home Assistant.
+                </div>
             </div>
         </div>
     </div>
@@ -197,6 +296,7 @@
         // Command bytes
         const START_BYTE = 0x73;
         const IDENTIFIER_BYTE = 0x23;
+        const VERSION_COMMAND = 0x03;
         const DEVICE_INFO_COMMAND = 0x04;
         const SET_MQTT_COMMAND = 0x20;
         const RESET_MQTT_COMMAND = 0x21;
@@ -216,6 +316,7 @@
         const deviceType = document.getElementById('device-type');
         const deviceId = document.getElementById('device-id');
         const deviceMac = document.getElementById('device-mac');
+        const deviceVersion = document.getElementById('device-version');
         const mqttContainer = document.getElementById('mqtt-container');
         const mqttForm = document.getElementById('mqtt-form');
         const setMqttButton = document.getElementById('set-mqtt-button');
@@ -367,9 +468,9 @@
                 log('Connected successfully');
                 
                 // Automatically fetch device info after a short delay
-                setTimeout(() => {
-                    log('Automatically fetching device information...');
-                    getDeviceInformation();
+                setTimeout(async () => {
+                    log('Automatically fetching device information and firmware version...');
+                    await getDeviceInformation();
                 }, 1000);
             } catch (error) {
                 log(`Connection error: ${error}`);
@@ -404,6 +505,7 @@
             deviceType.textContent = '-';
             deviceId.textContent = '-';
             deviceMac.textContent = '-';
+            deviceVersion.textContent = '-';
             
             // Save current device ID for potential reconnection
             const lastDeviceId = bluetoothDevice ? bluetoothDevice.id : null;
@@ -454,9 +556,9 @@
                         log('Reconnected successfully');
                         
                         // Automatically fetch device info
-                        setTimeout(() => {
+                        setTimeout(async () => {
                             log('Automatically fetching device information after reconnect...');
-                            getDeviceInformation();
+                            await getDeviceInformation();
                         }, 1000);
                     } catch (error) {
                         log(`Reconnection failed: ${error}`);
@@ -468,6 +570,74 @@
             }
         }
         
+        // Send command to get firmware version
+        async function getFirmwareVersion() {
+            if (!commandCharacteristic || !statusCharacteristic) {
+                log('Cannot get firmware version: device not connected');
+                return null;
+            }
+            
+            log('Requesting firmware version...');
+            
+            try {
+                // Add a small delay to avoid interfering with other commands
+                await new Promise(resolve => setTimeout(resolve, 500));
+                // Create and send the version command
+                const versionCommand = [START_BYTE, 0, IDENTIFIER_BYTE, VERSION_COMMAND];
+                versionCommand[1] = versionCommand.length + 1; // +1 for checksum
+                versionCommand.push(calculateChecksum(versionCommand));
+                
+                log(`Sending version command: ${versionCommand.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+                
+                // Wait for response
+                const responseData = await new Promise((resolve, reject) => {
+                    // Set up notification listener
+                    const handler = (event) => {
+                        const value = event.target.value;
+                        const response = new Uint8Array(value.buffer);
+                        log(`Received version response (${response.length} bytes): ${Array.from(response).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+                        statusCharacteristic.removeEventListener('characteristicvaluechanged', handler);
+                        resolve(response);
+                    };
+                    
+                    // Add event listener
+                    statusCharacteristic.addEventListener('characteristicvaluechanged', handler);
+                    
+                    // Enable notifications and send command
+                    statusCharacteristic.startNotifications()
+                        .then(() => {
+                            return commandCharacteristic.writeValue(new Uint8Array(versionCommand));
+                        })
+                        .then(() => {
+                            log('Version command sent');
+                        })
+                        .catch(err => {
+                            statusCharacteristic.removeEventListener('characteristicvaluechanged', handler);
+                            reject(err);
+                        });
+                    
+                    // Set timeout (shorter timeout for version command)
+                    setTimeout(() => {
+                        statusCharacteristic.removeEventListener('characteristicvaluechanged', handler);
+                        reject(new Error('Version command timeout'));
+                    }, 3000);
+                });
+                
+                // Extract version from byte 12 (0-indexed, so position 12)
+                if (responseData.length > 12) {
+                    const version = responseData[12];
+                    log(`Firmware version extracted: ${version}`);
+                    return version;
+                } else {
+                    log(`Version response too short (${responseData.length} bytes), expected at least 13 bytes`);
+                    return null;
+                }
+            } catch (error) {
+                log(`Error getting firmware version: ${error}`);
+                return null;
+            }
+        }
+
         // Send command to get device information - SIMPLIFIED TWO-PHASE APPROACH
         async function getDeviceInformation() {
             if (!commandCharacteristic || !statusCharacteristic) {
@@ -491,6 +661,9 @@
                 // TWO-PHASE APPROACH:
                 // This device consistently needs two commands, with the second one being the one that works
                 log('Using two-phase approach for this device');
+                
+                // Note: Version retrieval moved to after device info for better compatibility
+                let firmwareVersion = null;
                 
                 // FIRST PHASE - EXPECTED TO FAIL:
                 log('Phase 1: Sending initial command (expected to fail)');
@@ -615,10 +788,34 @@
                 
                 log(`Parsed info: ${JSON.stringify(parsedInfo)}`);
                 
+                // Check if version is already in device info first
+                if (parsedInfo.version) {
+                    log(`Found firmware version in device info: ${parsedInfo.version}`);
+                } else if (parsedInfo.ver) {
+                    parsedInfo.version = parsedInfo.ver;
+                    log(`Found firmware version as 'ver' in device info: ${parsedInfo.ver}`);
+                } else {
+                    // Try to get firmware version via command as fallback
+                    try {
+                        log('Attempting to get firmware version via command...');
+                        firmwareVersion = await getFirmwareVersion();
+                        if (firmwareVersion !== null) {
+                            parsedInfo.version = firmwareVersion;
+                            log(`Added firmware version from version command: ${firmwareVersion}`);
+                        } else {
+                            log('No firmware version available from device');
+                        }
+                    } catch (versionError) {
+                        log(`Firmware version command failed: ${versionError}`);
+                        log('No firmware version available from device');
+                    }
+                }
+                
                 // Update UI
                 deviceType.textContent = parsedInfo.type || 'Unknown';
                 deviceId.textContent = parsedInfo.id || 'Unknown';
                 deviceMac.textContent = parsedInfo.mac || 'Unknown';
+                document.getElementById('device-version').textContent = parsedInfo.version || 'Unknown';
                 // Always show both topics, and set correct threshold in label
                 let mac = parsedInfo.mac || '';
                 let type = parsedInfo.type || '';
@@ -628,15 +825,36 @@
                 let newTopic = `marstek_energy/${type}/device/${encryptedMac}/ctrl`;
                 let oldAppTopic = `hame_energy/${type}/App/${macNoColons}/ctrl`;
                 let newAppTopic = `marstek_energy/${type}/App/${encryptedMac}/ctrl`;
-                // Determine threshold
-                let threshold = /^HMJ-\d+$/i.test(type) ? 108 : 226;
-                document.getElementById('device-topic-ge-label').textContent = `Topic for firmware >=${threshold}:`;
-                document.getElementById('device-topic-ge').textContent = newTopic;
-                document.getElementById('device-topic-ge-app').textContent = newAppTopic;
-                document.getElementById('device-topic-lt-label').textContent = `Topic for firmware <${threshold}:`;
-                document.getElementById('device-topic-lt').textContent = oldTopic;
-                document.getElementById('device-topic-lt-app').textContent = oldAppTopic;
+                // Determine exact firmware threshold and topic display
+                // HMJ devices (B2500/Saturn) use 108, HMA devices use 226, HMB devices always use non-encrypted
+                if (/^HMB-\d+$/i.test(type)) {
+                    // HMB devices always use non-encrypted topics
+                    document.getElementById('device-topic-ge-label').textContent = 'MQTT Topic:';
+                    document.getElementById('device-topic-ge').textContent = oldTopic;
+                    document.getElementById('device-topic-ge-app').textContent = oldAppTopic;
+                    document.getElementById('device-topic-lt-label').textContent = '';
+                    document.getElementById('device-topic-lt').textContent = '';
+                    document.getElementById('device-topic-lt-app').textContent = '';
+                } else {
+                    // HMJ and HMA devices can use either topic based on firmware
+                    let threshold = /^HMJ-\d+$/i.test(type) ? 108 : 226;
+                    document.getElementById('device-topic-ge-label').textContent = `Topic for firmware =${threshold}:`;
+                    document.getElementById('device-topic-ge').textContent = newTopic;
+                    document.getElementById('device-topic-ge-app').textContent = newAppTopic;
+                    document.getElementById('device-topic-lt-label').textContent = `Topic for firmware ≠${threshold}:`;
+                    document.getElementById('device-topic-lt').textContent = oldTopic;
+                    document.getElementById('device-topic-lt-app').textContent = oldAppTopic;
+                }
                 deviceInfo.classList.remove('hidden');
+                
+                // Show Hame Relay configuration section
+                updateHameRelayConfig(parsedInfo);
+                document.getElementById('hame-relay-container').classList.remove('hidden');
+                
+                // Check if this is actually a B2500 device and show warning if not
+                if (!/^HMJ-\d+$/i.test(type)) {
+                    log(`Warning: Device type ${type} detected - this tool is designed for B2500 (HMJ) devices`);
+                }
                 
                 // Update status
                 document.getElementById('info-status').textContent = 'Success';
@@ -796,8 +1014,8 @@
         // --- Topic Calculation Logic ---
         function getDeviceTopic(type, version, mac) {
             // type: string, version: string or number, mac: string
-            // If device type is HMJ-X (X is an arbitrary number) and version >=108,
-            // or if device type is not HMJ-X and version >=226, use new topic
+            // If device type is HMJ-X (X is an arbitrary number) and version =108,
+            // or if device type is not HMJ-X and version =226, use new topic
             // else use old topic
             let topic = '';
             let encryptedMac = '';
@@ -805,14 +1023,14 @@
             let typeUpper = (type || '').toUpperCase();
             let versionNum = parseInt(version, 10);
             if (/^HMJ-\d+$/i.test(typeUpper)) {
-                if (versionNum >= 108) {
+                if (versionNum === 108) {
                     encryptedMac = calculateNewVersionTopicId(macNoColons);
                     topic = `marstek_energy/${type}/device/${encryptedMac}/ctrl`;
                 } else {
                     topic = `hame_energy/${type}/device/${macNoColons}/ctrl`;
                 }
             } else {
-                if (versionNum >= 226) {
+                if (versionNum === 226) {
                     encryptedMac = calculateNewVersionTopicId(macNoColons);
                     topic = `marstek_energy/${type}/device/${encryptedMac}/ctrl`;
                 } else {
@@ -820,6 +1038,127 @@
                 }
             }
             return topic;
+        }
+
+        // Update Hame Relay configuration section
+        function updateHameRelayConfig(deviceInfo) {
+            const mac = deviceInfo.mac || '';
+            const type = deviceInfo.type || '';
+            const deviceId = deviceInfo.id || '';
+            const macNoColons = mac.replace(/:/g, '').toLowerCase();
+            const version = deviceInfo.version || 0;
+            
+            // Determine which topic to use based on device type and firmware version
+            let localTopic;
+            if (/^HMB-\d+$/i.test(type)) {
+                // HMB devices always use non-encrypted topics
+                localTopic = `hame_energy/${type}/device/${macNoColons}/ctrl`;
+            } else {
+                // HMJ devices use 108 threshold, HMA devices use 226 threshold
+                const threshold = /^HMJ-\d+$/i.test(type) ? 108 : 226;
+                const usesEncryptedTopic = parseInt(version, 10) === threshold;
+                
+                if (usesEncryptedTopic) {
+                    const encryptedMac = calculateNewVersionTopicId(macNoColons);
+                    localTopic = `marstek_energy/${type}/device/${encryptedMac}/ctrl`;
+                } else {
+                    localTopic = `hame_energy/${type}/device/${macNoColons}/ctrl`;
+                }
+            }
+            
+            // Update topic display
+            document.getElementById('local-topic').textContent = localTopic;
+            
+            // Update configuration templates
+            updateConfigTemplates(deviceId, macNoColons, type, version);
+            
+            // Add event listeners for mode selection
+            const mode1Radio = document.getElementById('mode1');
+            const mode2Radio = document.getElementById('mode2');
+            
+            mode1Radio.addEventListener('change', () => {
+                if (mode1Radio.checked) {
+                    updateConfigTemplates(deviceId, macNoColons, type, version, false);
+                }
+            });
+            
+            mode2Radio.addEventListener('change', () => {
+                if (mode2Radio.checked) {
+                    updateConfigTemplates(deviceId, macNoColons, type, version, true);
+                }
+            });
+        }
+        
+        // Update configuration templates
+        function updateConfigTemplates(deviceId, mac, type, version, inverseForwarding = false) {
+            // Docker configuration
+            const dockerConfig = {
+                "broker_url": "mqtt://username:password@your-broker-url",
+                "inverse_forwarding": inverseForwarding,
+                "devices": [
+                    {
+                        "device_id": deviceId || "your-device-id",
+                        "mac": mac || "your-mac-address",
+                        "type": type || "your-device-type",
+                        "version": parseInt(version, 10) || 0
+                    }
+                ]
+            };
+            
+            document.getElementById('docker-config').textContent = JSON.stringify(dockerConfig, null, 2);
+            
+            // Home Assistant configuration
+            const haConfig = `inverse_forwarding: ${inverseForwarding}
+devices:
+  - device_id: "${deviceId || 'your-device-id'}"
+    mac: "${mac || 'your-mac-address'}"
+    type: "${type || 'your-device-type'}"
+    version: ${parseInt(version, 10) || 0}`;
+            
+            document.getElementById('ha-config').textContent = haConfig;
+            
+            // hm2mqtt Home Assistant configuration
+            const hm2mqttHaConfig = `pollingInterval: 60
+responseTimeout: 30
+topicPrefix: hm2mqtt
+devices:
+  - deviceType: "${type || 'your-device-type'}"
+    deviceId: "${mac || 'your-device-mac'}"`;
+            
+            document.getElementById('hm2mqtt-ha-config').textContent = hm2mqttHaConfig;
+            
+            // hm2mqtt Docker configuration
+            const hm2mqttDockerConfig = `docker run -d --name hm2mqtt \\
+  -e MQTT_BROKER_URL=mqtt://192.168.1.100:1883 \\
+  -e MQTT_USERNAME=your-username \\
+  -e MQTT_PASSWORD=your-password \\
+  -e DEVICE_0=${type || 'your-device-type'}:${mac || 'your-device-mac'} \\
+  --restart=unless-stopped \\
+  ghcr.io/tomquist/hm2mqtt:latest`;
+            
+            document.getElementById('hm2mqtt-docker-config').textContent = hm2mqttDockerConfig;
+        }
+        
+        // Copy to clipboard function
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                // Visual feedback
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.backgroundColor = '#27ae60';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.backgroundColor = '#3498db';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard. Please copy manually.');
+            });
         }
 
         // Event listeners
