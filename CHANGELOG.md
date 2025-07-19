@@ -1,5 +1,5 @@
 # Changelog
-## [Next]
+## [1.2.0] - 2025-07-19
 - Support multiple remote brokers via new `brokers.json`
 - Added broker configuration for the new 2025 Hame cloud
 - Added device types `JPLS-8H` and `HMG-25`
