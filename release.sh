@@ -91,8 +91,8 @@ if git show-ref --verify --quiet "refs/heads/$RELEASE_BRANCH"; then
 fi
 
 # Check if tag already exists
-if git show-ref --verify --quiet "refs/tags/v$VERSION"; then
-    print_error "Tag v$VERSION already exists"
+if git show-ref --verify --quiet "refs/tags/$VERSION"; then
+    print_error "Tag $VERSION already exists"
     exit 1
 fi
 
@@ -146,12 +146,12 @@ print_info "Merging release branch into main"
 git merge "$RELEASE_BRANCH" --no-ff -m "Merge release v${VERSION}"
 
 # Create and push tag
-print_info "Creating tag v${VERSION}"
-git tag "v${VERSION}"
+print_info "Creating tag ${VERSION}"
+git tag "${VERSION}"
 
 print_info "Pushing main branch and tag"
 git push origin main
-git push origin "v${VERSION}"
+git push origin "${VERSION}"
 
 # Switch back to develop
 print_info "Switching back to develop branch"
@@ -177,7 +177,7 @@ print_info ""
 print_info "Summary:"
 print_info "- Release branch: $RELEASE_BRANCH (kept for potential hotfixes)"
 print_info "- Main branch: Updated to v${VERSION}"
-print_info "- Tag: v${VERSION} created"
+print_info "- Tag: ${VERSION} created"
 print_info "- Develop branch: Ready for next development cycle"
 print_info ""
 print_info "Next steps:"
