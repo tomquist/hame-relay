@@ -1,4 +1,10 @@
 # Changelog
+## [1.2.0] - 2025-07-19
+- Support multiple remote brokers via new `brokers.json`
+- Added broker configuration for the new 2025 Hame cloud
+- Added device types `JPLS-8H` and `HMG-25`
+- Log level can now be adjusted via the `LOG_LEVEL` environment variable
+- Automatically select the appropriate broker based on device firmware
 
 ## [1.1.11]
 - Add support for HMM-1 (Jupiter)

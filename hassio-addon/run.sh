@@ -29,7 +29,7 @@ get_mqtt_uri() {
     fi
 }
 
-# Create config directory
+# Create config directory and ensure bundled broker config is available
 mkdir -p /app/config
 
 # Get MQTT URI
@@ -39,6 +39,8 @@ BROKER_URL=$(get_mqtt_uri)
 bashio::log.info "Generating config file..."
 DEVICES=$(bashio::config 'devices' | jq -s '.')
 INVERSE_FORWARDING=$(bashio::config 'inverse_forwarding' "false")
+DEFAULT_BROKER_ID=$(bashio::config 'default_broker_id' "hame-2024")
+LOG_LEVEL=$(bashio::config 'log_level' "info")
 
 # Create base configuration
 CONFIG='{
@@ -62,13 +64,15 @@ if bashio::config.has_value 'username'; then
           --arg url "$BROKER_URL" \
           --argjson devices "$DEVICES" \
           --argjson inverse "$INVERSE_FORWARDING" \
+          --arg default "$DEFAULT_BROKER_ID" \
           --arg username "$USERNAME" \
           --arg password "$PASSWORD" \
           '{
-            broker_url: $url, 
-            devices: $devices, 
-            inverse_forwarding: $inverse, 
-            username: $username, 
+            broker_url: $url,
+            devices: $devices,
+            inverse_forwarding: $inverse,
+            default_broker_id: $default,
+            username: $username,
             password: $password
           }' > /app/config/config.json
     else
@@ -77,11 +81,13 @@ if bashio::config.has_value 'username'; then
           --arg url "$BROKER_URL" \
           --argjson devices "$DEVICES" \
           --argjson inverse "$INVERSE_FORWARDING" \
+          --arg default "$DEFAULT_BROKER_ID" \
           --arg username "$USERNAME" \
           '{
-            broker_url: $url, 
-            devices: $devices, 
-            inverse_forwarding: $inverse, 
+            broker_url: $url,
+            devices: $devices,
+            inverse_forwarding: $inverse,
+            default_broker_id: $default,
             username: $username
           }' > /app/config/config.json
     fi
@@ -91,13 +97,16 @@ else
       --arg url "$BROKER_URL" \
       --argjson devices "$DEVICES" \
       --argjson inverse "$INVERSE_FORWARDING" \
+      --arg default "$DEFAULT_BROKER_ID" \
       '{
-        broker_url: $url, 
-        devices: $devices, 
-        inverse_forwarding: $inverse
+        broker_url: $url,
+        devices: $devices,
+        inverse_forwarding: $inverse,
+        default_broker_id: $default
       }' > /app/config/config.json
 fi
 
 # Start the application
+export LOG_LEVEL
 bashio::log.info "Starting MQTT forwarder..."
 cd /app && node dist/forwarder.js

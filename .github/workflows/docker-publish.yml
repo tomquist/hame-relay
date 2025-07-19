@@ -2,10 +2,10 @@ name: Build and Deploy Hame Relay
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     tags: [ "*.*.*" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 env:
   REGISTRY: ghcr.io
@@ -34,8 +34,13 @@ jobs:
       - name: Write certificates to files
         run: |
           echo "${{ secrets.CA_CERTIFICATE }}" > certs/ca.crt
-          echo "${{ secrets.CLIENT_CERTIFICATE }}" > certs/client.crt
-          echo "${{ secrets.CLIENT_KEY }}" > certs/client.key
+          echo "${{ secrets.CLIENT_CERTIFICATE_2024 }}" > certs/hame-2024.crt
+          echo "${{ secrets.CLIENT_KEY_2024 }}" > certs/hame-2024.key
+          echo "${{ secrets.HAME_2024_URL }}" > certs/hame-2024-url
+          echo "${{ secrets.CLIENT_CERTIFICATE_2025 }}" > certs/hame-2025.crt
+          echo "${{ secrets.CLIENT_KEY_2025 }}" > certs/hame-2025.key
+          echo "${{ secrets.HAME_2025_URL }}" > certs/hame-2025-url
+          echo "${{ secrets.TOPIC_ENCRYPTION_KEY_2025 }}" > certs/hame-2025-topic-encryption-key
         shell: bash
 
       - name: Set up QEMU
@@ -53,8 +58,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
 
       - name: Log in to Container registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -67,8 +78,8 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
-          push: true
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          push: ${{ github.event_name != 'pull_request' }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -94,6 +105,7 @@ jobs:
           retention-days: 1
 
   merge-artifacts:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: [build]
     steps:
@@ -104,6 +116,7 @@ jobs:
           pattern: digests-*
 
   merge:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: [merge-artifacts]
     permissions:
@@ -128,6 +141,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
 
       - name: Log in to Container registry
         uses: docker/login-action@v3
@@ -169,8 +187,13 @@ jobs:
       - name: Write certificates to files
         run: |
           echo "${{ secrets.CA_CERTIFICATE }}" > certs/ca.crt
-          echo "${{ secrets.CLIENT_CERTIFICATE }}" > certs/client.crt
-          echo "${{ secrets.CLIENT_KEY }}" > certs/client.key
+          echo "${{ secrets.CLIENT_CERTIFICATE_2024 }}" > certs/hame-2024.crt
+          echo "${{ secrets.CLIENT_KEY_2024 }}" > certs/hame-2024.key
+          echo "${{ secrets.HAME_2024_URL }}" > certs/hame-2024-url
+          echo "${{ secrets.CLIENT_CERTIFICATE_2025 }}" > certs/hame-2025.crt
+          echo "${{ secrets.CLIENT_KEY_2025 }}" > certs/hame-2025.key
+          echo "${{ secrets.HAME_2025_URL }}" > certs/hame-2025-url
+          echo "${{ secrets.TOPIC_ENCRYPTION_KEY_2025 }}" > certs/hame-2025-topic-encryption-key
         shell: bash
 
       - name: Set up QEMU
@@ -188,8 +211,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
 
       - name: Log in to Container registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -203,8 +232,8 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           file: hassio-addon/Dockerfile
-          push: true
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          push: ${{ github.event_name != 'pull_request' }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -231,6 +260,7 @@ jobs:
           retention-days: 1
 
   merge-addon-artifacts:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: [build-addon]
     steps:
@@ -241,6 +271,7 @@ jobs:
           pattern: addon-digests-*
 
   merge-addon:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: [merge-addon-artifacts]
     permissions:
@@ -265,6 +296,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
 
       - name: Log in to Container registry
         uses: docker/login-action@v3

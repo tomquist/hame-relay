@@ -12,9 +12,6 @@ RUN npm ci
 # Copy source code
 COPY src/ ./src/
 
-# Copy certificates during build
-COPY certs/ca.crt certs/client.crt certs/client.key ./src/certs/
-
 # Build the application
 RUN npm run build
 
@@ -35,8 +32,11 @@ COPY package.json ./
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist/ ./dist/
 
+# Copy brokers configuration
+COPY brokers.json ./brokers.json
+
 # Copy embedded certificates
-COPY --from=builder /build/src/certs/ ./certs/
+COPY certs/ ./certs/
 
 # Create config directory
 RUN mkdir -p /app/config

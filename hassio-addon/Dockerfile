@@ -36,6 +36,9 @@ COPY package.json ./
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist/ ./dist/
 
+# Copy brokers configuration
+COPY brokers.json ./brokers.json
+
 # Copy certificates
 COPY certs/ ./certs/
 

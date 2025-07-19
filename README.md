@@ -88,10 +88,11 @@ mkdir config
 {
   "broker_url": "mqtt://username:password@your-broker-url",
   "inverse_forwarding": false,
+  "default_broker_id": "hame-2024",
   "username": "your_hame_email@example.com",
   "password": "your_hame_password",
   "devices": [
-    { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons", "type": "HMA-1" }
+    { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons", "type": "HMA-1", "version": 0 }
   ]
 }
 ```
@@ -101,7 +102,13 @@ mkdir config
   - `false` (default): Storage uses local broker, maintain app functionality (**Only available for Saturn/B2500**)
   - `true`: Storage uses Hame broker, enable local control (**Required for Venus/Jupiter, optional for Saturn/B2500**)
 - `username` and `password`: Your Hame account credentials for automatic device information retrieval
+- `default_broker_id`: Identifier of the remote broker to use (defaults to `hame-2024`)
 - `devices`: Your storage systems' details (can use dummy values initially if using automatic retrieval)
+- Remote broker settings are loaded from `brokers.json`. Each broker can specify
+  `topic_prefix`, `client_id_prefix` (defaults to `hm_`), and an optional
+  `topic_encryption_key` used to generate remote device identifiers.
+  `use_remote_topic_id_versions` can specify firmware versions that require
+  using the remote topic ID structure.
 
 **Getting Device Information:**
 - **Recommended**: If you provide `username` and `password`, the relay can fetch your device information automatically from the Hame API. Check the container logs to see the retrieved device details, then update your configuration with the actual values.
@@ -115,6 +122,7 @@ docker run -d \
   -v "$(pwd)/config:/app/config" \
   ghcr.io/tomquist/hame-relay:main
 ```
+Set `LOG_LEVEL` to control verbosity, e.g. `-e LOG_LEVEL=debug`.
 
 ### Option 2: Using Docker Compose
 
@@ -138,7 +146,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./config:/app/config
+    environment:
+      - LOG_LEVEL=debug
 ```
+Set `LOG_LEVEL` to control verbosity.
 
 4. Start the container:
 ```bash
@@ -177,6 +188,7 @@ devices:
   - device_id: "0123456789abcdef01234567"
     mac: "01234567890a"
     type: "HMA-1"
+    version: 151
   - device_id: "0123456789abcdef01234567"
     mac: "01234567890a"
     type: "HMA-1"
@@ -197,6 +209,7 @@ The add-on will automatically use your Home Assistant MQTT settings if configure
   - `device_id`: Your device's 22 to 24-digit ID
   - `mac`: Your device's MAC address without colons
   - `type`: Your device's type (e.g. HMA-1, HMA-2, HMA-3 etc.)
+  - `version`: (optional) Firmware version used for automatic broker selection. Enter the number without any decimal point (e.g. firmware `226.1` becomes `226`)
   - `inverse_forwarding`: (optional) Override the global setting for the operation mode of this device
 
 ### Optional Configuration
@@ -207,6 +220,7 @@ The add-on will automatically use your Home Assistant MQTT settings if configure
 - `username`: Your Hame account email address. When provided along with password, 
   the tool will automatically fetch device information from the Hame API and display it in the logs.
 - `password`: Your Hame account password. Required when using automatic device information retrieval.
+- `log_level`: Adjust log verbosity (`trace`, `debug`, `info`, `warn`, `error`, `fatal`).
 
 ## Development
 
