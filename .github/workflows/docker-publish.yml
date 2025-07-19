@@ -59,6 +59,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
           tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -142,6 +143,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
           tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -212,6 +214,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}
           tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -297,6 +300,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}
           tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
