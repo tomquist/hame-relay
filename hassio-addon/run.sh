@@ -109,4 +109,4 @@ fi
 # Start the application
 export LOG_LEVEL
 bashio::log.info "Starting MQTT forwarder..."
-cd /app && node dist/forwarder.js
+cd /app && node dist/main.js
