@@ -2,11 +2,11 @@
   "name": "hame-relay",
   "version": "1.2.0",
   "description": "MQTT message forwarder between brokers",
-  "main": "dist/forwarder.js",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/forwarder.js",
-    "dev": "ts-node src/forwarder.ts",
+    "start": "node dist/main.js",
+    "dev": "ts-node src/main.ts",
     "clean": "rimraf dist",
     "prebuild": "npm run clean"
   },
