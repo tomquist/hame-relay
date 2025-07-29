@@ -1,11 +1,11 @@
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
-import { calculateNewVersionTopicId } from './encryption';
-import { HealthServer } from './health';
-import { logger } from './logger';
-import { HameApi, DeviceInfo } from './hame_api';
-import { MQTTForwarder } from './mqtt_forwarder';
-import { Device, BrokerDefinition, ForwarderConfig, MainConfig, DeviceTypeIdentifier, knownDeviceTypes } from './types';
+import { calculateNewVersionTopicId } from './encryption.js';
+import { HealthServer } from './health.js';
+import { logger } from './logger.js';
+import { HameApi, DeviceInfo } from './hame_api.js';
+import { MQTTForwarder } from './mqtt_forwarder.js';
+import { Device, BrokerDefinition, ForwarderConfig, MainConfig, DeviceTypeIdentifier, knownDeviceTypes } from './types.js';
 
 function processBrokerProperties(brokers: Record<string, BrokerDefinition>, brokersConfigPath: string): Record<string, BrokerDefinition> {
   const processedBrokers: Record<string, BrokerDefinition> = {};

@@ -1,6 +1,6 @@
 import {createHash} from 'crypto';
 import fetch from 'node-fetch';
-import {logger} from './logger';
+import {logger} from './logger.js';
 
 export interface HameApiResponse {
   code: string;
@@ -54,7 +54,7 @@ export class HameApi {
 
     logger.info(`Fetching device token for ${mailbox}...`);
     const resp = await fetch(url.toString(), { headers: this.headers });
-    const data: HameApiResponse = await resp.json();
+    const data = (await resp.json()) as HameApiResponse;
 
     if (data.code !== '2' || !data.token) {
       throw new Error(`Unexpected API response code: ${data.code} - ${data.msg}`);
@@ -70,7 +70,7 @@ export class HameApi {
 
     logger.info('Fetching device list...');
     const resp = await fetch(url.toString(), { headers: this.headers });
-    const data: HameDeviceListResponse = await resp.json();
+    const data = (await resp.json()) as HameDeviceListResponse;
 
     if (data.code !== 1) {
       throw new Error(`Unexpected API response from device list: ${data.code} - ${data.msg}`);

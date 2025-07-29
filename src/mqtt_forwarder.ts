@@ -1,8 +1,8 @@
 import * as mqtt from 'mqtt';
 import { MqttClient } from 'mqtt';
 import { createHash } from 'crypto';
-import { logger } from './logger';
-import { Device, ForwarderConfig } from './types';
+import { logger } from './logger.js';
+import { Device, ForwarderConfig } from './types.js';
 
 
 export class MQTTForwarder {

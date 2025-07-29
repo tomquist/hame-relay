@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { MqttClient } from 'mqtt';
-import { logger } from './logger';
+import { logger } from './logger.js';
 
 export class HealthServer {
   private server: ReturnType<typeof createServer>;
