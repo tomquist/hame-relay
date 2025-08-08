@@ -120,7 +120,7 @@ docker run -d \
   --name hame-relay \
   --restart unless-stopped \
   -v "$(pwd)/config:/app/config" \
-  ghcr.io/tomquist/hame-relay:main
+  ghcr.io/tomquist/hame-relay:latest
 ```
 Set `LOG_LEVEL` to control verbosity, e.g. `-e LOG_LEVEL=debug`.
 
@@ -141,7 +141,7 @@ version: '3.8'
 
 services:
   mqtt-forwarder:
-    image: ghcr.io/tomquist/hame-relay:main
+    image: ghcr.io/tomquist/hame-relay:latest
     container_name: hame-relay
     restart: unless-stopped
     volumes:
