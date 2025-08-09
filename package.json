@@ -9,7 +9,9 @@
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
     "clean": "rimraf dist",
-    "prebuild": "npm run clean"
+    "prebuild": "npm run clean",
+    "lint": "prettier --check \"src/**/*.ts\"",
+    "lint:fix": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "mqtt": "^5.3.5",
@@ -20,6 +22,7 @@
   "devDependencies": {
     "@types/mqtt": "^2.5.0",
     "@types/node": "^20.11.0",
+    "prettier": "^3.6.2",
     "rimraf": "^5.0.5",
     "tsx": "^4.20.3",
     "typescript": "^5.3.3"

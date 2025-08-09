@@ -1,6 +1,6 @@
-import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { MqttClient } from 'mqtt';
-import { logger } from './logger.js';
+import { createServer, IncomingMessage, ServerResponse } from "http";
+import { MqttClient } from "mqtt";
+import { logger } from "./logger.js";
 
 export class HealthServer {
   private server: ReturnType<typeof createServer>;
@@ -18,18 +18,18 @@ export class HealthServer {
   }
 
   private handleRequest(req: IncomingMessage, res: ServerResponse): void {
-    if (req.url === '/health' && req.method === 'GET') {
+    if (req.url === "/health" && req.method === "GET") {
       const brokerStatuses: Record<string, boolean> = {};
       for (const [id, client] of Object.entries(this.brokers)) {
         brokerStatuses[id] = client.connected;
       }
       const status = {
-        status: 'ok',
+        status: "ok",
         brokers: brokerStatuses,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(status));
     } else {
       res.writeHead(404);
@@ -40,4 +40,4 @@ export class HealthServer {
   public close(): void {
     this.server.close();
   }
-} 
+}
