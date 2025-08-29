@@ -217,17 +217,24 @@ async function start() {
           for (const apiDevice of apiDevices) {
             if (userDevicesMap.has(apiDevice.device_id)) {
               const userDevice = userDevicesMap.get(apiDevice.device_id)!;
-              if (!userDevice.type) {
-                userDevice.type = apiDevice.type;
-              }
-              if (!userDevice.name) {
-                userDevice.name = apiDevice.name;
-              }
-              if (!userDevice.mac) {
-                userDevice.mac = apiDevice.mac;
-              }
-              if (userDevice.version == null) {
-                userDevice.version = apiDevice.version;
+              const props: (keyof Device)[] = [
+                "type",
+                "name",
+                "mac",
+                "version",
+              ];
+              for (const prop of props) {
+                const apiVal = apiDevice[prop];
+                const cfgVal = userDevice[prop];
+                if (apiVal !== undefined) {
+                  if (cfgVal !== undefined && cfgVal !== apiVal) {
+                    logger.warn(
+                      `Device ${apiDevice.device_id} setting '${prop}' from config (` +
+                        `${cfgVal}) differs from credentials (${apiVal}). Using credentials value.`,
+                    );
+                  }
+                  (userDevice as any)[prop] = apiVal as never;
+                }
               }
             } else {
               config.devices.push(apiDevice);
