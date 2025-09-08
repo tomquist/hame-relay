@@ -384,7 +384,8 @@ devices:
                 // Apply the name prefix filter
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
                     filters: [
-                        { namePrefix: 'HM_B2500' }
+                        { namePrefix: 'HM_B2500' },
+                        { namePrefix: 'MST' }
                     ],
                     // Include our service as an optional service
                     optionalServices: [currentServiceUuid]
