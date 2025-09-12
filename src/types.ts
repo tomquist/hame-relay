@@ -45,6 +45,7 @@ export interface BrokerDefinition {
   cert: string;
   key: string;
   topic_prefix?: string;
+  xid1_topic_prefix?: string;
   local_topic_prefix?: string;
   topic_encryption_key?: string;
   client_id_prefix?: string;

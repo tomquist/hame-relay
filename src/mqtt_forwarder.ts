@@ -226,31 +226,93 @@ export class MQTTForwarder {
     }
   }
 
+  /**
+   * Detects XID format from topic structure
+   * @param topic The MQTT topic string
+   * @returns 'xid0' for marstek_energy format, 'xid1' for marstek format, or null if unrecognized
+   */
+  private detectXIDFormat(topic: string): 'xid0' | 'xid1' | null {
+    if (topic.includes('marstek_energy/')) {
+      return 'xid0';
+    } else if (topic.startsWith('marstek/') && topic.includes('/server/')) {
+      return 'xid1';
+    } else if (topic.startsWith('marstek/') && topic.includes('/device/')) {
+      return 'xid1';
+    }
+    return null;
+  }
+
+  /**
+   * Converts topic from one XID format to another
+   * @param topic Original topic
+   * @param fromFormat Source format
+   * @param toFormat Target format
+   * @param deviceType Device type (e.g., 'HMA')
+   * @param identifier Device identifier
+   * @returns Converted topic or original if conversion not possible
+   */
+  private convertTopicFormat(topic: string, fromFormat: 'xid0' | 'xid1', toFormat: 'xid0' | 'xid1', deviceType: string, identifier: string): string {
+    if (fromFormat === toFormat) return topic;
+    
+    if (fromFormat === 'xid0' && toFormat === 'xid1') {
+      // marstek_energy/{type}/App/{id}/ctrl -> marstek/{type}/server/{id}/ctrl
+      if (topic.includes('/App/') && topic.endsWith('/ctrl')) {
+        const xid1Prefix = this.config.remote.xid1_topic_prefix || 'marstek/';
+        return `${xid1Prefix}${deviceType}/server/${identifier}/ctrl`;
+      }
+    } else if (fromFormat === 'xid1' && toFormat === 'xid0') {
+      // marstek/{type}/server/{id}/ctrl -> marstek_energy/{type}/App/{id}/ctrl  
+      if (topic.includes('/server/') && topic.endsWith('/ctrl')) {
+        const xid0Prefix = this.config.remote.topic_prefix || 'marstek_energy/';
+        return `${xid0Prefix}${deviceType}/App/${identifier}/ctrl`;
+      }
+    }
+    
+    return topic;
+  }
+
   private setupSubscriptions(broker: MqttClient): void {
     const brokerName = broker === this.configBroker ? "local" : "remote";
-
-    const topics = this.config.devices.map((device) => {
+    
+    // Subscribe to both XID0 and XID1 topic formats for dual compatibility
+    const topics: string[] = [];
+    
+    this.config.devices.forEach(device => {
       // Get the appropriate topic structure for this device on this broker
       const { prefix, identifier } = this.getTopicStructureForDevice(
         device,
         broker,
       );
-
+      
       let inverseForwarding =
         device.inverse_forwarding ?? this.config.inverse_forwarding;
       if (broker === this.configBroker) {
         inverseForwarding = !inverseForwarding;
       }
-
-      return inverseForwarding
+      
+      // XID0 format (existing)
+      const xid0Topic = inverseForwarding
         ? `${prefix}${device.type}/device/${identifier}/ctrl`
         : `${prefix}${device.type}/App/${identifier}/ctrl`;
+      topics.push(xid0Topic);
+      
+      // XID1 format (new) - only for remote broker
+      if (broker === this.remoteBroker) {
+        const xid1Prefix = this.config.remote.xid1_topic_prefix || 'marstek/';
+        const xid1Topic = inverseForwarding
+          ? `${xid1Prefix}${device.type}/device/${identifier}/ctrl`
+          : `${xid1Prefix}${device.type}/server/${identifier}/ctrl`;
+        topics.push(xid1Topic);
+      }
     });
-
+    
+    // Remove duplicates
+    const uniqueTopics = [...new Set(topics)];
+    
     this.logger.debug(
-      `Subscribing to ${brokerName} broker topics:\n${topics.join("\n")}`,
+      `Subscribing to ${brokerName} broker topics (dual XID format):\n${uniqueTopics.join("\n")}`,
     );
-    broker.subscribe(topics, (err: Error | null) => {
+    broker.subscribe(uniqueTopics, (err: Error | null) => {
       if (err) {
         this.logger.error(
           err,
@@ -258,7 +320,7 @@ export class MQTTForwarder {
         );
         return;
       }
-      this.logger.info(`Subscribed to ${brokerName} broker topics`);
+      this.logger.info(`Subscribed to ${brokerName} broker topics (${uniqueTopics.length} topics)`);
     });
 
     broker.on(
@@ -324,7 +386,9 @@ export class MQTTForwarder {
     let topicType = "";
     let isDevice = false;
 
-    // Try to match against all possible topic patterns for all devices
+    // Try to match against all possible topic patterns for all devices (XID0 and XID1)
+    let sourceXIDFormat: 'xid0' | 'xid1' | null = null;
+    
     for (const device of this.config.devices) {
       const sourceClient =
         targetClient === this.configBroker
@@ -335,11 +399,11 @@ export class MQTTForwarder {
       const { prefix: expectedPrefix, identifier: expectedIdentifier } =
         this.getTopicStructureForDevice(device, sourceClient);
 
-      // Try to match this device's topic pattern
-      const pattern = new RegExp(
+      // Try XID0 format first (existing pattern)
+      const xid0Pattern = new RegExp(
         `^${expectedPrefix.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}([^/]+)/(device|App)/(.*)/ctrl$`,
       );
-      const matches = topic.match(pattern);
+      let matches = topic.match(xid0Pattern);
 
       if (
         matches &&
@@ -349,7 +413,30 @@ export class MQTTForwarder {
         matchedDevice = device;
         topicType = matches[1];
         isDevice = matches[2] === "device";
+        sourceXIDFormat = 'xid0';
         break;
+      }
+      
+      // Try XID1 format (marstek/{type}/server/{id}/ctrl or marstek/{type}/device/{id}/ctrl)
+      if (sourceClient === this.remoteBroker) {
+        const xid1Prefix = this.config.remote.xid1_topic_prefix || 'marstek/';
+        const xid1Pattern = new RegExp(
+          `^${xid1Prefix.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}([^/]+)/(server|device)/(.*)/ctrl$`,
+        );
+        matches = topic.match(xid1Pattern);
+        
+        if (
+          matches &&
+          matches[1] === device.type &&
+          matches[3] === expectedIdentifier
+        ) {
+          matchedDevice = device;
+          topicType = matches[1];
+          // In XID1: 'device' = device message, 'server' = App/server message (equivalent to App in XID0)
+          isDevice = matches[2] === "device";
+          sourceXIDFormat = 'xid1';
+          break;
+        }
       }
     }
 
@@ -426,9 +513,34 @@ export class MQTTForwarder {
     this.logger.debug(`Target prefix: ${targetPrefix}`);
     this.logger.debug(`Target identifier: ${targetIdentifier}`);
 
-    // Build the new topic
-    const deviceOrApp = isDevice ? "device" : "App";
-    const newTopic = `${targetPrefix}${topicType}/${deviceOrApp}/${targetIdentifier}/ctrl`;
+    // Determine target XID format and build appropriate topic
+    let newTopic: string;
+    let targetXIDFormat: 'xid0' | 'xid1';
+    
+    // Determine target format based on target broker and source format
+    if (targetClient === this.configBroker) {
+      // Going to local broker - always use XID0 format
+      targetXIDFormat = 'xid0';
+      const deviceOrApp = isDevice ? 'device' : 'App';
+      newTopic = `${targetPrefix}${topicType}/${deviceOrApp}/${targetIdentifier}/ctrl`;
+    } else {
+      // Going to remote broker - maintain source format or use XID0 as default
+      if (sourceXIDFormat === 'xid1') {
+        // Keep XID1 format for remote
+        targetXIDFormat = 'xid1';
+        const xid1Prefix = this.config.remote.xid1_topic_prefix || 'marstek/';
+        // For XID1: device messages go to server topics, server messages go to device topics
+        const xid1Part = isDevice ? 'device' : 'server';
+        newTopic = `${xid1Prefix}${topicType}/${xid1Part}/${targetIdentifier}/ctrl`;
+      } else {
+        // Use XID0 format for remote (legacy)
+        targetXIDFormat = 'xid0';
+        const deviceOrApp = isDevice ? 'device' : 'App';
+        newTopic = `${targetPrefix}${topicType}/${deviceOrApp}/${targetIdentifier}/ctrl`;
+      }
+    }
+    
+    this.logger.debug(`XID format conversion: ${sourceXIDFormat} -> ${targetXIDFormat}`);
     this.logger.debug(`New topic: ${newTopic}`);
     const from = targetClient === this.configBroker ? "remote" : "local";
     const to = targetClient === this.configBroker ? "local" : "remote";
