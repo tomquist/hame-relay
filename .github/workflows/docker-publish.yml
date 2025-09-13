@@ -77,6 +77,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=rweijnen-xid1,enable=${{ github.ref == 'refs/heads/rweijnen/xid1' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
