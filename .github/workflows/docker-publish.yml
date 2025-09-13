@@ -2,7 +2,7 @@ name: Build and Deploy Hame Relay
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "develop", "rweijnen/*" ]
     tags: [ "*.*.*" ]
   pull_request:
     branches: [ "main", "develop" ]
