@@ -2,7 +2,7 @@ name: Build and Deploy Hame Relay
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "develop", "support-vid" ]
     tags: [ "*.*.*" ]
   pull_request:
     branches: [ "main", "develop" ]
@@ -92,6 +92,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=support-vid,enable=${{ github.ref == 'refs/heads/support-vid' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
@@ -176,6 +177,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=support-vid,enable=${{ github.ref == 'refs/heads/support-vid' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
@@ -248,6 +250,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=support-vid,enable=${{ github.ref == 'refs/heads/support-vid' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
@@ -334,6 +337,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=support-vid,enable=${{ github.ref == 'refs/heads/support-vid' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
