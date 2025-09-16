@@ -16,9 +16,6 @@ services:
 watchdog: "http://[HOST]:[PORT:8080]/health"
 options:
   log_level: info
-  username: "your_hame_email@example.com"
-  password: "your_hame_password"
-  inverse_forwarding_device_ids: ""
 schema:
   mqtt_uri: str?
   inverse_forwarding: bool?
