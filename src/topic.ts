@@ -19,8 +19,7 @@ class StreamUtil {
     }
 
     // Note: The key stream length is determined by the number of characters in the
-    // data string, not the number of bytes after UTF-8 encoding. This mirrors
-    // the behavior of the original implementation.
+    // data string, not the number of bytes after UTF-8 encoding.
     const keyStream = StreamUtil.#generateKeyStream(key, data.length);
     const dataBytes = new TextEncoder().encode(data);
     const resultBytes: number[] = [];
@@ -100,7 +99,7 @@ class CodeUtil {
     hash.update(input, "utf8");
     const hashBuffer = hash.digest();
 
-    // 2. Convert the Buffer to Uint32Array (the same way as the original implementation)
+    // 2. Convert the Buffer to Uint32Array
     const hashState = new Uint32Array(8);
     for (let i = 0; i < 8; i++) {
       // Read 4 bytes as big-endian uint32
@@ -108,7 +107,6 @@ class CodeUtil {
     }
 
     // 3. Produce the final hash bytes with a custom truncation and reordering
-    // (This matches the original implementation exactly)
     const finalHashBytes = new Uint8Array(24);
     for (let i = 0; i < 24; i++) {
       const word = hashState[i % 8];
@@ -237,7 +235,6 @@ class HexUtil {
     const p = this._buildPermutation(key, data.length);
     const result = new Uint8Array(data.length);
     // Reverses the permutation by placing data back in its original position.
-    // result[p[i]] = data[i]
     for (let i = 0; i < data.length; i++) {
       result[p[i]] = data[i];
     }
