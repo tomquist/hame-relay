@@ -487,17 +487,17 @@ class CommonHelper {
     const normalizedVid = vid.toUpperCase();
 
     // Jupiter devices (JPLS, HMM, HMN): Require firmware ≥ 136.0
-    if (["JPLS", "HMM", "HMN"].includes(normalizedVid)) {
+    if (["JPLS", "HMM", "HMN"].some((v) => normalizedVid.startsWith(v))) {
       return version >= 136.0;
     }
 
     // HMB/HMA/HMK/HMF: Require firmware ≥ 230.0
-    if (["HMB", "HMA", "HMK", "HMF"].includes(normalizedVid)) {
+    if (["HMB", "HMA", "HMK", "HMF"].some((v) => normalizedVid.startsWith(v))) {
       return version >= 230.0;
     }
 
     // HMJ: Require firmware ≥ 116.0
-    if (normalizedVid === "HMJ") {
+    if (normalizedVid.startsWith("HMJ")) {
       return version >= 116.0;
     }
 
@@ -512,7 +512,7 @@ class CommonHelper {
     }
 
     // HMG: Require firmware ≥ 154.0
-    if (normalizedVid.includes("HMG")) {
+    if (normalizedVid.startsWith("HMG")) {
       return version >= 154.0;
     }
 
