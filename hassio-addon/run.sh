@@ -37,74 +37,74 @@ BROKER_URL=$(get_mqtt_uri)
 
 # Create config.json
 bashio::log.info "Generating config file..."
-DEVICES=$(bashio::config 'devices' | jq -s '.')
+
+# Get required configuration values
+if ! bashio::config.has_value 'username'; then
+    bashio::log.error "Username is required but not provided in configuration."
+    exit 1
+fi
+
+if ! bashio::config.has_value 'password'; then
+    bashio::log.error "Password is required but not provided in configuration."
+    exit 1
+fi
+
+USERNAME=$(bashio::config 'username')
+PASSWORD=$(bashio::config 'password')
 INVERSE_FORWARDING=$(bashio::config 'inverse_forwarding' "false")
 DEFAULT_BROKER_ID=$(bashio::config 'default_broker_id' "hame-2024")
 LOG_LEVEL=$(bashio::config 'log_level' "info")
 
-# Create base configuration
-CONFIG='{
+bashio::log.info "Username and password found in configuration."
+
+# Build the config JSON with required fields
+CONFIG_JSON='{
   "broker_url": $url,
-  "devices": $devices,
-  "inverse_forwarding": $inverse
+  "inverse_forwarding": $inverse,
+  "default_broker_id": $default,
+  "username": $username,
+  "password": $password
 }'
 
-# Check for optional username and password
-if bashio::config.has_value 'username'; then
-    USERNAME=$(bashio::config 'username')
-    bashio::log.info "Username found in configuration."
+# Check for optional selective forwarding configuration
+if bashio::config.has_value 'inverse_forwarding_device_ids'; then
+    INVERSE_FORWARDING_DEVICE_IDS=$(bashio::config 'inverse_forwarding_device_ids')
+    bashio::log.info "Selective inverse forwarding device IDs found: $INVERSE_FORWARDING_DEVICE_IDS"
     
-    # Add username to config
-    if bashio::config.has_value 'password'; then
-        PASSWORD=$(bashio::config 'password')
-        bashio::log.info "Password found in configuration."
-        
-        # Add both username and password to config
-        jq -n \
-          --arg url "$BROKER_URL" \
-          --argjson devices "$DEVICES" \
-          --argjson inverse "$INVERSE_FORWARDING" \
-          --arg default "$DEFAULT_BROKER_ID" \
-          --arg username "$USERNAME" \
-          --arg password "$PASSWORD" \
-          '{
-            broker_url: $url,
-            devices: $devices,
-            inverse_forwarding: $inverse,
-            default_broker_id: $default,
-            username: $username,
-            password: $password
-          }' > /app/config/config.json
-    else
-        # Add only username to config
-        jq -n \
-          --arg url "$BROKER_URL" \
-          --argjson devices "$DEVICES" \
-          --argjson inverse "$INVERSE_FORWARDING" \
-          --arg default "$DEFAULT_BROKER_ID" \
-          --arg username "$USERNAME" \
-          '{
-            broker_url: $url,
-            devices: $devices,
-            inverse_forwarding: $inverse,
-            default_broker_id: $default,
-            username: $username
-          }' > /app/config/config.json
-    fi
-else
-    # Create config file without username/password
+    # Create config with selective forwarding
     jq -n \
       --arg url "$BROKER_URL" \
-      --argjson devices "$DEVICES" \
       --argjson inverse "$INVERSE_FORWARDING" \
       --arg default "$DEFAULT_BROKER_ID" \
+      --arg username "$USERNAME" \
+      --arg password "$PASSWORD" \
+      --arg device_ids "$INVERSE_FORWARDING_DEVICE_IDS" \
       '{
         broker_url: $url,
-        devices: $devices,
         inverse_forwarding: $inverse,
-        default_broker_id: $default
+        default_broker_id: $default,
+        username: $username,
+        password: $password,
+        inverse_forwarding_device_ids: $device_ids
+      }' > /app/config/config.json
+else
+    # Create config without selective forwarding
+    jq -n \
+      --arg url "$BROKER_URL" \
+      --argjson inverse "$INVERSE_FORWARDING" \
+      --arg default "$DEFAULT_BROKER_ID" \
+      --arg username "$USERNAME" \
+      --arg password "$PASSWORD" \
+      '{
+        broker_url: $url,
+        inverse_forwarding: $inverse,
+        default_broker_id: $default,
+        username: $username,
+        password: $password
       }' > /app/config/config.json
 fi
+
+bashio::log.info "Configuration file generated successfully."
 
 # Start the application
 export LOG_LEVEL

@@ -191,13 +191,13 @@
                 <div style="margin: 10px 0;">
                     <input type="radio" id="mode1" name="relay-mode" value="false" checked>
                     <label for="mode1" style="margin-left: 5px; font-weight: normal;">
-                        <strong>Mode 1 (Recommended):</strong> Device uses local MQTT broker - use the MQTT config above (inverse_forwarding: false)
+                        <strong>Mode 1 (Default for B2500):</strong> Configure MQTT locally on device - use the MQTT config above
                     </label>
                 </div>
                 <div style="margin: 10px 0;">
                     <input type="radio" id="mode2" name="relay-mode" value="true">
                     <label for="mode2" style="margin-left: 5px; font-weight: normal;">
-                        <strong>Mode 2:</strong> Device uses Hame cloud MQTT broker (inverse_forwarding: true)
+                        <strong>Mode 2:</strong> Device uses Hame cloud MQTT broker - requires inverse_forwarding_device_ids configuration
                     </label>
                 </div>
             </div>
@@ -212,12 +212,8 @@
             
             <div style="margin-bottom: 20px;">
                 <h3>Home Assistant Add-on Configuration:</h3>
-                <pre id="ha-config" style="background-color: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 10px;">inverse_forwarding: false
-devices:
-  - device_id: "your-device-id"
-    mac: "your-mac-address"
-    type: "your-device-type"
-    version: 0</pre>
+                <pre id="ha-config" style="background-color: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 10px;">username: "your-hame-username"
+password: "your-hame-password"</pre>
                 <button onclick="copyToClipboard('ha-config')" style="font-size: 12px;">Copy HA Config</button>
             </div>
             
@@ -1094,26 +1090,26 @@ devices:
             // Docker configuration
             const dockerConfig = {
                 "broker_url": "mqtt://username:password@your-broker-url",
-                "inverse_forwarding": inverseForwarding,
-                "devices": [
-                    {
-                        "device_id": deviceId || "your-device-id",
-                        "mac": mac || "your-mac-address",
-                        "type": type || "your-device-type",
-                        "version": parseInt(version, 10) || 0
-                    }
-                ]
+                "username": "your-hame-username",
+                "password": "your-hame-password"
             };
+            
+            // Add inverse_forwarding_device_ids for Mode 2 (inverse forwarding)
+            if (inverseForwarding) {
+                dockerConfig.inverse_forwarding_device_ids = deviceId || "your-device-id";
+            }
             
             document.getElementById('docker-config').textContent = JSON.stringify(dockerConfig, null, 2);
             
             // Home Assistant configuration
-            const haConfig = `inverse_forwarding: ${inverseForwarding}
-devices:
-  - device_id: "${deviceId || 'your-device-id'}"
-    mac: "${mac || 'your-mac-address'}"
-    type: "${type || 'your-device-type'}"
-    version: ${parseInt(version, 10) || 0}`;
+            let haConfig = `username: "your-hame-username"
+password: "your-hame-password"`;
+            
+            // Add inverse_forwarding_device_ids for Mode 2 (inverse forwarding)
+            if (inverseForwarding) {
+                haConfig += `
+inverse_forwarding_device_ids: "${deviceId || 'your-device-id'}"`;
+            }
             
             document.getElementById('ha-config').textContent = haConfig;
             

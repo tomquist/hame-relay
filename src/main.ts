@@ -5,6 +5,7 @@ import { HealthServer } from "./health.js";
 import { logger } from "./logger.js";
 import { HameApi, DeviceInfo } from "./hame_api.js";
 import { MQTTForwarder } from "./mqtt_forwarder.js";
+import { CommonHelper } from "./topic.js";
 import {
   Device,
   BrokerDefinition,
@@ -174,84 +175,115 @@ async function start() {
       throw err;
     }
 
-    if (!config.devices) {
-      config.devices = [];
+    // Username and password are now required since we need salt data
+    if (!config.username || !config.password) {
+      throw new Error(
+        "Username and password are required to fetch device information and salt data from the Hame API",
+      );
     }
 
-    const userDevicesMap = new Map<string, Device>();
-    config.devices.forEach((device) => {
-      if (device.device_id) {
-        userDevicesMap.set(device.device_id, device);
+    logger.info("Fetching devices from Hame API...");
+    try {
+      const api = new HameApi();
+      const apiDevicesRaw: DeviceInfo[] = await api.fetchDevices(
+        config.username,
+        config.password,
+      );
+
+      if (apiDevicesRaw.length === 0) {
+        throw new Error(
+          "No devices found in your Hame account. Please check your credentials and ensure you have devices registered.",
+        );
       }
-    });
 
-    if (config.username && config.password) {
-      try {
-        logger.info(
-          "Credentials found in config, attempting to fetch devices from API...",
-        );
-        const api = new HameApi();
-        const apiDevicesRaw: DeviceInfo[] = await api.fetchDevices(
-          config.username,
-          config.password,
-        );
-        const apiDevices: Device[] = apiDevicesRaw.map((device) => {
-          let deviceType = device.type as DeviceTypeIdentifier;
-          if (!knownDeviceTypes.includes(deviceType)) {
-            logger.warn(
-              `Unknown device type from API: ${device.type}. Using as-is.`,
-            );
-          }
-          const v = parseInt(device.version, 10);
-          return {
-            device_id: device.devid,
-            mac: device.mac,
-            type: deviceType,
-            name: device.name,
-            version: isNaN(v) ? undefined : v,
-          } as Device;
-        });
-
-        if (apiDevices.length > 0) {
-          logger.info(`Retrieved ${apiDevices.length} devices from API`);
-          for (const apiDevice of apiDevices) {
-            if (userDevicesMap.has(apiDevice.device_id)) {
-              const userDevice = userDevicesMap.get(apiDevice.device_id)!;
-              const props: (keyof Device)[] = [
-                "type",
-                "name",
-                "mac",
-                "version",
-              ];
-              for (const prop of props) {
-                const apiVal = apiDevice[prop];
-                const cfgVal = userDevice[prop];
-                if (apiVal !== undefined) {
-                  if (cfgVal !== undefined && cfgVal !== apiVal) {
-                    logger.warn(
-                      `Device ${apiDevice.device_id} setting '${prop}' from config (` +
-                        `${cfgVal}) differs from credentials (${apiVal}). Using credentials value.`,
-                    );
-                  }
-                  (userDevice as any)[prop] = apiVal as never;
-                }
-              }
-            } else {
-              config.devices.push(apiDevice);
-              userDevicesMap.set(apiDevice.device_id, apiDevice);
-            }
-          }
-          logger.info(
-            `Config now contains ${config.devices.length} devices (${userDevicesMap.size} unique)`,
+      const apiDevices: Device[] = apiDevicesRaw.map((device) => {
+        let deviceType = device.type as DeviceTypeIdentifier;
+        if (!knownDeviceTypes.includes(deviceType)) {
+          logger.warn(
+            `Unknown device type from API: ${device.type}. Using as-is.`,
           );
         }
-      } catch (apiError) {
-        logger.error(apiError, "Failed to fetch devices from API");
-        logger.warn("Continuing with devices from config file only");
+        const v = parseInt(device.version, 10);
+        return {
+          device_id: device.devid,
+          mac: device.mac,
+          type: deviceType,
+          name: device.name,
+          version: isNaN(v) ? undefined : v,
+          salt: device.salt,
+        } as Device;
+      });
+
+      config.devices = apiDevices;
+      logger.info(
+        `Successfully retrieved ${apiDevices.length} devices from API`,
+      );
+    } catch (apiError) {
+      logger.error(apiError, "Failed to fetch devices from Hame API");
+      throw new Error(
+        `Unable to fetch device information from Hame API: ${apiError instanceof Error ? apiError.message : String(apiError)}`,
+      );
+    }
+
+    // Ensure TypeScript knows devices is now defined
+    const devicesConfig = config as MainConfig & { devices: Device[] };
+
+    // Apply selective inverse forwarding logic
+    const selectiveInverseDeviceIds = new Set<string>();
+    if (config.inverse_forwarding_device_ids) {
+      const deviceIds = config.inverse_forwarding_device_ids
+        .split(",")
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
+      deviceIds.forEach((id) => selectiveInverseDeviceIds.add(id));
+      logger.info(
+        `Selective inverse forwarding enabled for device IDs: ${Array.from(selectiveInverseDeviceIds).join(", ")}`,
+      );
+    }
+
+    for (const device of devicesConfig.devices) {
+      // Set inverse forwarding based on device type and configuration
+      if (device.inverse_forwarding === undefined) {
+        const deviceType = device.type.toUpperCase();
+        const selectableTypes = ["HMA", "HMF", "HMK", "HMJ"];
+
+        if (selectableTypes.some((type) => deviceType.startsWith(type))) {
+          // For selectable device types, check if device ID is in the list
+          device.inverse_forwarding = selectiveInverseDeviceIds.has(
+            device.device_id,
+          );
+          logger.debug(
+            `Device ${device.device_id} (${device.type}): inverse_forwarding = ${device.inverse_forwarding} (selective)`,
+          );
+        } else {
+          // For all other device types, always use inverse forwarding
+          device.inverse_forwarding = true;
+          logger.debug(
+            `Device ${device.device_id} (${device.type}): inverse_forwarding = true (automatic)`,
+          );
+        }
+      } else {
+        logger.debug(
+          `Device ${device.device_id} (${device.type}): inverse_forwarding = ${device.inverse_forwarding} (explicit)`,
+        );
       }
     }
 
-    for (const device of config.devices) {
+    // Apply global inverse_forwarding flip if enabled
+    if (config.inverse_forwarding === true) {
+      logger.info(
+        "Global inverse_forwarding flag is true - flipping all device settings",
+      );
+      for (const device of devicesConfig.devices) {
+        const originalValue = device.inverse_forwarding;
+        device.inverse_forwarding = !device.inverse_forwarding;
+        logger.debug(
+          `Device ${device.device_id} (${device.type}): inverse_forwarding flipped from ${originalValue} to ${device.inverse_forwarding} (global flip)`,
+        );
+      }
+    }
+
+    for (const device of devicesConfig.devices) {
       if (!device.broker_id) {
         const auto = autoDetermineBroker(device, brokers);
         if (auto) {
@@ -263,12 +295,11 @@ async function start() {
       }
     }
 
-    cleanAndValidate(config);
+    cleanAndValidate(devicesConfig);
 
     const defaultId = config.default_broker_id || "hame-2024";
-    logger.debug(`Using default broker ID: ${defaultId}`);
     const devicesByBroker: Record<string, Device[]> = {};
-    for (const device of config.devices) {
+    for (const device of devicesConfig.devices) {
       const brokerId = device.broker_id || defaultId;
       logger.debug(
         `Using broker ID: ${brokerId} for device ${device.device_id}`,
@@ -279,7 +310,35 @@ async function start() {
       }
       device.broker_id = brokerId;
       if (!device.remote_id) {
-        if (broker.topic_encryption_key) {
+        logger.debug(
+          CommonHelper.isSupportVid(device.type, device.version!.toString()),
+        );
+        // Check if device supports the new CommonHelper.cq method
+        if (
+          device.salt &&
+          device.version &&
+          CommonHelper.isSupportVid(device.type, device.version.toString())
+        ) {
+          logger.debug(
+            `Device ${device.device_id} supports CommonHelper.cq method, using salt-based calculation`,
+          );
+          const firstSalt = CommonHelper.extractFirstSalt(device.salt);
+          if (firstSalt) {
+            device.remote_id = CommonHelper.cq(
+              firstSalt,
+              device.mac,
+              device.type,
+            );
+            logger.debug(
+              `Calculated remote ID using CommonHelper.cq: ${device.remote_id} for device ${device.device_id}`,
+            );
+          } else {
+            logger.warn(
+              `Failed to extract salt for device ${device.device_id}, falling back to alternative method`,
+            );
+            device.remote_id = device.device_id;
+          }
+        } else if (broker.topic_encryption_key) {
           logger.debug(
             `Using topic encryption key for device ${device.device_id}`,
           );
@@ -310,9 +369,9 @@ async function start() {
       (devicesByBroker[brokerId] ??= []).push(device);
     }
 
-    logger.info(`\nConfigured devices: ${config.devices.length} total`);
+    logger.info(`\nConfigured devices: ${devicesConfig.devices.length} total`);
     logger.info("------------------");
-    config.devices.forEach((device, index) => {
+    devicesConfig.devices.forEach((device, index) => {
       logger.info(`Device ${index + 1}:`);
       logger.info(`  Name: ${device.name || "Not specified"}`);
       logger.info(`  Device ID: ${device.device_id}`);

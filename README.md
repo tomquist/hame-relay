@@ -5,50 +5,94 @@ This project helps you integrate your Marstek storage systems with both the offi
 1. Using the official app with a locally configured storage system
 2. Using home automation with a storage system configured for the official Hame cloud
 
+**Important Note**: Hame Relay only forwards MQTT messages between the Hame cloud and your local MQTT broker. It does not create Home Assistant device entities or provide device integration. For full Home Assistant integration with automatic device discovery and control entities, use [hm2mqtt](https://github.com/tomquist/hm2mqtt) on top of Hame Relay.
+
+## Quick Start for Home Assistant Users
+
+The easiest way to get started is with the Home Assistant add-on:
+
+### Installation
+
+1. Add this repository to your Home Assistant add-on store:
+   ```
+   https://github.com/tomquist/hame-relay
+   ```
+
+2. Install the "Hame Relay" add-on
+3. Enter your Hame account credentials (see configuration below)
+4. Start the add-on
+
+### Simple Configuration
+
+Just enter your Hame account credentials. The add-on will automatically discover and configure all your devices:
+
+```yaml
+# Required: Your Hame account credentials
+username: "your_hame_email@example.com"
+password: "your_hame_password"
+```
+
+The add-on will:
+- Automatically discover all your Marstek devices
+- Configure the optimal forwarding direction for each device type
+- Handle all the complex technical details behind the scenes
+
+### Optional Settings
+
+If you need to customize the behavior, you can also configure:
+
+```yaml
+# Optional: Use different MQTT broker (defaults to Home Assistant's MQTT)
+mqtt_uri: "mqtt://username:password@host:1883"
+
+# Optional: Global setting to flip all forwarding directions (usually keep off unless you know what you're doing)
+inverse_forwarding: false
+
+# Optional: For HMA/HMF/HMK/HMJ devices, specify which ones should use inverse forwarding
+# Example: "0123456789abcdef01234567,9876543210fedcba76543210"
+inverse_forwarding_device_ids: ""
+```
+
+The add-on handles everything else automatically.
+
 ## How It Works
 
 Marstek storage systems can be configured to use either:
 - The official Hame MQTT broker (default) - allows control via the mobile app but not local automation
 - A local MQTT broker - allows local automation but breaks mobile app control (**Note: Only available for Marstek Saturn/B2500**)
 
-This tool bridges these two scenarios by forwarding MQTT messages between your local broker and the Hame broker. It has two modes controlled by the `inverse_forwarding` option:
+This tool bridges these two scenarios by forwarding MQTT messages between your local broker and the Hame broker. The add-on automatically determines the best forwarding direction for each device type:
 
-### Mode 1: Storage configured with local broker (`inverse_forwarding: false`)
+### Automatic Configuration
+- **JPLS, HMM, HMN, HME, TPM-CN, HMG and other devices**: Always use inverse forwarding (required for proper operation)
+- **HMA, HMF, HMK, HMJ devices**: Use selective forwarding based on your configuration (see `inverse_forwarding_device_ids`)
+
+### Manual Mode Selection (Advanced)
+You can also manually control the forwarding direction:
+
+**Mode 1: Storage configured with local broker**
 - **Only available for Marstek Saturn/B2500 systems**
 - Use this when your Saturn/B2500 is configured to use your local MQTT broker
 - The relay forwards necessary messages to the Hame broker
 - Allows you to keep using the official mobile app while your storage runs on local MQTT
 
-### Mode 2: Storage configured with Hame broker (`inverse_forwarding: true`)
+**Mode 2: Storage configured with Hame broker**
 - **Required for Marstek Venus and Jupiter systems** (they cannot be reconfigured to use local MQTT)
 - **Optional for Marstek Saturn/B2500** if you prefer to keep using the Hame broker
 - Use this when your storage is using the default Hame MQTT broker
 - The relay forwards messages from your local broker to Hame
 - Allows local home automation control without reconfiguring your storage
 
-## Getting Device Information
-
-You need your storage system's Device ID, MAC address, and device type (e.g. HMA-1, HMA-2, HMA-3 etc.) for configuration.
-
-**Recommended approach:**
-- Provide your Hame account username and password in the configuration
-- The relay will automatically fetch your device information from the Hame API
-- Check the application logs to see the retrieved device details
-- Update your configuration with the actual values
-
-**Manual approach:**
-- If you already know your device details, specify them directly in the configuration
-
 ## Prerequisites
 
 - Either:
-  - Docker environment
   - Home Assistant OS or a Home Assistant Supervised installation
+  - Docker environment (see Advanced Docker Setup below)
 - **Legal ownership of a Marstek storage system and associated Hame software**
 
-## Configure Storage with Local MQTT Broker
+## Advanced: Configure Storage with Local MQTT Broker
 
-**Note: This section only applies to Marstek Saturn/B2500 systems. Marstek Venus and Jupiter systems cannot be configured with a local MQTT broker and must use Mode 2 (`inverse_forwarding: true`).**
+**Note: This section only applies to Marstek Saturn/B2500 systems. Marstek Venus and Jupiter systems cannot be configured with a local MQTT broker and must use inverse forwarding.**
 
 This configuration allows you to use Mode 1, where your Saturn/B2500 connects to your local MQTT broker while maintaining mobile app functionality.
 
@@ -70,11 +114,11 @@ This configuration allows you to use Mode 1, where your Saturn/B2500 connects to
 
 Now your storage can be controlled through your own MQTT broker. See [this document](https://eu.hamedata.com/ems/mqtt/index.html?version=2) for more information.
 
-## Docker
+## Advanced: Docker Setup
 
-The relay can be run either directly with Docker or using Docker Compose.
+For advanced users who prefer Docker over the Home Assistant add-on, you can run the relay directly.
 
-### Option 1: Using Docker
+### Simple Docker Setup
 
 1. Create a directory for your configuration:
 ```bash
@@ -83,36 +127,14 @@ cd hame-relay
 mkdir config
 ```
 
-2. Create a config file (`config/config.json`):
+2. Create a minimal config file (`config/config.json`):
 ```json
 {
   "broker_url": "mqtt://username:password@your-broker-url",
-  "inverse_forwarding": false,
-  "default_broker_id": "hame-2024",
   "username": "your_hame_email@example.com",
-  "password": "your_hame_password",
-  "devices": [
-    { "device_id": "24-digit-device-id", "mac": "maccaddresswithoutcolons", "type": "HMA-1", "version": 0 }
-  ]
+  "password": "your_hame_password"
 }
 ```
-
-**Configuration options:**
-- `inverse_forwarding`: Choose your operation mode:
-  - `false` (default): Storage uses local broker, maintain app functionality (**Only available for Saturn/B2500**)
-  - `true`: Storage uses Hame broker, enable local control (**Required for Venus/Jupiter, optional for Saturn/B2500**)
-- `username` and `password`: Your Hame account credentials for automatic device information retrieval
-- `default_broker_id`: Identifier of the remote broker to use (defaults to `hame-2024`)
-- `devices`: Your storage systems' details (can use dummy values initially if using automatic retrieval)
-- Remote broker settings are loaded from `brokers.json`. Each broker can specify
-  `topic_prefix`, `client_id_prefix` (defaults to `hm_`), and an optional
-  `topic_encryption_key` used to generate remote device identifiers.
-  `use_remote_topic_id_versions` can specify firmware versions that require
-  using the remote topic ID structure.
-
-**Getting Device Information:**
-- **Recommended**: If you provide `username` and `password`, the relay can fetch your device information automatically from the Hame API. Check the container logs to see the retrieved device details, then update your configuration with the actual values.
-- **Manual**: If you know your device details, you can specify them directly in the `devices` array.
 
 3. Run the container:
 ```bash
@@ -120,22 +142,13 @@ docker run -d \
   --name hame-relay \
   --restart unless-stopped \
   -v "$(pwd)/config:/app/config" \
+  -e LOG_LEVEL=info \
   ghcr.io/tomquist/hame-relay:main
 ```
-Set `LOG_LEVEL` to control verbosity, e.g. `-e LOG_LEVEL=debug`.
 
-### Option 2: Using Docker Compose
+### Docker Compose
 
-1. Create a directory for your configuration:
-```bash
-mkdir hame-relay
-cd hame-relay
-mkdir config
-```
-
-2. Create a config file (`config/config.json`) with the same content as above.
-
-3. Create a `docker-compose.yml` file:
+Create a `docker-compose.yml` file:
 ```yaml
 version: '3.8'
 
@@ -147,80 +160,38 @@ services:
     volumes:
       - ./config:/app/config
     environment:
-      - LOG_LEVEL=debug
+      - LOG_LEVEL=info
 ```
-Set `LOG_LEVEL` to control verbosity.
 
-4. Start the container:
+Start the container:
 ```bash
 docker compose up -d
 ```
 
-# Home Assistant
+### Advanced Docker Configuration
 
-## Installation
+The Docker version supports additional configuration options not available in the Home Assistant add-on:
 
-1. Add this repository to your Home Assistant add-on store:
-   ```
-   https://github.com/tomquist/hame-relay
-   ```
-
-2. Install the "Hame Relay" add-on
-3. Configure your device details
-4. Start the add-on
-
-## Configuration
-
-Example configuration:
-
-```yaml
-# Optional: only needed if not using Home Assistant's MQTT service
-mqtt_uri: "mqtt://username:password@host:1883"
-
-# Choose your operation mode
-inverse_forwarding: false
-
-# Optional: Hame account credentials to automatically fetch device information
-username: "your_hame_email@example.com"
-password: "your_hame_password"
-
-devices:
-  - device_id: "0123456789abcdef01234567"
-    mac: "01234567890a"
-    type: "HMA-1"
-    version: 151
-  - device_id: "0123456789abcdef01234567"
-    mac: "01234567890a"
-    type: "HMA-1"
+```json
+{
+  "broker_url": "mqtt://username:password@your-broker-url",
+  "username": "your_hame_email@example.com",
+  "password": "your_hame_password",
+  "inverse_forwarding": false,
+  "default_broker_id": "hame-2024",
+  "inverse_forwarding_device_ids": "",
+  "devices": [
+    { 
+      "device_id": "24-digit-device-id", 
+      "mac": "maccaddresswithoutcolons", 
+      "type": "HMA-1", 
+      "version": 0,
+      "inverse_forwarding": true,
+      "broker_id": "hame-2025"
+    }
+  ]
+}
 ```
-
-**Getting Device Information:**
-- **Automatic retrieval**: If you provide `username` and `password`, the add-on will automatically fetch your device information from the Hame API
-- **Important for Home Assistant**: You must include at least one device in the `devices` list (even if using automatic retrieval). You can use dummy values initially, then check the add-on logs to see your actual device details and update the configuration accordingly
-- **Manual configuration**: If you already know your device details, specify them directly in the `devices` array
-
-### MQTT Configuration
-
-The add-on will automatically use your Home Assistant MQTT settings if configured. You only need to provide the `mqtt_uri` if you want to use a different MQTT broker.
-
-### Required Configuration
-
-- `devices`: List of your Marstek storage systems with their IDs, MAC addresses and types
-  - `device_id`: Your device's 22 to 24-digit ID
-  - `mac`: Your device's MAC address without colons
-  - `type`: Your device's type (e.g. HMA-1, HMA-2, HMA-3 etc.)
-  - `version`: (optional) Firmware version used for automatic broker selection. Enter the number without any decimal point (e.g. firmware `226.1` becomes `226`)
-  - `inverse_forwarding`: (optional) Override the global setting for the operation mode of this device
-
-### Optional Configuration
-
-- `inverse_forwarding`: Choose your operation mode:
-  - `false` (default): Storage uses local broker, maintain app functionality (**Only available for Saturn/B2500**)
-  - `true`: Storage uses Hame broker, enable local control (**Required for Venus/Jupiter, optional for Saturn/B2500**)
-- `username`: Your Hame account email address. When provided along with password, 
-  the tool will automatically fetch device information from the Hame API and display it in the logs.
-- `password`: Your Hame account password. Required when using automatic device information retrieval.
-- `log_level`: Adjust log verbosity (`trace`, `debug`, `info`, `warn`, `error`, `fatal`).
 
 ## Development
 

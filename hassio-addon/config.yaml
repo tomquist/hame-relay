@@ -15,24 +15,15 @@ services:
   - mqtt:need
 watchdog: "http://[HOST]:[PORT:8080]/health"
 options:
-  inverse_forwarding: false
-  default_broker_id: hame-2024
   log_level: info
-  devices:
-    - device_id: "24-digit-device-id"
-      mac: "maccaddresswithoutcolons"
-      type: "HMA-1"
-      version: 0
+  username: "your_hame_email@example.com"
+  password: "your_hame_password"
+  inverse_forwarding_device_ids: ""
 schema:
   mqtt_uri: str?
   inverse_forwarding: bool?
   default_broker_id: list(hame-2024|hame-2025)?
   log_level: list(trace|debug|info|warn|error|fatal)?
-  username: str?
-  password: password?
-  devices:
-    - device_id: str
-      mac: str
-      type: str
-      version: int?
-      inverse_forwarding: bool?
+  username: str
+  password: password
+  inverse_forwarding_device_ids: str?

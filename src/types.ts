@@ -37,6 +37,7 @@ export interface Device {
   broker_id?: string;
   remote_id?: string;
   use_remote_topic_id?: boolean;
+  salt?: string; // Comma-separated salt values from device list
 }
 
 export interface BrokerDefinition {
@@ -64,9 +65,10 @@ export interface ForwarderConfig {
 
 export interface MainConfig {
   broker_url: string;
-  devices: Device[];
+  devices?: Device[]; // Now optional since devices are fetched from API
   inverse_forwarding?: boolean;
-  username?: string;
-  password?: string;
+  username: string; // Now required
+  password: string; // Now required
   default_broker_id?: string;
+  inverse_forwarding_device_ids?: string; // Comma-separated list of device IDs for selective inverse forwarding
 }
