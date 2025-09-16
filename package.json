@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
-    "test": "node --test --import tsx/esm",
+    "test": "npm run build && node --test --import tsx/esm",
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
     "lint": "prettier --check \"src/**/*.ts\"",

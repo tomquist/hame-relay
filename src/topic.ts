@@ -1,4 +1,5 @@
 import { logger } from "./logger.js";
+import { createHash } from "crypto";
 
 class StreamUtil {
   /**
@@ -94,41 +95,6 @@ class StreamUtil {
  * produce a 48-character string.
  */
 class CodeUtil {
-  /**
-   * SHA-256 round constants (K). These are the first 32 bits of the
-   * fractional parts of the cube roots of the first 64 prime numbers.
-   * @private
-   */
-  static #k = new Uint32Array([
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
-    0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
-    0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
-    0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-    0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
-    0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-  ]);
-
-  /**
-   * Helper for 32-bit unsigned addition. In JS, bitwise operations yield
-   * signed 32-bit integers, so we use `>>> 0` to convert to unsigned.
-   * @private
-   */
-  static #add32(a: number, b: number): number {
-    return (a + b) >>> 0;
-  }
-
-  /**
-   * Helper for 32-bit right rotation.
-   * @private
-   */
-  static #rotr(x: number, n: number): number {
-    return ((x >>> n) | (x << (32 - n))) >>> 0;
-  }
 
   /**
    * Encodes the input string. This is the main public method.
@@ -136,25 +102,20 @@ class CodeUtil {
    * @returns The encoded 48-character string.
    */
   static e(input: string): string {
-    // 1. Convert input string to a list of bytes using UTF-8.
-    const bytes = new TextEncoder().encode(input);
+    // 1. Use Node.js crypto module to compute SHA-256 hash
+    const hash = createHash('sha256');
+    hash.update(input, 'utf8');
+    const hashBuffer = hash.digest();
 
-    // 2. Initialize hash state with the standard SHA-256 initial values.
-    const hashState = new Uint32Array([
-      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
-      0x1f83d9ab, 0x5be0cd19,
-    ]);
-
-    // 3. Pad the data to a multiple of 64 bytes for processing.
-    const paddedMessage = this.#padData(bytes);
-
-    // 4. Process the message in 64-byte (512-bit) chunks.
-    for (let i = 0; i < paddedMessage.length; i += 64) {
-      const chunk = paddedMessage.subarray(i, i + 64);
-      this.#processChunk(hashState, chunk);
+    // 2. Convert the Buffer to Uint32Array (the same way as the original implementation)
+    const hashState = new Uint32Array(8);
+    for (let i = 0; i < 8; i++) {
+      // Read 4 bytes as big-endian uint32
+      hashState[i] = hashBuffer.readUInt32BE(i * 4);
     }
 
-    // 5. Produce the final hash bytes with a custom truncation and reordering.
+    // 3. Produce the final hash bytes with a custom truncation and reordering
+    // (This matches the original implementation exactly)
     const finalHashBytes = new Uint8Array(24);
     for (let i = 0; i < 24; i++) {
       const word = hashState[i % 8];
@@ -163,7 +124,7 @@ class CodeUtil {
       finalHashBytes[i] = (word >> shift) & 0xff;
     }
 
-    // 6. Convert the resulting 24 bytes into the final string format.
+    // 4. Convert the resulting 24 bytes into the final string format.
     return this.#bytesToCustomEncoding(finalHashBytes);
   }
 
@@ -185,101 +146,6 @@ class CodeUtil {
     return buffer.join("");
   }
 
-  /**
-   * Processes a single 64-byte chunk of data, updating the hash state.
-   * This function implements the core SHA-256 compression algorithm.
-   * @private
-   */
-  static #processChunk(hashState: Uint32Array, chunk: Uint8Array): void {
-    const w = new Uint32Array(64);
-
-    // 1. Prepare the message schedule (W).
-    const chunkData = new DataView(chunk.buffer, chunk.byteOffset);
-    for (let i = 0; i < 16; i++) {
-      w[i] = chunkData.getUint32(i * 4, false); // false for big-endian
-    }
-
-    for (let i = 16; i < 64; i++) {
-      const s0 =
-        this.#rotr(w[i - 15], 7) ^
-        this.#rotr(w[i - 15], 18) ^
-        (w[i - 15] >>> 3);
-      const s1 =
-        this.#rotr(w[i - 2], 17) ^ this.#rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
-      w[i] = this.#add32(this.#add32(this.#add32(w[i - 16], s0), w[i - 7]), s1);
-    }
-
-    // 2. Initialize working variables with the current hash state.
-    let a = hashState[0],
-      b = hashState[1],
-      c = hashState[2],
-      d = hashState[3],
-      e = hashState[4],
-      f = hashState[5],
-      g = hashState[6],
-      h = hashState[7];
-
-    // 3. Main compression loop.
-    for (let i = 0; i < 64; i++) {
-      const s1 = this.#rotr(e, 6) ^ this.#rotr(e, 11) ^ this.#rotr(e, 25);
-      const ch = (e & f) ^ (~e & g);
-      const temp1 = this.#add32(
-        this.#add32(this.#add32(this.#add32(h, s1), ch), this.#k[i]),
-        w[i],
-      );
-      const s0 = this.#rotr(a, 2) ^ this.#rotr(a, 13) ^ this.#rotr(a, 22);
-      const maj = (a & b) ^ (a & c) ^ (b & c);
-      const temp2 = this.#add32(s0, maj);
-
-      h = g;
-      g = f;
-      f = e;
-      e = this.#add32(d, temp1);
-      d = c;
-      c = b;
-      b = a;
-      a = this.#add32(temp1, temp2);
-    }
-
-    // 4. Update the hash state with the new values.
-    hashState[0] = this.#add32(hashState[0], a);
-    hashState[1] = this.#add32(hashState[1], b);
-    hashState[2] = this.#add32(hashState[2], c);
-    hashState[3] = this.#add32(hashState[3], d);
-    hashState[4] = this.#add32(hashState[4], e);
-    hashState[5] = this.#add32(hashState[5], f);
-    hashState[6] = this.#add32(hashState[6], g);
-    hashState[7] = this.#add32(hashState[7], h);
-  }
-
-  /**
-   * Pads the input data according to the SHA-256 standard.
-   * @private
-   */
-  static #padData(data: Uint8Array): Uint8Array {
-    const originalLengthInBytes = data.length;
-    const originalLengthInBits = originalLengthInBytes * 8;
-
-    const paddingLength = (56 - ((originalLengthInBytes + 1) % 64) + 64) % 64;
-    const totalLength = originalLengthInBytes + 1 + paddingLength + 8;
-    const paddedData = new Uint8Array(totalLength);
-
-    paddedData.set(data);
-    paddedData[originalLengthInBytes] = 0x80;
-
-    // Append the original message length as a 64-bit big-endian integer.
-    // Use DataView to avoid issues with large numbers in JavaScript.
-    const lengthData = new DataView(new ArrayBuffer(8));
-    const highBits = Math.floor(originalLengthInBits / 0x100000000);
-    const lowBits = originalLengthInBits % 0x100000000;
-
-    lengthData.setUint32(0, highBits, false); // Big Endian
-    lengthData.setUint32(4, lowBits, false); // Big Endian
-
-    paddedData.set(new Uint8Array(lengthData.buffer), totalLength - 8);
-
-    return paddedData;
-  }
 }
 
 /**
