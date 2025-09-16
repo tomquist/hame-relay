@@ -42,13 +42,7 @@ class StreamUtil {
    * @returns The resulting hexadecimal string.
    */
   static #bytesToHex(bytes: number[]): string {
-    const hexParts: string[] = [];
-    for (const byte of bytes) {
-      // Convert each byte to a two-digit hex string and collect it.
-      const hex = byte.toString(16).padStart(2, "0");
-      hexParts.push(hex);
-    }
-    return hexParts.join("");
+    return Buffer.from(bytes).toString("hex");
   }
 
   /**
@@ -95,7 +89,6 @@ class StreamUtil {
  * produce a 48-character string.
  */
 class CodeUtil {
-
   /**
    * Encodes the input string. This is the main public method.
    * @param input The string to encode.
@@ -103,8 +96,8 @@ class CodeUtil {
    */
   static e(input: string): string {
     // 1. Use Node.js crypto module to compute SHA-256 hash
-    const hash = createHash('sha256');
-    hash.update(input, 'utf8');
+    const hash = createHash("sha256");
+    hash.update(input, "utf8");
     const hashBuffer = hash.digest();
 
     // 2. Convert the Buffer to Uint32Array (the same way as the original implementation)
@@ -145,7 +138,6 @@ class CodeUtil {
 
     return buffer.join("");
   }
-
 }
 
 /**
@@ -194,9 +186,7 @@ class HexUtil {
    * @returns The hexadecimal representation.
    */
   static strToHex(str: string): string {
-    return Array.from(str)
-      .map((c) => c.charCodeAt(0).toString(16).padStart(2, "0"))
-      .join("");
+    return Buffer.from(str, "utf8").toString("hex");
   }
 
   /**
@@ -205,10 +195,7 @@ class HexUtil {
    * @returns The hexadecimal representation.
    */
   static _bytesToHex(bytes: Uint8Array): string {
-    // This could also be Buffer.from(bytes).toString('hex') in Node.js
-    return Array.from(bytes)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+    return Buffer.from(bytes).toString("hex");
   }
 
   /**
@@ -217,11 +204,7 @@ class HexUtil {
    * @returns The resulting byte array.
    */
   static _hexToBytes(hex: string): Uint8Array {
-    const bytes: number[] = [];
-    for (let i = 0; i < hex.length; i += 2) {
-      bytes.push(parseInt(hex.substring(i, i + 2), 16));
-    }
-    return new Uint8Array(bytes);
+    return new Uint8Array(Buffer.from(hex, "hex"));
   }
 
   /**

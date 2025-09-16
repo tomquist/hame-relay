@@ -310,9 +310,6 @@ async function start() {
       }
       device.broker_id = brokerId;
       if (!device.remote_id) {
-        logger.debug(
-          CommonHelper.isSupportVid(device.type, device.version!.toString()),
-        );
         // Check if device supports the new CommonHelper.cq method
         if (
           device.salt &&
