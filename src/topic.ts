@@ -362,6 +362,14 @@ class CommonHelper {
       return version >= 154.0;
     }
 
+    if (normalizedVid.startsWith("HMI")) {
+      return version >= 126.0;
+    }
+
+    if (normalizedVid.startsWith("VNSE3")) {
+      return true;
+    }
+
     return false;
   }
 

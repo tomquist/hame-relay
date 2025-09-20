@@ -1,28 +1,29 @@
 export const deviceGenerations = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 50,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 50,
 ] as const;
 export type DeviceGen = (typeof deviceGenerations)[number];
 
 export const deviceTypes = [
-  "A",
-  "B",
-  "D",
-  "E",
-  "F",
-  "G",
-  "J",
-  "K",
-  "I",
-  "M",
-  "N",
+  "HMA",
+  "HMB",
+  "HMD",
+  "HME",
+  "HMF",
+  "HMG",
+  "HMJ",
+  "HMK",
+  "HMI",
+  "HMM",
+  "HMN",
+  "VNSE3",
 ] as const;
 export type DeviceType = (typeof deviceTypes)[number];
 
-export type DeviceTypeIdentifier = `HM${DeviceType}-${DeviceGen}` | `JPLS-8H`;
+export type DeviceTypeIdentifier = `${DeviceType}-${DeviceGen}` | `JPLS-8H`;
 
 export const knownDeviceTypes: DeviceTypeIdentifier[] = [
   ...(deviceGenerations.flatMap((gen) =>
-    deviceTypes.map((type) => `HM${type}-${gen}` as const),
+    deviceTypes.map((type) => `${type}-${gen}` as const),
   ) as DeviceTypeIdentifier[]),
   "JPLS-8H",
 ];
