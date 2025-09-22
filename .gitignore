@@ -38,3 +38,6 @@ npm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Sensitive test data
+test-data.json
