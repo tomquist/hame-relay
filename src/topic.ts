@@ -155,7 +155,8 @@ class HexUtil {
     if (hexContent.length < 2) return "";
 
     // N is the core value, derived from the last byte of hexContent.
-    const N = ((parseInt(hexContent.slice(-2), 16) % 5) + 5) % 5;
+    let parsed = parseInt(hexContent.slice(-2), 16);
+    let N = parsed % 5 || 1;
 
     let processedBytes = this._hexToBytes(hexContent);
     const macBytes = this._hexToBytes(this.strToHex(mac));
@@ -163,16 +164,16 @@ class HexUtil {
     // --- The Scramble/Permutation Phase ---
     // The combined effect of the initial scramble and the inlined loop
     // is to perform the same scramble operation N times (1 initial + N-1 in the loop).
-    for (let i = 0; i < N * 2; i++) {
+    for (let i = 0; i < N; i++) {
       processedBytes = this.scramble(processedBytes, macBytes);
     }
 
     // --- The Unscramble Phase ---
     // The final loop unscrambles the result max(1, N) times.
-    const unscrambleCount = Math.max(1, N);
-    for (let i = 0; i < unscrambleCount; i++) {
-      processedBytes = this.unscramble(processedBytes, macBytes);
-    }
+    // const unscrambleCount = Math.max(1, N);
+    // for (let i = 0; i < unscrambleCount; i++) {
+    //   processedBytes = this.unscramble(processedBytes, macBytes);
+    // }
 
     return this._bytesToHex(processedBytes);
   }
@@ -289,7 +290,7 @@ class CommonHelper {
 
     // Print the combined debug string
     // console.log(
-    //   `ACC======combineVid===${var1},${var2}=====content====${content}`
+    //   `ACC======combineVid===${var1},${var2}=====content====${salt}`
     // );
 
     // Call HexUtil.textForRand(content, var1)

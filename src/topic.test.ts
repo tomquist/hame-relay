@@ -37,6 +37,15 @@ describe("CommonHelper", () => {
       assert.strictEqual(result, "C0q0a0w03VdVZVhVc0lVlVE0");
     });
 
+    test("should return I0a0i03VRVO0w09Vk0BV80g0 for test case 8 (edge case: parsed % 5 === 0)", () => {
+      const result = CommonHelper.cq(
+        "sample123456782d",
+        "aabbccdd1234",
+        "HMG-50",
+      );
+      assert.strictEqual(result, "I0a0i03VRVO0w09Vk0BV80g0");
+    });
+
     test("should return empty string when MAC is too short", () => {
       const result = CommonHelper.cq("abc123def456789a", "abc", "HMG-50");
       assert.strictEqual(result, "");
