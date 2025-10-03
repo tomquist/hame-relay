@@ -1,4 +1,7 @@
 # Changelog
+## [Next]
+
+
 
 ## [1.3.0] - 2025-10-03
 - **BREAKING**: Username and password are now required for Home Assistant addon
