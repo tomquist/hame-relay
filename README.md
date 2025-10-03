@@ -154,7 +154,7 @@ version: '3.8'
 
 services:
   mqtt-forwarder:
-    image: ghcr.io/tomquist/hame-relay:main
+    image: ghcr.io/tomquist/hame-relay:latest
     container_name: hame-relay
     restart: unless-stopped
     volumes:

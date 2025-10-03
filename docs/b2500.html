@@ -937,8 +937,11 @@ devices:
                     // Send command
                     await commandCharacteristic.writeValue(command);
                     
-                    log('MQTT configuration sent successfully');
-                    alert('MQTT configuration set successfully');
+                    log('MQTT configuration command sent to device; verify broker logs for connection');
+                    alert('MQTT configuration command sent to device.\n\n'
+                        + 'This only confirms the command was sent — check your MQTT broker logs to confirm the device connects. '
+                        + 'If the device is still reachable via WiFi through the app, the configuration did not take effect. '
+                        + 'Try again or use a different device (some devices have a buggy Bluetooth driver).');
                 } finally {
                     // Reset button state
                     setMqttButton.disabled = false;

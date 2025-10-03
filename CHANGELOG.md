@@ -1,4 +1,5 @@
 # Changelog
+
 ## [Next]
 - **BREAKING**: Username and password are now required for Home Assistant addon
 - **BREAKING**: Removed manual device configuration from Home Assistant addon (devices are now automatically discovered via API)
