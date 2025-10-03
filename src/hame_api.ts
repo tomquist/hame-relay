@@ -28,6 +28,7 @@ export interface HameDeviceListResponse {
     mac: string;
     type: string;
     version: string;
+    salt: string; // '<salt>,<salt>'
   }>;
 }
 
@@ -37,6 +38,7 @@ export interface DeviceInfo {
   mac: string;
   type: string;
   version: string;
+  salt?: string; // Optional salt field from device list
 }
 
 export class HameApi {

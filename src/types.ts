@@ -1,28 +1,29 @@
 export const deviceGenerations = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 50,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 50,
 ] as const;
 export type DeviceGen = (typeof deviceGenerations)[number];
 
 export const deviceTypes = [
-  "A",
-  "B",
-  "D",
-  "E",
-  "F",
-  "G",
-  "J",
-  "K",
-  "I",
-  "M",
-  "N",
+  "HMA",
+  "HMB",
+  "HMD",
+  "HME",
+  "HMF",
+  "HMG",
+  "HMJ",
+  "HMK",
+  "HMI",
+  "HMM",
+  "HMN",
+  "VNSE3",
 ] as const;
 export type DeviceType = (typeof deviceTypes)[number];
 
-export type DeviceTypeIdentifier = `HM${DeviceType}-${DeviceGen}` | `JPLS-8H`;
+export type DeviceTypeIdentifier = `${DeviceType}-${DeviceGen}` | `JPLS-8H`;
 
 export const knownDeviceTypes: DeviceTypeIdentifier[] = [
   ...(deviceGenerations.flatMap((gen) =>
-    deviceTypes.map((type) => `HM${type}-${gen}` as const),
+    deviceTypes.map((type) => `${type}-${gen}` as const),
   ) as DeviceTypeIdentifier[]),
   "JPLS-8H",
 ];
@@ -37,6 +38,7 @@ export interface Device {
   broker_id?: string;
   remote_id?: string;
   use_remote_topic_id?: boolean;
+  salt?: string; // Comma-separated salt values from device list
 }
 
 export interface BrokerDefinition {
@@ -64,9 +66,10 @@ export interface ForwarderConfig {
 
 export interface MainConfig {
   broker_url: string;
-  devices: Device[];
+  devices?: Device[]; // Now optional since devices are fetched from API
   inverse_forwarding?: boolean;
-  username?: string;
-  password?: string;
+  username: string; // Now required
+  password: string; // Now required
   default_broker_id?: string;
+  inverse_forwarding_device_ids?: string; // Comma-separated list of device IDs for selective inverse forwarding
 }

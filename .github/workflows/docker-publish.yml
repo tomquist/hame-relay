@@ -2,7 +2,7 @@ name: Build and Deploy Hame Relay
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "develop", "support-vid" ]
     tags: [ "*.*.*" ]
   pull_request:
     branches: [ "main", "develop" ]
@@ -26,8 +26,23 @@ jobs:
       - name: Run Prettier
         run: npm run lint
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+
   build:
-    needs: lint
+    needs: [lint, test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -77,6 +92,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=support-vid,enable=${{ github.ref == 'refs/heads/support-vid' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
@@ -161,6 +177,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=support-vid,enable=${{ github.ref == 'refs/heads/support-vid' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
@@ -183,7 +200,7 @@ jobs:
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
 
   build-addon:
-    needs: lint
+    needs: [lint, test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -233,6 +250,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=support-vid,enable=${{ github.ref == 'refs/heads/support-vid' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
@@ -319,6 +337,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=support-vid,enable=${{ github.ref == 'refs/heads/support-vid' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
