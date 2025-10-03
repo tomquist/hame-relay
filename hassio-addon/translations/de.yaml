@@ -3,15 +3,15 @@ configuration:
     name: "MQTT Broker URL"
     description: "URL des MQTT-Brokers, mit dem verbunden werden soll"
   inverse_forwarding:
-    name: "Invertiere Weiterleitung"
-    description: "Wenn aktiviert, werden Nachrichten vom Cloud-MQTT-Broker an den lokalen MQTT-Broker weitergeleitet, anstatt umgekehrt"
+    name: "Globale Weiterleitungsumkehr"
+    description: "Wenn aktiviert, wird die Weiterleitungsrichtung für alle Geräte umgekehrt. Sollte normalerweise ausgeschaltet sein. Verwenden Sie dies, um die Weiterleitungsrichtung global für Tests oder spezielle Konfigurationen umzukehren."
   username:
     name: "Hame Benutzername"
-    description: "E-Mail-Adresse für das Hame Energy Management System. Bei Angabe zusammen mit dem Passwort können Geräteinformationen automatisch abgerufen werden."
+    description: "E-Mail-Adresse für das Hame Energy Management System (erforderlich). Geräteinformationen werden automatisch aus Ihrem Konto abgerufen."
   password:
     name: "Hame Passwort"
-    description: "Passwort für das Hame Energy Management System"
-  devices:
-    name: "Geräte"
-    description: "Liste der Weiterleitungsgeräte. Die Informationen können hier abgerufen werden: https://eu.hamedata.com/app/AfterSales/login.html"
+    description: "Passwort für das Hame Energy Management System (erforderlich)"
+  inverse_forwarding_device_ids:
+    name: "Selektive Weiterleitungsumkehr Geräte-IDs"
+    description: "Kommagetrennte Liste von Geräte-IDs für HMA-, HMF-, HMK- und HMJ-Geräte, die inverse Weiterleitung verwenden sollen. Andere Gerätetypen verwenden automatisch inverse Weiterleitung."
 

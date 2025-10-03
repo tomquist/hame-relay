@@ -2,26 +2,30 @@
   "name": "hame-relay",
   "version": "1.2.0",
   "description": "MQTT message forwarder between brokers",
-  "main": "dist/forwarder.js",
+  "type": "module",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/forwarder.js",
-    "dev": "ts-node src/forwarder.ts",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "test": "npm run build && node --test --import tsx/esm",
     "clean": "rimraf dist",
-    "prebuild": "npm run clean"
+    "prebuild": "npm run clean",
+    "lint": "prettier --check \"src/**/*.ts\"",
+    "lint:fix": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "mqtt": "^5.3.5",
-    "node-fetch": "^2.7.0",
+    "node-fetch": "^3.3.2",
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0"
   },
   "devDependencies": {
     "@types/mqtt": "^2.5.0",
     "@types/node": "^20.11.0",
-    "@types/node-fetch": "^2.6.12",
+    "prettier": "^3.6.2",
     "rimraf": "^5.0.5",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
     "typescript": "^5.3.3"
   }
 }

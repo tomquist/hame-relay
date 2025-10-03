@@ -32,6 +32,23 @@ For development with automatic reloading:
 npm run dev
 ```
 
+## Testing
+
+Run the test suite:
+```bash
+npm test
+```
+
+Run linting:
+```bash
+npm run lint
+```
+
+Fix linting issues automatically:
+```bash
+npm run lint:fix
+```
+
 ## Pull Requests
 
 1. Fork the repository
@@ -44,3 +61,5 @@ Please make sure your PR:
 - Has a clear description of the changes
 - Follows the existing code style
 - Includes relevant updates to documentation
+- Passes all tests (`npm test`)
+- Passes linting checks (`npm run lint`)

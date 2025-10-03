@@ -35,12 +35,14 @@
     "min_versions": {
       "HMA": 226,
       "HMF": 226,
+      "HMI": 120,
       "HMJ": 108,
       "HMK": 226,
       "HMG": 153,
       "HMM": 135,
       "HMN": 135,
-      "JPLS": 135
+      "JPLS": 135,
+      "VNSE3": 0
     }
   }
 }

@@ -1,20 +1,22 @@
-import {createHash} from 'crypto';
-import fetch from 'node-fetch';
-import {logger} from './logger';
+import { createHash } from "crypto";
+import fetch from "node-fetch";
+import { logger } from "./logger.js";
 
 export interface HameApiResponse {
   code: string;
   msg: string;
   token?: string;
-  data: Array<{
-    devid: string;
-    name: string;
-    sn: string | null;
-    mac: string;
-    type: string;
-    access: string;
-    bluetooth_name: string;
-  }> | string;
+  data:
+    | Array<{
+        devid: string;
+        name: string;
+        sn: string | null;
+        mac: string;
+        type: string;
+        access: string;
+        bluetooth_name: string;
+      }>
+    | string;
 }
 
 export interface HameDeviceListResponse {
@@ -26,6 +28,7 @@ export interface HameDeviceListResponse {
     mac: string;
     type: string;
     version: string;
+    salt: string; // '<salt>,<salt>'
   }>;
 }
 
@@ -35,45 +38,59 @@ export interface DeviceInfo {
   mac: string;
   type: string;
   version: string;
+  salt?: string; // Optional salt field from device list
 }
 
 export class HameApi {
-  constructor(private readonly baseUrl: string = 'https://eu.hamedata.com') {}
+  constructor(private readonly baseUrl: string = "https://eu.hamedata.com") {}
 
   private get headers() {
     return {
-      'User-Agent': 'Dart/2.19 (dart:io)',
+      "User-Agent": "Dart/2.19 (dart:io)",
     } as Record<string, string>;
   }
 
-  async fetchDeviceToken(mailbox: string, password: string): Promise<HameApiResponse> {
-    const hashedPassword = createHash('md5').update(password).digest('hex');
-    const url = new URL('/app/Solar/v2_get_device.php', this.baseUrl);
-    url.searchParams.append('mailbox', mailbox);
-    url.searchParams.append('pwd', hashedPassword);
+  async fetchDeviceToken(
+    mailbox: string,
+    password: string,
+  ): Promise<HameApiResponse> {
+    const hashedPassword = createHash("md5").update(password).digest("hex");
+    const url = new URL("/app/Solar/v2_get_device.php", this.baseUrl);
+    url.searchParams.append("mailbox", mailbox);
+    url.searchParams.append("pwd", hashedPassword);
 
     logger.info(`Fetching device token for ${mailbox}...`);
     const resp = await fetch(url.toString(), { headers: this.headers });
-    const data: HameApiResponse = await resp.json();
+    const data = (await resp.json()) as HameApiResponse;
 
-    if (data.code !== '2' || !data.token) {
-      throw new Error(`Unexpected API response code: ${data.code} - ${data.msg}`);
+    if (data.code !== "2" || !data.token) {
+      throw new Error(
+        `Unexpected API response code: ${data.code} - ${data.msg}`,
+      );
     }
 
     return data;
   }
 
-  async fetchDeviceList(mailbox: string, token: string): Promise<HameDeviceListResponse> {
-    const url = new URL('/ems/api/v1/getDeviceList', this.baseUrl.replace(/\/$/, ''));
-    url.searchParams.append('mailbox', mailbox);
-    url.searchParams.append('token', token);
+  async fetchDeviceList(
+    mailbox: string,
+    token: string,
+  ): Promise<HameDeviceListResponse> {
+    const url = new URL(
+      "/ems/api/v1/getDeviceList",
+      this.baseUrl.replace(/\/$/, ""),
+    );
+    url.searchParams.append("mailbox", mailbox);
+    url.searchParams.append("token", token);
 
-    logger.info('Fetching device list...');
+    logger.info("Fetching device list...");
     const resp = await fetch(url.toString(), { headers: this.headers });
-    const data: HameDeviceListResponse = await resp.json();
+    const data = (await resp.json()) as HameDeviceListResponse;
 
     if (data.code !== 1) {
-      throw new Error(`Unexpected API response from device list: ${data.code} - ${data.msg}`);
+      throw new Error(
+        `Unexpected API response from device list: ${data.code} - ${data.msg}`,
+      );
     }
 
     return data;
