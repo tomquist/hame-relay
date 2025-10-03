@@ -1,6 +1,6 @@
 # Changelog
 
-## [Next]
+## [1.3.0] - 2025-10-03
 - **BREAKING**: Username and password are now required for Home Assistant addon
 - **BREAKING**: Removed manual device configuration from Home Assistant addon (devices are now automatically discovered via API)
 - Added global `inverse_forwarding` flag that flips forwarding direction for all devices when enabled. Usually you want to leave that disabled unless you know what you're doing.
