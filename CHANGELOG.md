@@ -1,11 +1,12 @@
 # Changelog
 ## [Next]
-- **BREAKING**: Username and password are now required for Home Assistant addon (automatic device discovery and salt data needed for modern devices)
+- **BREAKING**: Username and password are now required for Home Assistant addon
 - **BREAKING**: Removed manual device configuration from Home Assistant addon (devices are now automatically discovered via API)
-- Added global `inverse_forwarding` flag that flips forwarding direction for all devices when enabled
-- Added selective inverse forwarding for HMA/HMF/HMK/HMJ devices via `inverse_forwarding_device_ids` configuration
+- Added global `inverse_forwarding` flag that flips forwarding direction for all devices when enabled. Usually you want to leave that disabled unless you know what you're doing.
+- Added selective inverse forwarding for HMA/HMF/HMK/HMJ devices via `inverse_forwarding_device_ids` configuration. Only use this if you previously used Hame Relay with your B2500 in Mode 2. Don't use it for Mode 1.
 - Added automatic inverse forwarding for all other device types (JPLS, HMM, HMN, HME, TPM-CN, HMG)
 - Added support for HMG devices with firmware version >= 154.0
+- Add support for Venus 3 devices (VNSE3)
 - Added Italian and Dutch translations for Home Assistant addon
 - Removed `default_broker_id` from Home Assistant addon default configuration
 
