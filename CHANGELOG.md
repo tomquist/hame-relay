@@ -1,5 +1,8 @@
 # Changelog
 
+## [Next]
+- Fixed forwarding direction for HMB devices. (#96)
+
 ## [1.3.0] - 2025-10-03
 - **BREAKING**: Username and password are now required for Home Assistant addon
 - **BREAKING**: Removed manual device configuration from Home Assistant addon (devices are now automatically discovered via API)
