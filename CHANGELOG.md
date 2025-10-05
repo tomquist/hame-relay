@@ -1,9 +1,5 @@
 # Changelog
 ## [Next]
-
-
-
-## [Next]
 - Fixed forwarding direction for HMB devices. (#96)
 
 ## [1.3.0] - 2025-10-03
