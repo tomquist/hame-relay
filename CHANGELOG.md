@@ -1,5 +1,5 @@
 # Changelog
-## [Next]
+## [1.3.1] - 2025-10-26
 - Fixed forwarding direction for HMB devices. (#96)
 - Added retry logic with exponential backoff for Hame API calls to handle temporary server errors (#97)
 
