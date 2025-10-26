@@ -1,4 +1,4 @@
-FROM node:18.19.1-alpine AS builder
+FROM node:23.11-alpine AS builder
 
 WORKDIR /build
 
@@ -19,7 +19,7 @@ RUN npm run build
 RUN npm ci --only=production
 
 # Runtime stage
-FROM node:20-alpine
+FROM node:23.11-alpine
 
 WORKDIR /app
 
