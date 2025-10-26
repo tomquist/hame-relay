@@ -6,9 +6,12 @@ import { logger } from "./logger.js";
  * Custom error class that includes HTTP status code information
  */
 class HttpError extends Error {
-  constructor(message: string, public readonly statusCode: number) {
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
     super(message);
-    this.name = 'HttpError';
+    this.name = "HttpError";
   }
 }
 
@@ -70,7 +73,7 @@ async function withRetry<T>(
       return result;
     } catch (error) {
       lastError = error as Error;
-      
+
       // Extract status code if it's an HttpError
       if (error instanceof HttpError) {
         lastStatusCode = error.statusCode;
@@ -176,7 +179,10 @@ export class HameApi {
 
       // Check HTTP status first - we have the response object here
       if (!resp.ok) {
-        throw new HttpError(`HTTP ${resp.status}: ${resp.statusText}`, resp.status);
+        throw new HttpError(
+          `HTTP ${resp.status}: ${resp.statusText}`,
+          resp.status,
+        );
       }
 
       const data = (await resp.json()) as HameApiResponse;
@@ -209,7 +215,10 @@ export class HameApi {
 
       // Check HTTP status first - we have the response object here
       if (!resp.ok) {
-        throw new HttpError(`HTTP ${resp.status}: ${resp.statusText}`, resp.status);
+        throw new HttpError(
+          `HTTP ${resp.status}: ${resp.statusText}`,
+          resp.status,
+        );
       }
 
       const data = (await resp.json()) as HameDeviceListResponse;
