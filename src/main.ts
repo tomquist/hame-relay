@@ -245,7 +245,7 @@ async function start() {
       // Set inverse forwarding based on device type and configuration
       if (device.inverse_forwarding === undefined) {
         const deviceType = device.type.toUpperCase();
-        const selectableTypes = ["HMA", "HMF", "HMK", "HMJ"];
+        const selectableTypes = ["HMA", "HMF", "HMK", "HMJ", "HMB"];
 
         if (selectableTypes.some((type) => deviceType.startsWith(type))) {
           // For selectable device types, check if device ID is in the list

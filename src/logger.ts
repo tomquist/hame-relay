@@ -8,7 +8,7 @@ export const logger = pino({
         target: "pino-pretty",
         options: {
           colorize: false,
-          translateTime: "HH:MM:ss",
+          translateTime: "yyyy-mm-dd HH:MM:ss",
           ignore: "pid,hostname",
         },
       },

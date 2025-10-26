@@ -1,4 +1,7 @@
 # Changelog
+## [1.3.1] - 2025-10-26
+- Fixed forwarding direction for HMB devices. (#96)
+- Added retry logic with exponential backoff for Hame API calls to handle temporary server errors (#97)
 
 ## [1.3.0] - 2025-10-03
 - **BREAKING**: Username and password are now required for Home Assistant addon
