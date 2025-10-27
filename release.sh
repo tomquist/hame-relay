@@ -42,6 +42,12 @@ VERSION="$1"
 RELEASE_BRANCH="release/v${VERSION}"
 CURRENT_DATE=$(date +%Y-%m-%d)
 
+# Ensure required tools are available
+if ! command -v yq >/dev/null 2>&1; then
+    print_error "yq is required but not installed. Please install yq before running this script."
+    exit 1
+fi
+
 # Validate version format (semantic versioning)
 if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     print_error "Version must follow semantic versioning format (e.g., 1.2.3)"
@@ -111,8 +117,7 @@ git checkout -b "$RELEASE_BRANCH"
 
 # Update version in config.yaml
 print_info "Updating version in hassio-addon/config.yaml"
-sed -i.bak "s/version: \"next\"/version: \"$VERSION\"/" hassio-addon/config.yaml
-rm hassio-addon/config.yaml.bak
+yq eval --inplace ".version = \"${VERSION}\"" hassio-addon/config.yaml
 
 # Update CHANGELOG.md
 print_info "Updating CHANGELOG.md"
