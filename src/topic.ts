@@ -368,9 +368,8 @@ class CommonHelper {
     }
 
     if (normalizedVid.startsWith("VNSE3")) {
-      // TODO: Unclear what the minimum version is for VNSE3. v114 uses hame-2025 but with the old topic encryption.
-      // For now we assume VNSE3 uses the same versioning as HMG.
-      return version >= 154.0;
+      // Venus 3 devices (VNSE3) are confirmed to work starting with firmware v139.
+      return version >= 139.0;
     }
 
     return false;

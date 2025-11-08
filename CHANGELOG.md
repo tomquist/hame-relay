@@ -1,6 +1,6 @@
 # Changelog
 ## [Next]
-
+- Fixed Venus 3 devices (VNSE3) working on firmware version 139
 
 ## [1.3.1] - 2025-10-26
 - Fixed forwarding direction for HMB devices. (#96)
