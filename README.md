@@ -143,7 +143,7 @@ docker run -d \
   --restart unless-stopped \
   -v "$(pwd)/config:/app/config" \
   -e LOG_LEVEL=info \
-  ghcr.io/tomquist/hame-relay:main
+  ghcr.io/tomquist/hame-relay:latest
 ```
 
 ### Docker Compose
