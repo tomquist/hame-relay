@@ -148,7 +148,17 @@ git checkout main
 git pull origin main
 
 print_info "Merging release branch into main"
-git merge "$RELEASE_BRANCH" --no-ff -m "Merge release v${VERSION}"
+if ! git merge "$RELEASE_BRANCH" --no-ff -m "Merge release v${VERSION}"; then
+    if git status --short | grep -q "^UU hassio-addon/config.yaml"; then
+        print_warning "Merge conflict detected in hassio-addon/config.yaml. Using release branch version."
+        git checkout --theirs hassio-addon/config.yaml
+        git add hassio-addon/config.yaml
+        git commit --no-edit
+    else
+        print_error "Merge failed due to conflicts. Please resolve manually."
+        exit 1
+    fi
+fi
 
 # Create and push tag
 print_info "Creating tag ${VERSION}"

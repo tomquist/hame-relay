@@ -1,4 +1,7 @@
 # Changelog
+## [1.3.2] - 2025-11-08
+- Fixed Venus 3 devices (VNSE3) working on firmware version 139
+
 ## [1.3.1] - 2025-10-26
 - Fixed forwarding direction for HMB devices. (#96)
 - Added retry logic with exponential backoff for Hame API calls to handle temporary server errors (#97)
