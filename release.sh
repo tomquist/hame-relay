@@ -175,6 +175,19 @@ git checkout develop
 print_info "Syncing develop with main to include release changes"
 git merge main --no-ff -m "Sync develop with main after release v${VERSION}"
 
+needs_amend=false
+
+# Ensure the Home Assistant addon version is set to 'next' on develop
+print_info "Setting hassio-addon/config.yaml version to 'next' on develop"
+yq eval --inplace '.version = "next"' hassio-addon/config.yaml
+
+if ! git diff --quiet hassio-addon/config.yaml; then
+    git add hassio-addon/config.yaml
+    needs_amend=true
+else
+    print_info "hassio-addon/config.yaml already set to 'next'"
+fi
+
 # Add new [Next] section to CHANGELOG if it doesn't exist
 if ! grep -q "\[Next\]" CHANGELOG.md; then
     print_info "Adding new [Next] section to CHANGELOG.md"
@@ -184,9 +197,16 @@ if ! grep -q "\[Next\]" CHANGELOG.md; then
 \
 ' CHANGELOG.md
     rm CHANGELOG.md.bak
-    
+
     git add CHANGELOG.md
-    git commit -m "Add new [Next] section to CHANGELOG.md"
+    needs_amend=true
+fi
+
+if [ "$needs_amend" = true ]; then
+    print_info "Amending develop sync commit with version and changelog updates"
+    git commit --amend --no-edit
+else
+    print_info "No additional updates required on develop"
 fi
 
 print_info "Pushing updated develop branch"
