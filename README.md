@@ -197,6 +197,8 @@ The Docker version supports additional configuration options not available in th
 
 The `next` tag provides access to the version currently in development. It's built from the develop branch and contains the latest features and fixes before they're officially released. Use this if you want to test new features early or need a specific fix that hasn't been released yet.
 
+**Warning:** The development version may be unstable and contain bugs. Only use it if you need bleeding-edge features or fixes.
+
 ### Docker
 
 Replace `latest` with `next` in your image tag:
