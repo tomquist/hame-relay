@@ -193,6 +193,34 @@ The Docker version supports additional configuration options not available in th
 }
 ```
 
+## Using the Next Version
+
+The `next` version is built from the develop branch and contains the latest features and fixes that haven't been officially released yet.
+
+### Docker
+
+Replace `latest` with `next` in your image tag:
+
+```bash
+docker run -d \
+  --name hame-relay \
+  --restart unless-stopped \
+  -v "$(pwd)/config:/app/config" \
+  -e LOG_LEVEL=info \
+  ghcr.io/tomquist/hame-relay:next
+```
+
+Or in `docker-compose.yml`:
+```yaml
+services:
+  mqtt-forwarder:
+    image: ghcr.io/tomquist/hame-relay:next
+```
+
+### Home Assistant
+
+In the add-on configuration, go to the "Info" tab and enable "Show in sidebar", then select the version tagged with `next` from the version dropdown.
+
 ## Development
 
 For development instructions, see [CONTRIBUTING.md](CONTRIBUTING.md)
