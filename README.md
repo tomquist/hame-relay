@@ -222,7 +222,7 @@ services:
 ### Home Assistant
 
 Add the development branch repository to your Home Assistant add-on store:
-```
+```text
 https://github.com/tomquist/hame-relay#develop
 ```
 
