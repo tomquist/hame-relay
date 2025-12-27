@@ -1,6 +1,6 @@
 # Changelog
 ## [Next]
-
+- Add support for Venus A and Venus D
 
 ## [1.3.2] - 2025-11-08
 - Fixed Venus 3 devices (VNSE3) working on firmware version 139
