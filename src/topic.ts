@@ -372,6 +372,16 @@ class CommonHelper {
       return version >= 139.0;
     }
 
+    if (normalizedVid.startsWith("VNSA")) {
+      // Venus A devices (VNSA) support CommonHelper.cq encryption starting with firmware v144.
+      return version >= 144.0;
+    }
+
+    if (normalizedVid.startsWith("VNSD")) {
+      // Venus D devices (VNSD) support CommonHelper.cq encryption starting with firmware v142.
+      return version >= 142.0;
+    }
+
     return false;
   }
 
