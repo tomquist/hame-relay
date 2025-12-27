@@ -221,7 +221,7 @@ services:
 
 Add the development branch repository to your Home Assistant add-on store:
 ```
-https://github.com/tomquist/hame-relay/tree/develop
+https://github.com/tomquist/hame-relay#develop
 ```
 
 Then install the "Hame Relay" add-on from this repository to get the development version.
