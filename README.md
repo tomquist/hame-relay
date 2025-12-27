@@ -219,7 +219,12 @@ services:
 
 ### Home Assistant
 
-In the add-on configuration, go to the "Info" tab and enable "Show in sidebar", then select the version tagged with `next` from the version dropdown.
+Add the development branch repository to your Home Assistant add-on store:
+```
+https://github.com/tomquist/hame-relay/tree/develop
+```
+
+Then install the "Hame Relay" add-on from this repository to get the development version.
 
 ## Development
 
