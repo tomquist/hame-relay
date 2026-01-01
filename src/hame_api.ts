@@ -187,6 +187,12 @@ export class HameApi {
 
       const data = (await resp.json()) as HameApiResponse;
 
+      if (data.code === "4") {
+        throw new Error(
+          `Incorrect password for ${mailbox}. Please double-check the credentials configured for the add-on and try again. (${data.code} - ${data.msg})`,
+        );
+      }
+
       if (data.code !== "2" || !data.token) {
         throw new Error(
           `Unexpected API response code: ${data.code} - ${data.msg}`,

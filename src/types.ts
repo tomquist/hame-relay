@@ -16,6 +16,8 @@ export const deviceTypes = [
   "HMM",
   "HMN",
   "VNSE3",
+  "VNSA",
+  "VNSD",
 ] as const;
 export type DeviceType = (typeof deviceTypes)[number];
 
