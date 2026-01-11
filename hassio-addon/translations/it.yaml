@@ -4,7 +4,7 @@ configuration:
     description: "URL del broker MQTT a cui connettersi"
   inverse_forwarding:
     name: Inversione Globale Inoltro
-    description: "Se abilitato, inverte l'impostazione di inoltro inverso per tutti i dispositivi. Di solito dovrebbe essere disattivato. Utilizzare per invertire globalmente la direzione di inoltro per test o configurazioni speciali."
+    description: "Se abilitato, inverte l'impostazione di inoltro inverso per tutti i dispositivi. Non abilitarlo a meno che tu non sappia assolutamente cosa stai facendo. Le segnalazioni di bug con questa impostazione attiva verranno chiuse immediatamente."
   username:
     name: Nome Utente Hame
     description: "Il tuo indirizzo email del Sistema di Gestione Energetica Hame (obbligatorio). Le informazioni sui dispositivi vengono recuperate automaticamente dal tuo account."
@@ -14,4 +14,3 @@ configuration:
   inverse_forwarding_device_ids:
     name: ID Dispositivi Inoltro Inverso Selettivo
     description: "Elenco separato da virgole degli ID dispositivo per dispositivi HMA, HMF, HMK e HMJ che dovrebbero utilizzare l'inoltro inverso. Altri tipi di dispositivi utilizzano automaticamente l'inoltro inverso."
-
