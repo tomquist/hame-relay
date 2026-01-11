@@ -4,13 +4,13 @@ configuration:
     description: "URL van de MQTT broker om verbinding mee te maken"
   inverse_forwarding:
     name: Globale Doorstuurrichting Omkeren
-    description: "Indien ingeschakeld, keert de inverse doorstuurinstelling om voor alle apparaten. Moet meestal uitgeschakeld staan. Gebruik dit om de doorstuurrichting globaal om te keren voor tests of speciale configuraties."
+    description: "Indien ingeschakeld, keert de inverse doorstuurinstelling om voor alle apparaten. Schakel dit niet in tenzij je absoluut weet wat je doet. Bugmeldingen met deze instelling ingeschakeld worden direct gesloten."
   username:
     name: Hame Gebruikersnaam
-    description: "Uw Hame Energy Management System e-mailadres (vereist). Apparaatinformatie wordt automatisch opgehaald uit uw account."
+    description: "Je Hame Energy Management System e-mailadres (vereist). Apparaatinformatie wordt automatisch opgehaald uit je account."
   password:
     name: Hame Wachtwoord
-    description: "Uw Hame Energy Management System account wachtwoord (vereist)"
+    description: "Je Hame Energy Management System account wachtwoord (vereist)"
   inverse_forwarding_device_ids:
     name: Selectieve Inverse Doorstuur Apparaat ID's
     description: "Kommagescheiden lijst van apparaat ID's voor HMA, HMF, HMK en HMJ apparaten die inverse doorsturen moeten gebruiken. Andere apparaattypes gebruiken automatisch inverse doorsturen."

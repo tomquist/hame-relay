@@ -4,7 +4,7 @@ configuration:
     description: "URL of the MQTT broker to connect to"
   inverse_forwarding:
     name: Global Invert Forwarding
-    description: "If enabled, flips the inverse forwarding setting for all devices. Usually should be set to off. Use this to globally reverse the forwarding direction for testing or special configurations."
+    description: "If enabled, flips the inverse forwarding setting for all devices. Do not enable this unless you absolutely know what you're doing. Bug reports with this setting enabled will be closed immediately."
   username:
     name: Hame Username
     description: "Your Hame Energy Management System email address (required). Device information is automatically fetched from your account."
@@ -14,4 +14,3 @@ configuration:
   inverse_forwarding_device_ids:
     name: Selective Inverse Forwarding Device IDs
     description: "Comma-separated list of device IDs for HMA, HMF, HMK, and HMJ devices that should use inverse forwarding. Other device types automatically use inverse forwarding."
-

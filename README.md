@@ -45,7 +45,8 @@ If you need to customize the behavior, you can also configure:
 # Optional: Use different MQTT broker (defaults to Home Assistant's MQTT)
 mqtt_uri: "mqtt://username:password@host:1883"
 
-# Optional: Global setting to flip all forwarding directions (usually keep off unless you know what you're doing)
+# Optional: Global setting to flip all forwarding directions (do not enable unless you absolutely know what you're doing)
+# Bug reports with this setting enabled will be closed immediately.
 inverse_forwarding: false
 
 # Optional: For HMA/HMF/HMK/HMJ devices, specify which ones should use inverse forwarding
@@ -170,7 +171,9 @@ docker compose up -d
 
 ### Advanced Docker Configuration
 
-The Docker version supports additional configuration options not available in the Home Assistant add-on:
+The Docker version supports additional configuration options not available in the Home Assistant add-on.
+
+**Warning**: Do not enable `inverse_forwarding` unless you absolutely know what you're doing. Bug reports with this setting enabled will be closed immediately.
 
 ```json
 {
