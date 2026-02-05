@@ -14,7 +14,7 @@ The easiest way to get started is with the Home Assistant app (part of Home Assi
 ### Installation
 
 1. Add this repository to your Home Assistant App Store:
-   ```
+   ```text
    https://github.com/tomquist/hame-relay
    ```
 
