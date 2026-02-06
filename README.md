@@ -9,22 +9,22 @@ This project helps you integrate your Marstek storage systems with both the offi
 
 ## Quick Start for Home Assistant Users
 
-The easiest way to get started is with the Home Assistant add-on:
+The easiest way to get started is with the Home Assistant app (part of Home Assistant **Apps (formerly known as add-ons)**):
 
 ### Installation
 
-1. Add this repository to your Home Assistant add-on store:
-   ```
+1. Add this repository to your Home Assistant App Store:
+   ```text
    https://github.com/tomquist/hame-relay
    ```
 
-2. Install the "Hame Relay" add-on
+2. Install the "Hame Relay" app
 3. Enter your Hame account credentials (see configuration below)
-4. Start the add-on
+4. Start the app
 
 ### Simple Configuration
 
-Just enter your Hame account credentials. The add-on will automatically discover and configure all your devices:
+Just enter your Hame account credentials. The app will automatically discover and configure all your devices:
 
 ```yaml
 # Required: Your Hame account credentials
@@ -32,7 +32,7 @@ username: "your_hame_email@example.com"
 password: "your_hame_password"
 ```
 
-The add-on will:
+The app will:
 - Automatically discover all your Marstek devices
 - Configure the optimal forwarding direction for each device type
 - Handle all the complex technical details behind the scenes
@@ -54,7 +54,7 @@ inverse_forwarding: false
 inverse_forwarding_device_ids: ""
 ```
 
-The add-on handles everything else automatically.
+The app handles everything else automatically.
 
 ## How It Works
 
@@ -62,7 +62,7 @@ Marstek storage systems can be configured to use either:
 - The official Hame MQTT broker (default) - allows control via the mobile app but not local automation
 - A local MQTT broker - allows local automation but breaks mobile app control (**Note: Only available for Marstek Saturn/B2500**)
 
-This tool bridges these two scenarios by forwarding MQTT messages between your local broker and the Hame broker. The add-on automatically determines the best forwarding direction for each device type:
+This tool bridges these two scenarios by forwarding MQTT messages between your local broker and the Hame broker. The app automatically determines the best forwarding direction for each device type:
 
 ### Automatic Configuration
 - **JPLS, HMM, HMN, HME, TPM-CN, HMG and other devices**: Always use inverse forwarding (required for proper operation)
@@ -117,7 +117,7 @@ Now your storage can be controlled through your own MQTT broker. See [this docum
 
 ## Advanced: Docker Setup
 
-For advanced users who prefer Docker over the Home Assistant add-on, you can run the relay directly.
+For advanced users who prefer Docker over the Home Assistant app, you can run the relay directly.
 
 ### Simple Docker Setup
 
@@ -171,7 +171,7 @@ docker compose up -d
 
 ### Advanced Docker Configuration
 
-The Docker version supports additional configuration options not available in the Home Assistant add-on.
+The Docker version supports additional configuration options not available in the Home Assistant app.
 
 **Warning**: Do not enable `inverse_forwarding` unless you absolutely know what you're doing. Bug reports with this setting enabled will be closed immediately.
 
@@ -224,12 +224,12 @@ services:
 
 ### Home Assistant
 
-Add the development branch repository to your Home Assistant add-on store:
+Add the development branch repository to your Home Assistant App Store:
 ```text
 https://github.com/tomquist/hame-relay#develop
 ```
 
-Then install the "Hame Relay" add-on from this repository to get the development version.
+Then install the "Hame Relay" app from this repository to get the development version.
 
 ## Development
 
