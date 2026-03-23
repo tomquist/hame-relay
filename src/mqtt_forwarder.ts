@@ -115,6 +115,16 @@ export class MQTTForwarder {
       ...certs,
       protocol: "mqtts" as const,
       keepalive: 30,
+      // MQTT.js defaults to reconnecting every 1s. That's too aggressive when
+      // DNS resolution or upstream connectivity is flaky and can create a noisy
+      // retry/log storm on smaller systems.
+      reconnectPeriod: 30_000,
+      // Reduce the amount of time each failed attempt ties up resources before
+      // the next reconnect is scheduled.
+      connectTimeout: 10_000,
+      // Drop QoS 0 messages while the remote broker is unavailable instead of
+      // queueing them indefinitely in memory.
+      queueQoSZero: false,
       clientId: this.generateClientId(
         this.config.remote.client_id_prefix || "hm_",
       ),
