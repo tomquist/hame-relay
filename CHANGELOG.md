@@ -1,4 +1,7 @@
 # Changelog
+## [1.3.4] - 2026-03-28
+- Add support for JPLS-6H and other JPLS-*H Jupiter device variants
+
 ## [1.3.3] - 2026-01-01
 - Add support for Venus A and Venus D
 

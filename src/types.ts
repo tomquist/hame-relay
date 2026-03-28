@@ -21,13 +21,17 @@ export const deviceTypes = [
 ] as const;
 export type DeviceType = (typeof deviceTypes)[number];
 
-export type DeviceTypeIdentifier = `${DeviceType}-${DeviceGen}` | `JPLS-8H`;
+export type DeviceTypeIdentifier =
+  | `${DeviceType}-${DeviceGen}`
+  | `JPLS-${number}H`;
 
 export const knownDeviceTypes: DeviceTypeIdentifier[] = [
   ...(deviceGenerations.flatMap((gen) =>
     deviceTypes.map((type) => `${type}-${gen}` as const),
   ) as DeviceTypeIdentifier[]),
-  "JPLS-8H",
+  ...(deviceGenerations.map(
+    (gen) => `JPLS-${gen}H` as const,
+  ) as DeviceTypeIdentifier[]),
 ];
 
 export interface Device {
