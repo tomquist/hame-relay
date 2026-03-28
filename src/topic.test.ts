@@ -1,6 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
 import { CommonHelper } from "./topic.js";
+import { knownDeviceTypes } from "./types.js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -32,6 +33,16 @@ function loadSensitiveTestData(): any {
  */
 
 describe("CommonHelper", () => {
+  describe("known device types", () => {
+    test("should include JPLS-6H as a supported Jupiter device type", () => {
+      assert.strictEqual(knownDeviceTypes.includes("JPLS-6H"), true);
+    });
+
+    test("should keep JPLS-8H as a supported Jupiter device type", () => {
+      assert.strictEqual(knownDeviceTypes.includes("JPLS-8H"), true);
+    });
+  });
+
   describe("cq method", () => {
     test("should return LV9VDVC0S03VDVlVTVTVK0q0 for test case 1", () => {
       const result = CommonHelper.cq(
