@@ -1,0 +1,116 @@
+name: Bug report
+description: Report a problem with Hame Relay
+title: "[Bug] short description of the problem"
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report. Please fill in every required field — incomplete reports are hard to triage and may be closed.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you submit
+      options:
+        - label: I have read the [README](https://github.com/tomquist/hame-relay#readme) and my question is not answered there.
+          required: true
+        - label: I have searched [existing issues](https://github.com/tomquist/hame-relay/issues?q=is%3Aissue) and this is not a duplicate.
+          required: true
+
+  - type: dropdown
+    id: devices
+    attributes:
+      label: Battery / device models
+      description: Which Marstek device(s) are involved? Select all that apply.
+      multiple: true
+      options:
+        - Marstek Saturn / B2500
+        - Marstek Venus
+        - Marstek Jupiter
+        - Marstek Jupiter Plus
+        - Marstek CT002
+        - Marstek CT003
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Exact Home Assistant add-on version or Docker image tag.
+      placeholder: "e.g. 1.3.4, latest, next"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      description: How are you running Hame Relay?
+      options:
+        - Home Assistant add-on
+        - Docker
+        - Docker Compose
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: b2500-mode
+    attributes:
+      label: B2500 MQTT configuration
+      description: |
+        Only relevant if you have a B2500. See the *How It Works* section of the [README](https://github.com/tomquist/hame-relay#how-it-works) for the difference between Mode 1 and Mode 2.
+      options:
+        - "Yes — B2500 configured with my local MQTT broker (Mode 1)"
+        - "No — B2500 using the Hame cloud broker (Mode 2)"
+        - "Not applicable — I don't have a B2500"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hm2mqtt
+    attributes:
+      label: Are you using hm2mqtt?
+      description: |
+        Hame Relay does **not** create Home Assistant entities. If you expected entities to appear in Home Assistant, you likely want [hm2mqtt](https://github.com/tomquist/hm2mqtt) on top of Hame Relay.
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure / what is hm2mqtt?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What's happening?
+      description: Describe what you observe, what you expected to happen, and how to reproduce it.
+      placeholder: |
+        - What I did:
+        - What I expected:
+        - What actually happened:
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Your Hame Relay configuration. **Remove `username`, `password`, and any credentials in `mqtt_uri` / `broker_url` before pasting.**
+      render: yaml
+      placeholder: |
+        # Add-on options or config.json contents (with credentials removed)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "Relevant log output. Set `LOG_LEVEL=debug` (or `log_level: debug` in the add-on) to capture more detail."
+      render: shell
+    validations:
+      required: false
