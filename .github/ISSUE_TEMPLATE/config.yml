@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the documentation first
+    url: https://github.com/tomquist/hame-relay#readme
+    about: Most problems are answered in the README. Please read it before opening an issue.
+  - name: hm2mqtt — Home Assistant device entities
+    url: https://github.com/tomquist/hm2mqtt
+    about: Hame Relay does not create Home Assistant entities. If that's what you need, install hm2mqtt on top.
