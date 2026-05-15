@@ -108,7 +108,7 @@ This configuration allows you to use Mode 1, where your Saturn/B2500 connects to
 6. Save
 
 ### Option 2: Direct Bluetooth Configuration
-1. With an Android smartphone or Bluetooth-enabled PC, use [this tool](https://tomquist.github.io/hame-relay/b2500.html) to configure the MQTT broker directly via Bluetooth
+1. With an Android smartphone or Bluetooth-enabled PC, use [this tool](https://tomquist.github.io/hmjs/) to configure the MQTT broker directly via Bluetooth
 2. **Important**: Make sure you write down the MAC address that is displayed in this tool! You will need it later and the WIFI MAC address of the battery is the wrong one.
 
 **⚠️ Important Warning**: Enabling MQTT on the device will disable the cloud connection. You will not be able to use the PowerZero or Marstek app to monitor or control your device anymore. You can re-enable the cloud connection by using this Hame Relay tool in Mode 1.
