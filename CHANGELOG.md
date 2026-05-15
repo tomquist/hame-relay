@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Support Marstek HME cloud-managed placeholder devices (AstraMeter synthetic MAC): derive `remote_id` from topic encryption, default missing API version to 1, disable inverse forwarding for that MAC pattern, and register HME in broker `min_versions`.
 
 
 ## [1.3.4] - 2026-03-28

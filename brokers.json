@@ -34,6 +34,7 @@
     },
     "min_versions": {
       "HMA": 226,
+      "HME": 120,
       "HMF": 226,
       "HMI": 120,
       "HMJ": 108,

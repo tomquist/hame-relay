@@ -80,6 +80,16 @@ function autoDetermineBroker(
   return chosen;
 }
 
+/**
+ * Marstek cloud "managed" placeholder devid/mac from AstraMeter
+ * (`MANAGED_MAC_PREFIX` + 6 random hex nibbles). Those entries are not real
+ * hardware on local MQTT, so inverse forwarding would drop traffic.
+ */
+function isAstraMeterSyntheticMac(mac: string): boolean {
+  const m = mac.trim().replace(/:/g, "").toLowerCase();
+  return /^02b250[0-9a-f]{6}$/.test(m);
+}
+
 function shouldUseRemoteTopicId(
   device: Device,
   broker: BrokerDefinition,
@@ -209,7 +219,7 @@ async function start() {
           mac: device.mac,
           type: deviceType,
           name: device.name,
-          version: isNaN(v) ? undefined : v,
+          version: isNaN(v) ? 1 : v,
           salt: device.salt,
         } as Device;
       });
@@ -297,6 +307,20 @@ async function start() {
 
     cleanAndValidate(devicesConfig);
 
+    for (const device of devicesConfig.devices) {
+      const baseType = device.type.replace(/-.*$/, "");
+      if (
+        baseType === "HME" &&
+        isAstraMeterSyntheticMac(device.mac) &&
+        device.inverse_forwarding
+      ) {
+        device.inverse_forwarding = false;
+        logger.info(
+          `Device ${device.device_id} (${device.type}): AstraMeter synthetic MAC — inverse forwarding disabled`,
+        );
+      }
+    }
+
     const defaultId = config.default_broker_id || "hame-2024";
     const devicesByBroker: Record<string, Device[]> = {};
     for (const device of devicesConfig.devices) {
@@ -310,8 +334,22 @@ async function start() {
       }
       device.broker_id = brokerId;
       if (!device.remote_id) {
-        // Check if device supports the new CommonHelper.cq method
-        if (
+        // Cloud placeholder MACs from AstraMeter are not real firmware: cq/salt
+        // paths do not apply; remote topics use the same AES id as other HME.
+        if (isAstraMeterSyntheticMac(device.mac)) {
+          if (!broker.topic_encryption_key) {
+            throw new Error(
+              `Device ${device.device_id}: broker "${brokerId}" has no topic_encryption_key; required to derive remote_id for AstraMeter synthetic MAC (calculateNewVersionTopicId).`,
+            );
+          }
+          device.remote_id = calculateNewVersionTopicId(
+            Buffer.from(broker.topic_encryption_key, "hex"),
+            device.mac,
+          );
+          logger.debug(
+            `AstraMeter synthetic MAC: remote_id from topic encryption for device ${device.device_id}`,
+          );
+        } else if (
           device.salt &&
           device.version &&
           CommonHelper.isSupportVid(device.type, device.version.toString())
