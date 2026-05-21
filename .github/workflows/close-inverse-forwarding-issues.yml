@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.issue.state == 'open'
     steps:
-      - name: Detect inverse_forwarding: true and close
+      - name: "Detect inverse_forwarding: true and close"
         uses: actions/github-script@v7
         with:
           script: |
