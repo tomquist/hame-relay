@@ -19,18 +19,31 @@ jobs:
             const issue = context.payload.issue;
             const body = issue.body || '';
 
-            // Match the flag set to true in JSON, YAML, or the startup log line.
+            // Only consider content inside fenced code blocks. Issues that
+            // merely mention the flag in prose (e.g. "I tried setting
+            // inverse_forwarding: true and it broke") should not be auto-closed.
+            // The bug template renders the Configuration and Logs fields as
+            // fenced blocks, so the real cases we care about are still caught.
+            const fencedBlocks = body.match(/```[\s\S]*?```/g) || [];
+            const fencedText = fencedBlocks.join('\n');
+
+            // Match the flag set to true in JSON, YAML config, or in the
+            // startup warning banner emitted by src/main.ts.
             //   "inverse_forwarding": true
             //   inverse_forwarding: true
-            //   Global inverse_forwarding flag is true
+            //   'inverse_forwarding' is set to TRUE at the top level.
             const patterns = [
               /["']?inverse_forwarding["']?\s*:\s*true\b/i,
-              /\binverse_forwarding\s+flag\s+is\s+true\b/i,
+              /["']?inverse_forwarding["']?\s+is\s+set\s+to\s+true\b/i,
             ];
 
-            const hit = patterns.some((re) => re.test(body));
+            const hit =
+              fencedText.length > 0 &&
+              patterns.some((re) => re.test(fencedText));
             if (!hit) {
-              core.info('No inverse_forwarding: true detected.');
+              core.info(
+                'No inverse_forwarding: true detected in fenced code blocks.',
+              );
               return;
             }
 
