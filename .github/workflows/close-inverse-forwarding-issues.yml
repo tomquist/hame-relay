@@ -33,8 +33,8 @@ jobs:
             //   inverse_forwarding: true
             //   'inverse_forwarding' is set to TRUE at the top level.
             const patterns = [
-              /["']?inverse_forwarding["']?\s*:\s*true\b/i,
-              /["']?inverse_forwarding["']?\s+is\s+set\s+to\s+true\b/i,
+              /["']?\binverse_forwarding\b["']?\s*:\s*true\b/i,
+              /["']?\binverse_forwarding\b["']?\s+is\s+set\s+to\s+true\b/i,
             ];
 
             const hit =
