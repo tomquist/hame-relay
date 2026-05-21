@@ -1,0 +1,96 @@
+name: Auto-close inverse_forwarding issues
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: github.event.issue.state == 'open'
+    steps:
+      - name: Detect inverse_forwarding: true and close
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+
+            // Match the flag set to true in JSON, YAML, or the startup log line.
+            //   "inverse_forwarding": true
+            //   inverse_forwarding: true
+            //   Global inverse_forwarding flag is true
+            const patterns = [
+              /["']?inverse_forwarding["']?\s*:\s*true\b/i,
+              /\binverse_forwarding\s+flag\s+is\s+true\b/i,
+            ];
+
+            const hit = patterns.some((re) => re.test(body));
+            if (!hit) {
+              core.info('No inverse_forwarding: true detected.');
+              return;
+            }
+
+            const marker = '<!-- auto-close: inverse_forwarding -->';
+
+            const existing = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                per_page: 100,
+              },
+            );
+            const alreadyCommented = existing.some((c) =>
+              (c.body || '').includes(marker),
+            );
+
+            if (!alreadyCommented) {
+              const comment = [
+                marker,
+                "Thanks for the report. This issue is being closed automatically because the configuration contains `inverse_forwarding: true`.",
+                "",
+                "As called out in the [README](https://github.com/tomquist/hame-relay#advanced-docker-configuration) and in the startup logs, the top-level `inverse_forwarding` flag flips the auto-detected forwarding direction for **every** device and almost always breaks communication between your devices and the Marstek cloud app. Bug reports with this flag enabled are closed without investigation.",
+                "",
+                "**What to do:**",
+                "1. Set `inverse_forwarding` to `false` (or remove it).",
+                "2. If you previously ran Hame Relay against a B2500 in *Mode 2* and need to keep that behavior for specific devices, list those device IDs in `inverse_forwarding_device_ids` instead.",
+                "3. Restart Hame Relay and confirm the problem still reproduces.",
+                "",
+                "If the issue still reproduces with `inverse_forwarding: false`, please open a new issue (or comment here asking for it to be reopened) including fresh debug logs.",
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: comment,
+              });
+            } else {
+              core.info('Auto-close comment already present, skipping.');
+            }
+
+            if (issue.state === 'open') {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'not_planned',
+              });
+            }
+
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['invalid-config'],
+              });
+            } catch (err) {
+              core.info(`Could not add label: ${err.message}`);
+            }

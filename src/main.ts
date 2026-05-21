@@ -281,9 +281,40 @@ async function start() {
 
     // Apply global inverse_forwarding flip if enabled
     if (config.inverse_forwarding === true) {
-      logger.info(
-        "Global inverse_forwarding flag is true - flipping all device settings",
+      const banner =
+        "============================================================";
+      logger.warn(banner);
+      logger.warn(
+        "WARNING: 'inverse_forwarding' is set to TRUE at the top level.",
       );
+      logger.warn(
+        "This flag flips the auto-detected forwarding direction for ALL of",
+      );
+      logger.warn(
+        "your devices and is almost never what you want. In practice, leaving",
+      );
+      logger.warn(
+        "it enabled breaks communication between your device and the cloud app.",
+      );
+      logger.warn("Set 'inverse_forwarding' to false.");
+      logger.warn("");
+      logger.warn(
+        "If you previously ran Hame Relay against a B2500 in Mode 2 and need",
+      );
+      logger.warn(
+        "to keep that behavior for specific devices, list those device IDs in",
+      );
+      logger.warn(
+        "'inverse_forwarding_device_ids' instead of using the global flag.",
+      );
+      logger.warn("");
+      logger.warn(
+        "Issues submitted with 'inverse_forwarding: true' will be closed",
+      );
+      logger.warn(
+        "immediately without investigation. See the README for details.",
+      );
+      logger.warn(banner);
       for (const device of devicesConfig.devices) {
         const originalValue = device.inverse_forwarding;
         device.inverse_forwarding = !device.inverse_forwarding;

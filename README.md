@@ -173,7 +173,7 @@ docker compose up -d
 
 The Docker version supports additional configuration options not available in the Home Assistant app.
 
-**Warning**: Do not enable `inverse_forwarding` unless you absolutely know what you're doing. Bug reports with this setting enabled will be closed immediately.
+**Warning**: Do not enable the top-level `inverse_forwarding` flag. It flips the auto-detected forwarding direction for *every* device and almost always breaks communication between your devices and the cloud app. If you previously ran Hame Relay against a B2500 in Mode 2 and need to keep that behavior for specific devices, leave `inverse_forwarding` set to `false` and list those device IDs in `inverse_forwarding_device_ids` instead. Bug reports with `inverse_forwarding: true` will be closed immediately without investigation.
 
 ```json
 {
