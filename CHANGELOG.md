@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Removed rate limiting of outbound messages forwarded from local to Cloud
 - Fixed Venus series devices (VNSE3, VNSA, VNSD) not responding to control requests on firmware versions 123–138 by lowering the Venus encrypted-topic firmware threshold from 139 to 123 (#164)
 
 
