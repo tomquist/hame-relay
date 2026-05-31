@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Fixed Venus series devices (VNSE3, VNSA, VNSD) not responding to control requests on firmware versions 123–138 by lowering the Venus encrypted-topic firmware threshold from 139 to 123 (#164)
 
 
 ## [1.3.5] - 2026-05-15
