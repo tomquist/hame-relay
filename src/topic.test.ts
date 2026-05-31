@@ -242,6 +242,29 @@ describe("CommonHelper", () => {
       });
     });
 
+    describe("Venus series devices (VNSE3, VNSA, VNSD) - require firmware ≥ 123.0", () => {
+      test("should return true for VNSE3 with firmware 123.0", () => {
+        assert.strictEqual(CommonHelper.isSupportVid("VNSE3", "123.0"), true);
+      });
+
+      test("should return true for VNSA with firmware 135.0", () => {
+        assert.strictEqual(CommonHelper.isSupportVid("VNSA", "135.0"), true);
+      });
+
+      test("should return true for VNSD with firmware 135.0", () => {
+        assert.strictEqual(CommonHelper.isSupportVid("VNSD", "135.0"), true);
+      });
+
+      test("should return false for VNSE3 with firmware 122.9", () => {
+        assert.strictEqual(CommonHelper.isSupportVid("VNSE3", "122.9"), false);
+      });
+
+      test("should handle case insensitive Venus VID", () => {
+        assert.strictEqual(CommonHelper.isSupportVid("vnse3", "123.0"), true);
+        assert.strictEqual(CommonHelper.isSupportVid("vnsa", "122.9"), false);
+      });
+    });
+
     describe("Edge cases and error handling", () => {
       test("should return false for unknown VID", () => {
         assert.strictEqual(

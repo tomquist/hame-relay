@@ -368,9 +368,9 @@ class CommonHelper {
     }
 
     // All Venus series devices (VNSE3, VNSA, VNSD) support CommonHelper.cq encryption
-    // starting with firmware v139.
+    // starting with firmware v123.
     if (normalizedVid.startsWith("VNS")) {
-      return version >= 139.0;
+      return version >= 123.0;
     }
 
     return false;
