@@ -1,4 +1,9 @@
 # Changelog
+## [1.4.0] - 2026-05-31
+- Removed rate limiting of outbound messages forwarded from local to Cloud
+- Fixed Venus series devices (VNSE3, VNSA, VNSD) not responding to control requests on firmware versions 123–138 by lowering the Venus encrypted-topic firmware threshold from 139 to 123 (#164)
+
+
 ## [1.3.5] - 2026-05-15
 - Support Marstek HME cloud-managed placeholder devices (AstraMeter synthetic MAC): derive `remote_id` from topic encryption, default missing API version to 1, disable inverse forwarding for that MAC pattern, and register HME in broker `min_versions`.
 
