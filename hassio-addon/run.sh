@@ -55,6 +55,15 @@ INVERSE_FORWARDING=$(bashio::config 'inverse_forwarding' "false")
 DEFAULT_BROKER_ID=$(bashio::config 'default_broker_id' "hame-2024")
 LOG_LEVEL=$(bashio::config 'log_level' "info")
 
+# The "log_level" option is a reserved Home Assistant base image option that
+# only accepts HA's standard log levels (trace|debug|info|notice|warning|error|fatal).
+# Pino, used by the Node app, uses a slightly different set, so map the HA value
+# to the closest pino level.
+case "$LOG_LEVEL" in
+    warning) LOG_LEVEL="warn" ;;
+    notice) LOG_LEVEL="info" ;;
+esac
+
 bashio::log.info "Username and password found in configuration."
 
 # Build the config JSON with required fields

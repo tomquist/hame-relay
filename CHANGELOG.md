@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Fixed add-on failing to start when the log level was set to "warn" (#142)
 
 
 ## [1.4.0] - 2026-05-31
