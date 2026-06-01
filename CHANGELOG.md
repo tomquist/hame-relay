@@ -1,4 +1,10 @@
 # Changelog
+## [1.4.2] - 2026-06-01
+- Fixed HMI inverters (e.g. Marstek Saturn M800 / HMI-1) becoming unavailable after updating to 1.4.1: a regression placed all HMI devices on the 2025 broker regardless of firmware. Regular HMI now migrates from the 2024 broker to the 2025 broker at fw ≥129 (corrected from 130), HMI-2000 at fw ≥113, and HMI-350/HMI-500 stay on the legacy broker (#173)
+- Fixed HMK devices being placed on the 2025 broker at every firmware; they now migrate at fw ≥226 like HMA/HMF
+- Corrected several device broker / topic-encryption thresholds: TPM-CN uses topic encryption from fw ≥101 (was 122); base/other HME generations not in {HME-2/3/4/5} (e.g. HME-1) stay on the 2024 broker without topic encryption; Venus VNSD/VNSA (incl. VNSD2/VNSA2) migrate to the 2025 broker at fw ≥153 while VNSE3/VNSE4 stay on it unconditionally; HMD outdoor power stations route HMD-V/HMD-N to the 2025 broker, other HMD from fw >154, and never use topic encryption. Note: these thresholds are not yet confirmed against live devices
+
+
 ## [1.4.1] - 2026-06-01
 - Fixed HME-2/HME-3/HME-4/HME-5 meters (e.g. CT003) being placed on the 2025 broker at every firmware: they now migrate from the 2024 broker to the 2025 broker at the correct firmware (HME-3/HME-5 from fw ≥116, HME-2/HME-4 from fw ≥119), independently of the topic-encryption thresholds. Note: these broker-migration versions match the official app's behavior but are not yet confirmed against a live device (#145)
 - Fixed add-on failing to start when the log level was set to "warn" (#142)

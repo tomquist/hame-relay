@@ -52,15 +52,23 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("HME-2, HME-4, TPM-CN - require firmware >= 122.0", () => {
+    describe("HME-2, HME-4 - require firmware >= 122.0", () => {
       test("true at/above 122", () => {
         assert.strictEqual(supportsVid("HME-2", "122.0"), true);
         assert.strictEqual(supportsVid("HME-4", "125.0"), true);
-        assert.strictEqual(supportsVid("TPM-CN", "130.0"), true);
       });
       test("false below 122", () => {
         assert.strictEqual(supportsVid("HME-2", "121.9"), false);
-        assert.strictEqual(supportsVid("TPM-CN", "121.5"), false);
+      });
+    });
+
+    describe("TPM-CN - require firmware >= 101.0", () => {
+      test("true at/above 101", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "101.0"), true);
+        assert.strictEqual(supportsVid("TPM-CN", "130.0"), true);
+      });
+      test("false below 101", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "100.9"), false);
       });
     });
 
@@ -78,10 +86,10 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("HME base / other generations - always supported", () => {
-      test("HME-1 and HME-25 supported regardless of firmware", () => {
-        assert.strictEqual(supportsVid("HME-1", "1"), true);
-        assert.strictEqual(supportsVid("HME-25", "1"), true);
+    describe("HME base / other generations (non-2/3/4/5) - never supported", () => {
+      test("HME-1 and HME-25 never support vid regardless of firmware", () => {
+        assert.strictEqual(supportsVid("HME-1", "999"), false);
+        assert.strictEqual(supportsVid("HME-25", "999"), false);
       });
     });
 
@@ -180,6 +188,11 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMF-1", 226), "hame-2025");
     });
 
+    test("HMK: hame-2024 below 226, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMK-1", 225), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMK-1", 226), "hame-2025");
+    });
+
     test("HMJ: hame-2024 below 108, hame-2025 at/above", () => {
       assert.strictEqual(brokerForVersion("HMJ-1", 107), "hame-2024");
       assert.strictEqual(brokerForVersion("HMJ-1", 108), "hame-2025");
@@ -222,16 +235,51 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion(" hmi-350 ", 999), "hame-2024");
     });
 
+    test("HMI (regular): hame-2024 below 129, hame-2025 at/above (#173)", () => {
+      assert.strictEqual(brokerForVersion("HMI-1", 128), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-1", 129), "hame-2025");
+      // HMI-3500 / HMI-5000 are not route-1 devices; they follow regular HMI.
+      assert.strictEqual(brokerForVersion("HMI-3500", 128), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-3500", 129), "hame-2025");
+    });
+
+    test("HMI-2000: hame-2024 below 113, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMI-2000", 112), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-2000", 113), "hame-2025");
+    });
+
+    test("HME base (non-2/3/4/5) is always hame-2024", () => {
+      assert.strictEqual(brokerForVersion("HME-1", 0), "hame-2024");
+      assert.strictEqual(brokerForVersion("HME-1", 999), "hame-2024");
+      assert.strictEqual(brokerForVersion("HME", 999), "hame-2024");
+    });
+
+    test("HMD-V/HMD-N always hame-2025; other HMD migrates at 155", () => {
+      assert.strictEqual(brokerForVersion("HMD-V1", 0), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMD-N1", 0), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMD-1", 154), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMD-1", 155), "hame-2025");
+      // Non-target HMD ids (no V/N sub-type token) follow the base HMD route.
+      assert.strictEqual(brokerForVersion("HMD-41", 154), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMD-41", 155), "hame-2025");
+    });
+
+    test("VNSD/VNSA migrate at 153; VNSE3* stay always hame-2025", () => {
+      assert.strictEqual(brokerForVersion("VNSD-0", 152), "hame-2024");
+      assert.strictEqual(brokerForVersion("VNSD-0", 153), "hame-2025");
+      assert.strictEqual(brokerForVersion("VNSA-0", 152), "hame-2024");
+      assert.strictEqual(brokerForVersion("VNSA2-0", 153), "hame-2025");
+      assert.strictEqual(brokerForVersion("VNSE3-0", 0), "hame-2025");
+    });
+
     test("2025-only families are always hame-2025", () => {
       for (const type of [
-        "HMK-1",
-        "HME-1",
-        "HMD-1",
-        "HMI-1",
-        "HMI-2000",
-        "HMI-3500",
         "VNSE3-0",
-        "VNSA-0",
+        "VNSE4-0",
+        "VDAC-0",
+        "VAAC2-0",
+        "HMD-V1",
+        "HMD-N1",
         "TPM-CN",
         "UNKNOWN-9",
       ]) {
