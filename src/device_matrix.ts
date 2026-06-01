@@ -112,7 +112,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "TPM-CN",
     matches: exact("TPM-CN"),
-    vidSupportVersion: 122,
+    vidSupportVersion: 101,
     inverse: "auto",
   },
 
@@ -207,18 +207,33 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     inverse: "auto",
   },
   {
-    name: "HMD",
-    matches: startsWith("HMD"),
-    vidSupportVersion: 0,
+    // HMD outdoor power stations. The "V" (V6000) and "N" (M5000) sub-types are
+    // always on the 2025 broker; any other HMD (e.g. HMD-1..7) migrates only
+    // above firmware 154. None of the HMD family supports vid (topic encryption)
+    // — the app's CommonHelper.isSupportVid has no HMD branch and returns false.
+    name: "HMD-V/HMD-N",
+    matches: (t) => t.startsWith("HMD") && (t.includes("V") || t.includes("N")),
+    vidSupportVersion: Infinity,
     inverse: "auto",
   },
   {
-    // HME base / other HME generations (e.g. HME-0, HME-1, HME-6, HME-25): no
-    // firmware gate on topic encryption. The exact HME-2/3/4/5 entries above
+    name: "HMD",
+    matches: startsWith("HMD"),
+    brokerRoutes: migrate2024to2025(155),
+    vidSupportVersion: Infinity,
+    inverse: "auto",
+  },
+  {
+    // HME base / other HME generations not in {HME-2,3,4,5} (e.g. bare "HME",
+    // HME-1, HME-6). The app's CtVersionController only enumerates HME-2/3/4/5
+    // (plus TPM/SMR); any other HME falls through to a hard `return false` in
+    // both isSupportMqttEncrypt and isSupportVid, so these stay on the 2024
+    // broker and never use topic encryption. The exact HME-2/3/4/5 entries above
     // take precedence.
     name: "HME",
     matches: startsWith("HME"),
-    vidSupportVersion: 0,
+    brokerRoutes: ALWAYS_2024,
+    vidSupportVersion: Infinity,
     inverse: "auto",
     astraMeter: true,
   },
@@ -235,7 +250,19 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     inverse: "auto",
   },
   {
-    // VNSE3 / VNSA / VNSD all share the same behavior.
+    // Venus VNSD* / VNSA* (incl. VNSD2, VNSA2) migrate from the 2024 broker to
+    // the 2025 broker at firmware 153. Must precede the general VNS entry. The
+    // other Venus strategies (VNSE3*, VNSE4) short-circuit to the 2025 broker
+    // unconditionally and are handled by the catch-all below; VAAC2/VDAC do not
+    // start with "VNS" and fall through to the default (also always-2025).
+    name: "VNSD/VNSA",
+    matches: (t) => t.startsWith("VNSD") || t.startsWith("VNSA"),
+    brokerRoutes: migrate2024to2025(153),
+    vidSupportVersion: 123,
+    inverse: "auto",
+  },
+  {
+    // VNSE3* / VNSE4: always on the 2025 broker.
     name: "VNS",
     matches: startsWith("VNS"),
     vidSupportVersion: 123,
