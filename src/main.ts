@@ -77,7 +77,9 @@ function autoDetermineBroker(
       }
     }
   }
-  return chosen;
+  // Unknown/unlisted base type: default to the 2025 broker (topic encryption)
+  // rather than falling back to the legacy 2024 broker.
+  return chosen ?? "hame-2025";
 }
 
 /**

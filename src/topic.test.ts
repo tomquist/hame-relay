@@ -242,6 +242,30 @@ describe("CommonHelper", () => {
       });
     });
 
+    describe("HMI devices", () => {
+      test("should return true for HMI-2000 with firmware 105.0", () => {
+        assert.strictEqual(
+          CommonHelper.isSupportVid("HMI-2000", "105.0"),
+          true,
+        );
+      });
+
+      test("should return false for HMI-2000 with firmware 104.9", () => {
+        assert.strictEqual(
+          CommonHelper.isSupportVid("HMI-2000", "104.9"),
+          false,
+        );
+      });
+
+      test("should return true for HMI (non-2000) with firmware 120.0", () => {
+        assert.strictEqual(CommonHelper.isSupportVid("HMI-1", "120.0"), true);
+      });
+
+      test("should return false for HMI (non-2000) with firmware 119.9", () => {
+        assert.strictEqual(CommonHelper.isSupportVid("HMI-1", "119.9"), false);
+      });
+    });
+
     describe("Venus series devices (VNSE3, VNSA, VNSD) - require firmware ≥ 123.0", () => {
       test("should return true for VNSE3 with firmware 123.0", () => {
         assert.strictEqual(CommonHelper.isSupportVid("VNSE3", "123.0"), true);
@@ -266,11 +290,8 @@ describe("CommonHelper", () => {
     });
 
     describe("Edge cases and error handling", () => {
-      test("should return false for unknown VID", () => {
-        assert.strictEqual(
-          CommonHelper.isSupportVid("UNKNOWN", "200.0"),
-          false,
-        );
+      test("should return true for unknown VID (assume modern, vid-supported)", () => {
+        assert.strictEqual(CommonHelper.isSupportVid("UNKNOWN", "200.0"), true);
       });
 
       test("should return false for empty VID", () => {
@@ -374,9 +395,9 @@ describe("CommonHelper", () => {
       assert.strictEqual(isSupported, false);
     });
 
-    test("should not use cq method for unknown device types", () => {
+    test("should use cq method for unknown device types (assume modern)", () => {
       const isSupported = CommonHelper.isSupportVid("UNKNOWN", "200.0");
-      assert.strictEqual(isSupported, false);
+      assert.strictEqual(isSupported, true);
     });
   });
 });

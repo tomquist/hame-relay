@@ -1,6 +1,7 @@
 # Changelog
 ## [Next]
 - Fixed add-on failing to start when the log level was set to "warn" (#142)
+- Support HMI-2000 microinverter (fw ≥105) and default unknown/new device types to the 2025 broker with topic encryption (#158)
 
 
 ## [1.4.0] - 2026-05-31

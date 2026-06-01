@@ -364,7 +364,9 @@ class CommonHelper {
     }
 
     if (normalizedVid.startsWith("HMI")) {
-      return version >= 126.0;
+      return normalizedVid.includes("2000")
+        ? version >= 105.0
+        : version >= 120.0;
     }
 
     // All Venus series devices (VNSE3, VNSA, VNSD) support CommonHelper.cq encryption
@@ -373,7 +375,8 @@ class CommonHelper {
       return version >= 123.0;
     }
 
-    return false;
+    // Unknown device types — assume modern (vid-supported)
+    return true;
   }
 
   /**
