@@ -1,4 +1,10 @@
 # Changelog
+## [1.4.1] - 2026-06-01
+- Fixed HME-2/HME-3/HME-4/HME-5 meters (e.g. CT003) being placed on the 2025 broker at every firmware: they now migrate from the 2024 broker to the 2025 broker at the correct firmware (HME-3/HME-5 from fw ≥116, HME-2/HME-4 from fw ≥119), independently of the topic-encryption thresholds. Note: these broker-migration versions match the official app's behavior but are not yet confirmed against a live device (#145)
+- Fixed add-on failing to start when the log level was set to "warn" (#142)
+- Support HMI-2000 microinverter and default unknown/new device types to the 2025 broker with topic encryption. HMI-2000 uses the 2025 broker from fw ≥113 and topic encryption from fw ≥105, while other HMI inverters use ≥130 and ≥120 respectively. HMI-350 and HMI-500 always stay on the legacy broker with plaintext topics. Note: the HMI-2000 path is not yet confirmed against a live device (#158, #168)
+
+
 ## [1.4.0] - 2026-05-31
 - Removed rate limiting of outbound messages forwarded from local to Cloud
 - Fixed Venus series devices (VNSE3, VNSA, VNSD) not responding to control requests on firmware versions 123–138 by lowering the Venus encrypted-topic firmware threshold from 139 to 123 (#164)

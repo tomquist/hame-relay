@@ -66,7 +66,9 @@ This tool bridges these two scenarios by forwarding MQTT messages between your l
 
 ### Automatic Configuration
 - **JPLS, HMM, HMN, HME, TPM-CN, HMG and other devices**: Always use inverse forwarding (required for proper operation)
-- **HMA, HMF, HMK, HMJ devices**: Use selective forwarding based on your configuration (see `inverse_forwarding_device_ids`)
+- **HMA, HMF, HMK, HMJ, HMB devices**: Use selective forwarding based on your configuration (see `inverse_forwarding_device_ids`)
+
+See the full [device support matrix](docs/device-matrix.md) for per-device broker selection and topic-encryption behavior across firmware versions.
 
 ### Manual Mode Selection (Advanced)
 You can also manually control the forwarding direction:

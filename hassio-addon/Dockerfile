@@ -1,3 +1,8 @@
+# Base image for the final stage, overridable by the Home Assistant builder.
+# Declared in the global scope (before the first FROM) so it can be used in
+# the final stage's FROM instruction without a BuildKit lint warning.
+ARG BUILD_FROM
+
 # Build stage
 FROM node:23.11-alpine AS builder
 
@@ -20,7 +25,6 @@ RUN npm run build
 RUN npm ci --only=production
 
 # Final stage
-ARG BUILD_FROM
 FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:14.2.2}
 
 # Install Node.js
