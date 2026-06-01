@@ -211,8 +211,10 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     // always on the 2025 broker; any other HMD (e.g. HMD-1..7) migrates only
     // above firmware 154. None of the HMD family supports vid (topic encryption)
     // — the app's CommonHelper.isSupportVid has no HMD branch and returns false.
+    // Match the V/N sub-type token directly (HMD-V*/HMD-N*) rather than a loose
+    // substring, so other HMD ids that merely contain V/N elsewhere don't match.
     name: "HMD-V/HMD-N",
-    matches: (t) => t.startsWith("HMD") && (t.includes("V") || t.includes("N")),
+    matches: (t) => t.startsWith("HMD-V") || t.startsWith("HMD-N"),
     vidSupportVersion: Infinity,
     inverse: "auto",
   },

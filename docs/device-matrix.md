@@ -61,7 +61,7 @@ A device type is matched most-specific first:
    - `HMI-350`/`HMI-500` and `HMI-2000`, matched on a whole number token so ids
      like `HMI-3500`, `HMI-5000`, `HMI-12000` or `HMI-20001` fall through to the
      regular HMI profile.
-   - `HMD-V`/`HMD-N` (sub-types containing `V`/`N`) before base `HMD`.
+   - `HMD-V*`/`HMD-N*` (V6000 / M5000 sub-types) before base `HMD`.
    - `VNSD`/`VNSA` (incl. `VNSD2`/`VNSA2`) before base `VNS`.
 3. Base-type prefixes — `HMA`, `HMB`, `HMF`, `HMK`, `HMJ`, `HMG`, `HMM`, `HMN`,
    `JPLS`, `HMD`, `HME`, `HMI`, `VNS`.

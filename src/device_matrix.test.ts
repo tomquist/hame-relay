@@ -259,6 +259,9 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMD-N1", 0), "hame-2025");
       assert.strictEqual(brokerForVersion("HMD-1", 154), "hame-2024");
       assert.strictEqual(brokerForVersion("HMD-1", 155), "hame-2025");
+      // Non-target HMD ids (no V/N sub-type token) follow the base HMD route.
+      assert.strictEqual(brokerForVersion("HMD-41", 154), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMD-41", 155), "hame-2025");
     });
 
     test("VNSD/VNSA migrate at 153; VNSE3* stay always hame-2025", () => {
