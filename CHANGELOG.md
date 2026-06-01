@@ -1,6 +1,5 @@
 # Changelog
 ## [Next]
-- Consolidated all per-device-type / per-firmware behavior (broker selection, topic-encryption thresholds, remote-topic-id versions, model exceptions, and inverse-forwarding policy) into a single device matrix in `src/device_matrix.ts`, documented in `docs/device-matrix.md`. `brokers.json` now carries only transport config plus a `role` marker; the scattered `min_versions`, `use_remote_topic_id_versions`, `isSupportVid`, and `broker_selection` logic were removed. No change to which broker or topic structure any device uses.
 - Fixed add-on failing to start when the log level was set to "warn" (#142)
 - Support HMI-2000 microinverter and default unknown/new device types to the 2025 broker with topic encryption. HMI-2000 uses the 2025 broker from fw ≥113 and topic encryption from fw ≥105, while other HMI inverters use ≥130 and ≥120 respectively. HMI-350 and HMI-500 always stay on the legacy broker with plaintext topics. Note: the HMI-2000 path is not yet confirmed against a live device (#158, #168)
 
