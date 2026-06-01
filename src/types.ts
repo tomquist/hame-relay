@@ -66,8 +66,6 @@ export interface BrokerDefinition {
   local_topic_prefix?: string;
   topic_encryption_key?: string;
   client_id_prefix?: string;
-  use_remote_topic_id_versions?: Record<string, number[]>;
-  min_versions?: Record<string, number>;
 }
 
 export interface ForwarderConfig {
