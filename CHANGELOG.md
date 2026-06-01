@@ -1,6 +1,6 @@
 # Changelog
 ## [Next]
-- Fixed add-on failing to start when `log_level` was set to `warn`. The `log_level` option now uses Home Assistant's standard levels (`trace`, `debug`, `info`, `notice`, `warning`, `error`, `fatal`) and is mapped to the matching pino level internally (#142)
+- Fixed add-on failing to start when the log level was set to "warn" (#142)
 
 
 ## [1.4.0] - 2026-05-31
