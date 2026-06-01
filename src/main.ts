@@ -6,6 +6,7 @@ import { logger } from "./logger.js";
 import { HameApi, DeviceInfo } from "./hame_api.js";
 import { MQTTForwarder } from "./mqtt_forwarder.js";
 import { CommonHelper } from "./topic.js";
+import { resolveBrokerMinVersion } from "./broker_selection.js";
 import {
   Device,
   BrokerDefinition,
@@ -70,7 +71,11 @@ function autoDetermineBroker(
       minVersions &&
       Object.prototype.hasOwnProperty.call(minVersions, baseType)
     ) {
-      const min = minVersions[baseType];
+      const min = resolveBrokerMinVersion(
+        device.type,
+        baseType,
+        minVersions[baseType],
+      );
       if (device.version >= min && min > highest) {
         chosen = id;
         highest = min;

@@ -363,6 +363,8 @@ class CommonHelper {
       return version >= 154.0;
     }
 
+    // HMI: model-aware topic-encryption (vid) threshold. HMI-2000 (4-PV) from
+    // firmware ≥ 105.0; other HMI inverters from firmware ≥ 120.0.
     if (normalizedVid.startsWith("HMI")) {
       return normalizedVid.includes("2000")
         ? version >= 105.0
