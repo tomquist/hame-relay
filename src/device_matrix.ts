@@ -96,6 +96,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HME-2/HME-4",
     matches: exact("HME-2", "HME-4"),
+    brokerRoutes: migrate2024to2025(119),
     vidSupportVersion: 122,
     inverse: "auto",
     astraMeter: true,
@@ -103,6 +104,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HME-3/HME-5",
     matches: exact("HME-3", "HME-5"),
+    brokerRoutes: migrate2024to2025(116),
     vidSupportVersion: 120,
     inverse: "auto",
     astraMeter: true,

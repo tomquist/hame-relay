@@ -72,6 +72,9 @@ describe("device_matrix", () => {
       test("false below 120", () => {
         assert.strictEqual(supportsVid("HME-3", "119.9"), false);
         assert.strictEqual(supportsVid("HME-5", "115.0"), false);
+        // At the broker-migration fw (116) the meter moves to the 2025 broker
+        // but still does not encrypt topic ids (#145): thresholds are distinct.
+        assert.strictEqual(supportsVid("HME-3", "116"), false);
       });
     });
 
@@ -193,6 +196,18 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMN-1", 134), "hame-2024");
       assert.strictEqual(brokerForVersion("JPLS-8H", 134), "hame-2024");
       assert.strictEqual(brokerForVersion("JPLS-8H", 135), "hame-2025");
+    });
+
+    test("HME-2/HME-4: hame-2024 below 119, hame-2025 at/above (#145)", () => {
+      assert.strictEqual(brokerForVersion("HME-2", 118), "hame-2024");
+      assert.strictEqual(brokerForVersion("HME-2", 119), "hame-2025");
+      assert.strictEqual(brokerForVersion("HME-4", 119), "hame-2025");
+    });
+
+    test("HME-3/HME-5: hame-2024 below 116, hame-2025 at/above (#145)", () => {
+      assert.strictEqual(brokerForVersion("HME-3", 115), "hame-2024");
+      assert.strictEqual(brokerForVersion("HME-3", 116), "hame-2025");
+      assert.strictEqual(brokerForVersion("HME-5", 116), "hame-2025");
     });
 
     test("HMB: always hame-2024 (never migrates to the 2025 broker)", () => {
