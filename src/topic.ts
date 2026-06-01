@@ -363,8 +363,17 @@ class CommonHelper {
       return version >= 154.0;
     }
 
+    // HMI: model-aware topic-encryption (vid) threshold.
     if (normalizedVid.startsWith("HMI")) {
-      return version >= 126.0;
+      // HMI-350 / HMI-500 ("route 1") never use topic encryption at any
+      // firmware — they stay on the legacy broker with plaintext topics.
+      if (/\b(350|500)\b/.test(normalizedVid)) {
+        return false;
+      }
+      // HMI-2000 (4-PV) from firmware ≥ 105.0; other HMI inverters from ≥ 120.0.
+      return /\b2000\b/.test(normalizedVid)
+        ? version >= 105.0
+        : version >= 120.0;
     }
 
     // All Venus series devices (VNSE3, VNSA, VNSD) support CommonHelper.cq encryption
@@ -373,7 +382,8 @@ class CommonHelper {
       return version >= 123.0;
     }
 
-    return false;
+    // Unknown device types — assume modern (vid-supported)
+    return true;
   }
 
   /**

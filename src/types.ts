@@ -23,7 +23,16 @@ export type DeviceType = (typeof deviceTypes)[number];
 
 export type DeviceTypeIdentifier =
   | `${DeviceType}-${DeviceGen}`
-  | `JPLS-${number}H`;
+  | `JPLS-${number}H`
+  | `HMI-${number}`;
+
+// Model-suffixed HMI identifiers (e.g. HMI-2000, the 4-PV microinverter) that
+// don't follow the generation numbering used above.
+export const hmiModelTypes: DeviceTypeIdentifier[] = [
+  "HMI-2000",
+  "HMI-350",
+  "HMI-500",
+];
 
 export const knownDeviceTypes: DeviceTypeIdentifier[] = [
   ...(deviceGenerations.flatMap((gen) =>
@@ -32,6 +41,7 @@ export const knownDeviceTypes: DeviceTypeIdentifier[] = [
   ...(deviceGenerations.map(
     (gen) => `JPLS-${gen}H` as const,
   ) as DeviceTypeIdentifier[]),
+  ...hmiModelTypes,
 ];
 
 export interface Device {
