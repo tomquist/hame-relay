@@ -15,25 +15,38 @@
 
 export type InversePolicy = "selectable" | "auto";
 
+// Broker generations are identified by the year they were introduced, never by
+// a relative label like "current" or "legacy" (today's newest broker becomes an
+// older one once the next generation ships). Adding a future generation is just
+// another constant plus a routing entry.
+export const BROKER_2024 = "hame-2024";
+export const BROKER_2025 = "hame-2025";
+
+/**
+ * One step of a device family's broker routing: from firmware `since` (and up,
+ * until the next step) the device talks to `broker`.
+ */
+export interface BrokerRoute {
+  since: number;
+  broker: string;
+}
+
+/** Routing for devices that always use the 2025 broker. */
+const DEFAULT_BROKER_ROUTES: BrokerRoute[] = [
+  { since: 0, broker: BROKER_2025 },
+];
+
 export interface DeviceProfile {
   /** Stable name for logging/debugging (not used for matching). */
   name: string;
   /** Matches a device type that has already been normalized (trim + uppercase). */
   matches(normalizedType: string): boolean;
   /**
-   * Device is never served by the modern broker and never uses topic
-   * encryption at any firmware ("route 1", e.g. HMI-350 / HMI-500). Implies the
-   * legacy broker and `supportsVid` === false regardless of firmware.
+   * Broker routing across firmware versions, ascending by `since`. The entry
+   * with the greatest `since` not exceeding the device firmware wins. Defaults
+   * to {@link DEFAULT_BROKER_ROUTES} (always the 2025 broker).
    */
-  legacyOnly?: boolean;
-  /**
-   * Device is served by the legacy broker below {@link migrationVersion} and by
-   * the modern broker at/above it. When false/undefined the device always uses
-   * the modern broker.
-   */
-  legacyCapable?: boolean;
-  /** Firmware at which a {@link legacyCapable} device moves to the modern broker. */
-  migrationVersion?: number;
+  brokerRoutes?: BrokerRoute[];
   /**
    * Minimum firmware for salt-based (`cq`) topic-id encryption. `0` means
    * "always supported"; `Infinity` means "never".
@@ -46,6 +59,17 @@ export interface DeviceProfile {
   /** HME family: subject to AstraMeter synthetic-MAC handling. */
   astraMeter?: boolean;
 }
+
+/** Routing for a device that moves from the 2024 broker to the 2025 broker at `migrationVersion`. */
+function migrate2024to2025(migrationVersion: number): BrokerRoute[] {
+  return [
+    { since: 0, broker: BROKER_2024 },
+    { since: migrationVersion, broker: BROKER_2025 },
+  ];
+}
+
+/** Routing for a device that always uses the 2024 broker. */
+const ALWAYS_2024: BrokerRoute[] = [{ since: 0, broker: BROKER_2024 }];
 
 /** Trim + uppercase so base-type handling is done exactly one way everywhere. */
 export function normalizeType(type: string): string {
@@ -92,12 +116,12 @@ const DEVICE_PROFILES: DeviceProfile[] = [
 
   // --- HMI model-token rules (must precede the HMI base entry) ---
   {
-    // HMI-350 / HMI-500 ("route 1", #158 / #164): never reach the modern
+    // HMI-350 / HMI-500 ("route 1", #158 / #164): always stay on the 2024
     // broker and never use topic encryption. Whole-token match so ids like
     // "HMI-3500" / "HMI-5000" stay on the regular HMI path.
     name: "HMI-350/HMI-500 (route 1)",
     matches: (t) => t.startsWith("HMI") && /\b(350|500)\b/.test(t),
-    legacyOnly: true,
+    brokerRoutes: ALWAYS_2024,
     vidSupportVersion: Infinity,
     inverse: "auto",
   },
@@ -114,28 +138,23 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HMA",
     matches: startsWith("HMA"),
-    legacyCapable: true,
-    migrationVersion: 226,
+    brokerRoutes: migrate2024to2025(226),
     vidSupportVersion: 230,
     useRemoteTopicIdVersions: [226],
     inverse: "selectable",
   },
   {
-    // HMB is only ever served by the legacy broker (never listed for the modern
-    // broker), so it stays on legacy at every firmware.
+    // HMB always stays on the 2024 broker (never offered the 2025 broker).
     name: "HMB",
     matches: startsWith("HMB"),
-    legacyOnly: false,
-    legacyCapable: true,
-    migrationVersion: Infinity,
+    brokerRoutes: ALWAYS_2024,
     vidSupportVersion: 230,
     inverse: "selectable",
   },
   {
     name: "HMF",
     matches: startsWith("HMF"),
-    legacyCapable: true,
-    migrationVersion: 226,
+    brokerRoutes: migrate2024to2025(226),
     vidSupportVersion: 230,
     useRemoteTopicIdVersions: [226],
     inverse: "selectable",
@@ -150,8 +169,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HMJ",
     matches: startsWith("HMJ"),
-    legacyCapable: true,
-    migrationVersion: 108,
+    brokerRoutes: migrate2024to2025(108),
     vidSupportVersion: 116,
     useRemoteTopicIdVersions: [108],
     inverse: "selectable",
@@ -159,32 +177,28 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HMG",
     matches: startsWith("HMG"),
-    legacyCapable: true,
-    migrationVersion: 153,
+    brokerRoutes: migrate2024to2025(153),
     vidSupportVersion: 154,
     inverse: "auto",
   },
   {
     name: "HMM",
     matches: startsWith("HMM"),
-    legacyCapable: true,
-    migrationVersion: 135,
+    brokerRoutes: migrate2024to2025(135),
     vidSupportVersion: 136,
     inverse: "auto",
   },
   {
     name: "HMN",
     matches: startsWith("HMN"),
-    legacyCapable: true,
-    migrationVersion: 135,
+    brokerRoutes: migrate2024to2025(135),
     vidSupportVersion: 136,
     inverse: "auto",
   },
   {
     name: "JPLS",
     matches: startsWith("JPLS"),
-    legacyCapable: true,
-    migrationVersion: 135,
+    brokerRoutes: migrate2024to2025(135),
     vidSupportVersion: 136,
     inverse: "auto",
   },
@@ -219,7 +233,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   },
 ];
 
-/** Unknown/unlisted device types: assume a modern, topic-encryption-capable device. */
+/** Unknown/unlisted device types: assume a 2025-broker, topic-encryption-capable device. */
 export const DEFAULT_PROFILE: DeviceProfile = {
   name: "unknown",
   matches: () => true,
@@ -261,25 +275,20 @@ export function supportsVid(
   return parsed >= resolveProfile(type).vidSupportVersion;
 }
 
-export type BrokerRole = "legacy" | "modern";
-
 /**
- * Which broker generation serves a device at a given firmware. Replaces the
- * `autoDetermineBroker` / `resolveBrokerMinVersion` / `isLegacyOnlyDevice`
- * logic.
+ * The broker id (e.g. `hame-2024` / `hame-2025`) that serves a device at a
+ * given firmware. Replaces the `autoDetermineBroker` / `resolveBrokerMinVersion`
+ * / `isLegacyOnlyDevice` logic.
  */
-export function brokerRoleFor(type: string, version: number): BrokerRole {
-  const profile = resolveProfile(type);
-  if (profile.legacyOnly) {
-    return "legacy";
+export function brokerForVersion(type: string, version: number): string {
+  const routes = resolveProfile(type).brokerRoutes ?? DEFAULT_BROKER_ROUTES;
+  let chosen = routes[0].broker;
+  for (const route of routes) {
+    if (version >= route.since) {
+      chosen = route.broker;
+    }
   }
-  if (
-    profile.legacyCapable &&
-    version < (profile.migrationVersion ?? Infinity)
-  ) {
-    return "legacy";
-  }
-  return "modern";
+  return chosen;
 }
 
 /** Whether the remote topic id should be used on the local broker. */

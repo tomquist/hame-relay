@@ -5,8 +5,7 @@
     "cert": "@certs/hame-2024.crt",
     "key": "@certs/hame-2024.key",
     "topic_prefix": "hame_energy/",
-    "client_id_prefix": "hm_",
-    "role": "legacy"
+    "client_id_prefix": "hm_"
   },
   "hame-2025": {
     "url": "@certs/hame-2025-url",
@@ -16,7 +15,6 @@
     "topic_prefix": "marstek_energy/",
     "local_topic_prefix": "hame_energy/",
     "client_id_prefix": "mst_",
-    "topic_encryption_key": "@certs/hame-2025-topic-encryption-key",
-    "role": "modern"
+    "topic_encryption_key": "@certs/hame-2025-topic-encryption-key"
   }
 }

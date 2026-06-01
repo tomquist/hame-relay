@@ -2,7 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert";
 import {
   supportsVid,
-  brokerRoleFor,
+  brokerForVersion,
   usesRemoteTopicId,
   inverseForwardingPolicy,
   isAstraMeterFamily,
@@ -134,7 +134,7 @@ describe("device_matrix", () => {
     });
 
     describe("edge cases", () => {
-      test("unknown device type is assumed modern (supported)", () => {
+      test("unknown device type is assumed topic-encryption-capable (supported)", () => {
         assert.strictEqual(supportsVid("UNKNOWN", "200.0"), true);
       });
       test("empty vid -> false", () => {
@@ -160,49 +160,49 @@ describe("device_matrix", () => {
     });
   });
 
-  describe("brokerRoleFor (legacy 2024 vs modern 2025 broker)", () => {
-    test("HMA: legacy below 226, modern at/above", () => {
-      assert.strictEqual(brokerRoleFor("HMA-3", 225), "legacy");
-      assert.strictEqual(brokerRoleFor("HMA-3", 226), "modern");
-      assert.strictEqual(brokerRoleFor("HMA-3", 230), "modern");
+  describe("brokerForVersion (hame-2024 vs hame-2025 broker)", () => {
+    test("HMA: hame-2024 below 226, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMA-3", 225), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMA-3", 226), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMA-3", 230), "hame-2025");
     });
 
-    test("HMF: legacy below 226, modern at/above", () => {
-      assert.strictEqual(brokerRoleFor("HMF-1", 225), "legacy");
-      assert.strictEqual(brokerRoleFor("HMF-1", 226), "modern");
+    test("HMF: hame-2024 below 226, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMF-1", 225), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMF-1", 226), "hame-2025");
     });
 
-    test("HMJ: legacy below 108, modern at/above", () => {
-      assert.strictEqual(brokerRoleFor("HMJ-1", 107), "legacy");
-      assert.strictEqual(brokerRoleFor("HMJ-1", 108), "modern");
+    test("HMJ: hame-2024 below 108, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMJ-1", 107), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMJ-1", 108), "hame-2025");
     });
 
-    test("HMG: legacy below 153, modern at/above", () => {
-      assert.strictEqual(brokerRoleFor("HMG-50", 152), "legacy");
-      assert.strictEqual(brokerRoleFor("HMG-50", 153), "modern");
+    test("HMG: hame-2024 below 153, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMG-50", 152), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMG-50", 153), "hame-2025");
     });
 
-    test("HMM/HMN/JPLS: legacy below 135, modern at/above", () => {
-      assert.strictEqual(brokerRoleFor("HMM-1", 134), "legacy");
-      assert.strictEqual(brokerRoleFor("HMM-1", 135), "modern");
-      assert.strictEqual(brokerRoleFor("HMN-1", 134), "legacy");
-      assert.strictEqual(brokerRoleFor("JPLS-8H", 134), "legacy");
-      assert.strictEqual(brokerRoleFor("JPLS-8H", 135), "modern");
+    test("HMM/HMN/JPLS: hame-2024 below 135, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMM-1", 134), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMM-1", 135), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMN-1", 134), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", 134), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", 135), "hame-2025");
     });
 
-    test("HMB: always legacy (never migrates to the modern broker)", () => {
-      assert.strictEqual(brokerRoleFor("HMB-1", 0), "legacy");
-      assert.strictEqual(brokerRoleFor("HMB-1", 999), "legacy");
+    test("HMB: always hame-2024 (never migrates to the 2025 broker)", () => {
+      assert.strictEqual(brokerForVersion("HMB-1", 0), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMB-1", 999), "hame-2024");
     });
 
-    test("HMI-350 / HMI-500 are always legacy (route 1)", () => {
-      assert.strictEqual(brokerRoleFor("HMI-350", 0), "legacy");
-      assert.strictEqual(brokerRoleFor("HMI-350", 999), "legacy");
-      assert.strictEqual(brokerRoleFor("HMI-500", 999), "legacy");
-      assert.strictEqual(brokerRoleFor(" hmi-350 ", 999), "legacy");
+    test("HMI-350 / HMI-500 are always hame-2024 (route 1)", () => {
+      assert.strictEqual(brokerForVersion("HMI-350", 0), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-350", 999), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-500", 999), "hame-2024");
+      assert.strictEqual(brokerForVersion(" hmi-350 ", 999), "hame-2024");
     });
 
-    test("modern-only families are always modern", () => {
+    test("2025-only families are always hame-2025", () => {
       for (const type of [
         "HMK-1",
         "HME-1",
@@ -215,8 +215,8 @@ describe("device_matrix", () => {
         "TPM-CN",
         "UNKNOWN-9",
       ]) {
-        assert.strictEqual(brokerRoleFor(type, 0), "modern", type);
-        assert.strictEqual(brokerRoleFor(type, 999), "modern", type);
+        assert.strictEqual(brokerForVersion(type, 0), "hame-2025", type);
+        assert.strictEqual(brokerForVersion(type, 999), "hame-2025", type);
       }
     });
   });

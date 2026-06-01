@@ -7,13 +7,12 @@ import { HameApi, DeviceInfo } from "./hame_api.js";
 import { MQTTForwarder } from "./mqtt_forwarder.js";
 import { CommonHelper } from "./topic.js";
 import {
-  brokerRoleFor,
+  brokerForVersion,
   usesRemoteTopicId,
   inverseForwardingPolicy,
   isAstraMeterFamily,
   isAstraMeterSyntheticMac,
   supportsVid,
-  BrokerRole,
 } from "./device_matrix.js";
 import {
   Device,
@@ -58,33 +57,16 @@ function processBrokerProperties(
   return processedBrokers;
 }
 
-/** Resolves the concrete broker id serving a given role (legacy/modern). */
-function findBrokerIdByRole(
-  brokers: Record<string, BrokerDefinition>,
-  role: BrokerRole,
-): string | undefined {
-  for (const [id, broker] of Object.entries(brokers)) {
-    if (broker.role === role) {
-      return id;
-    }
-  }
-  return undefined;
-}
-
 /**
  * Picks the broker for a device based on the device matrix. Devices without a
  * known firmware version are left unset so they fall back to the configured
  * default broker.
  */
-function autoDetermineBroker(
-  device: Device,
-  brokers: Record<string, BrokerDefinition>,
-): string | undefined {
+function autoDetermineBroker(device: Device): string | undefined {
   if (device.version == null) {
     return undefined;
   }
-  const role = brokerRoleFor(device.type, device.version);
-  return findBrokerIdByRole(brokers, role);
+  return brokerForVersion(device.type, device.version);
 }
 
 function cleanAndValidate(config: { devices: Device[] }): void {
@@ -268,7 +250,7 @@ async function start() {
 
     for (const device of devicesConfig.devices) {
       if (!device.broker_id) {
-        const auto = autoDetermineBroker(device, brokers);
+        const auto = autoDetermineBroker(device);
         if (auto) {
           device.broker_id = auto;
           logger.info(
