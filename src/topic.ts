@@ -363,10 +363,15 @@ class CommonHelper {
       return version >= 154.0;
     }
 
-    // HMI: model-aware topic-encryption (vid) threshold. HMI-2000 (4-PV) from
-    // firmware ≥ 105.0; other HMI inverters from firmware ≥ 120.0.
+    // HMI: model-aware topic-encryption (vid) threshold.
     if (normalizedVid.startsWith("HMI")) {
-      return normalizedVid.includes("2000")
+      // HMI-350 / HMI-500 ("route 1") never use topic encryption at any
+      // firmware — they stay on the legacy broker with plaintext topics.
+      if (/\b(350|500)\b/.test(normalizedVid)) {
+        return false;
+      }
+      // HMI-2000 (4-PV) from firmware ≥ 105.0; other HMI inverters from ≥ 120.0.
+      return /\b2000\b/.test(normalizedVid)
         ? version >= 105.0
         : version >= 120.0;
     }

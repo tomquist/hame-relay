@@ -264,6 +264,41 @@ describe("CommonHelper", () => {
       test("should return false for HMI (non-2000) with firmware 119.9", () => {
         assert.strictEqual(CommonHelper.isSupportVid("HMI-1", "119.9"), false);
       });
+
+      // HMI-350 / HMI-500 ("route 1", #168) never use topic encryption at any
+      // firmware, so they stay on the legacy broker with plaintext topics.
+      test("should return false for HMI-350 at any firmware", () => {
+        assert.strictEqual(
+          CommonHelper.isSupportVid("HMI-350", "120.0"),
+          false,
+        );
+        assert.strictEqual(
+          CommonHelper.isSupportVid("HMI-350", "999.0"),
+          false,
+        );
+      });
+
+      test("should return false for HMI-500 at any firmware", () => {
+        assert.strictEqual(
+          CommonHelper.isSupportVid("HMI-500", "120.0"),
+          false,
+        );
+        assert.strictEqual(
+          CommonHelper.isSupportVid("HMI-500", "999.0"),
+          false,
+        );
+      });
+
+      test("should still gate HMI ids that only contain 350/500 as a substring as route 2", () => {
+        assert.strictEqual(
+          CommonHelper.isSupportVid("HMI-3500", "120.0"),
+          true,
+        );
+        assert.strictEqual(
+          CommonHelper.isSupportVid("HMI-5000", "119.9"),
+          false,
+        );
+      });
     });
 
     describe("Venus series devices (VNSE3, VNSA, VNSD) - require firmware ≥ 123.0", () => {

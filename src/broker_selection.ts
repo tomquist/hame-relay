@@ -24,3 +24,18 @@ export function resolveBrokerMinVersion(
   }
   return baseMin;
 }
+
+/**
+ * "Route 1" devices — currently the HMI-350 and HMI-500 inverters — are never
+ * served by the 2025 broker and never use topic encryption at any firmware.
+ * They must stay on the legacy broker with plaintext topics, otherwise they
+ * stop responding to control requests (the #158 / #164 no-response bug).
+ *
+ * @param deviceType The concrete device type identifier (e.g. "HMI-350").
+ * @returns True if the device must stay on the legacy plaintext broker.
+ */
+export function isLegacyOnlyDevice(deviceType: string): boolean {
+  const normalized = deviceType.trim().toUpperCase();
+  // Match the model as a whole token so ids like "HMI-3500" don't false-match.
+  return normalized.startsWith("HMI") && /\b(350|500)\b/.test(normalized);
+}

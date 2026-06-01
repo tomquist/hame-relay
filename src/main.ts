@@ -6,7 +6,10 @@ import { logger } from "./logger.js";
 import { HameApi, DeviceInfo } from "./hame_api.js";
 import { MQTTForwarder } from "./mqtt_forwarder.js";
 import { CommonHelper } from "./topic.js";
-import { resolveBrokerMinVersion } from "./broker_selection.js";
+import {
+  resolveBrokerMinVersion,
+  isLegacyOnlyDevice,
+} from "./broker_selection.js";
 import {
   Device,
   BrokerDefinition,
@@ -63,6 +66,11 @@ function autoDetermineBroker(
     return undefined;
   }
   const baseType = match[1];
+  // Route-1 devices (HMI-350 / HMI-500) must never reach the 2025 broker; keep
+  // them on the legacy plaintext broker regardless of firmware.
+  if (isLegacyOnlyDevice(device.type)) {
+    return "hame-2024";
+  }
   let chosen: string | undefined;
   let highest = -Infinity;
   for (const [id, broker] of Object.entries(brokers)) {
