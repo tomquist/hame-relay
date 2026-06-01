@@ -15,9 +15,10 @@ export function resolveBrokerMinVersion(
   baseMin: number,
 ): number {
   // HMI-2000 (4-PV) reaches the 2025 broker earlier than other HMI models.
+  // Match the model as a whole token so ids like "HMI-12000" don't false-match.
   if (
     baseType.toUpperCase() === "HMI" &&
-    deviceType.toUpperCase().includes("2000")
+    /\b2000\b/.test(deviceType.trim().toUpperCase())
   ) {
     return 113;
   }
