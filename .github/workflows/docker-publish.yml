@@ -44,6 +44,7 @@ jobs:
   build:
     needs: [lint, test]
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -210,6 +211,7 @@ jobs:
   build-addon:
     needs: [lint, test]
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
