@@ -48,12 +48,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # amd64 and arm64 build on matching native runners (no emulation).
           - platform: linux/amd64
             runner: ubuntu-24.04
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
+          # There is no native armv7 runner, and the image fails under the
+          # arm64 host's 32-bit compat layer, so emulate it via QEMU on amd64.
           - platform: linux/arm/v7
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-24.04
+            qemu: true
     permissions:
       contents: read
       packages: write
@@ -76,6 +80,12 @@ jobs:
           echo "${{ secrets.HAME_2025_URL }}" > certs/hame-2025-url
           echo "${{ secrets.TOPIC_ENCRYPTION_KEY_2025 }}" > certs/hame-2025-topic-encryption-key
         shell: bash
+
+      - name: Set up QEMU
+        if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -204,12 +214,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # amd64 and arm64 build on matching native runners (no emulation).
           - platform: linux/amd64
             runner: ubuntu-24.04
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
+          # There is no native armv7 runner, and the image fails under the
+          # arm64 host's 32-bit compat layer, so emulate it via QEMU on amd64.
           - platform: linux/arm/v7
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-24.04
+            qemu: true
     permissions:
       contents: read
       packages: write
@@ -232,6 +246,12 @@ jobs:
           echo "${{ secrets.HAME_2025_URL }}" > certs/hame-2025-url
           echo "${{ secrets.TOPIC_ENCRYPTION_KEY_2025 }}" > certs/hame-2025-topic-encryption-key
         shell: bash
+
+      - name: Set up QEMU
+        if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
