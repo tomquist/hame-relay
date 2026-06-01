@@ -7,9 +7,14 @@ import { HameApi, DeviceInfo } from "./hame_api.js";
 import { MQTTForwarder } from "./mqtt_forwarder.js";
 import { CommonHelper } from "./topic.js";
 import {
-  resolveBrokerMinVersion,
-  isLegacyOnlyDevice,
-} from "./broker_selection.js";
+  brokerRoleFor,
+  usesRemoteTopicId,
+  inverseForwardingPolicy,
+  isAstraMeterFamily,
+  isAstraMeterSyntheticMac,
+  supportsVid,
+  BrokerRole,
+} from "./device_matrix.js";
 import {
   Device,
   BrokerDefinition,
@@ -53,6 +58,24 @@ function processBrokerProperties(
   return processedBrokers;
 }
 
+/** Resolves the concrete broker id serving a given role (legacy/modern). */
+function findBrokerIdByRole(
+  brokers: Record<string, BrokerDefinition>,
+  role: BrokerRole,
+): string | undefined {
+  for (const [id, broker] of Object.entries(brokers)) {
+    if (broker.role === role) {
+      return id;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Picks the broker for a device based on the device matrix. Devices without a
+ * known firmware version are left unset so they fall back to the configured
+ * default broker.
+ */
 function autoDetermineBroker(
   device: Device,
   brokers: Record<string, BrokerDefinition>,
@@ -60,70 +83,8 @@ function autoDetermineBroker(
   if (device.version == null) {
     return undefined;
   }
-  const regex = /(.*)-[\d\w]+/;
-  const match = regex.exec(device.type);
-  if (!match) {
-    return undefined;
-  }
-  const baseType = match[1];
-  // Route-1 devices (HMI-350 / HMI-500) must never reach the 2025 broker; keep
-  // them on the legacy plaintext broker regardless of firmware.
-  if (isLegacyOnlyDevice(device.type)) {
-    return "hame-2024";
-  }
-  let chosen: string | undefined;
-  let highest = -Infinity;
-  for (const [id, broker] of Object.entries(brokers)) {
-    const minVersions = broker.min_versions;
-    if (
-      minVersions &&
-      Object.prototype.hasOwnProperty.call(minVersions, baseType)
-    ) {
-      const min = resolveBrokerMinVersion(
-        device.type,
-        baseType,
-        minVersions[baseType],
-      );
-      if (device.version >= min && min > highest) {
-        chosen = id;
-        highest = min;
-      }
-    }
-  }
-  // Unknown/unlisted base type: default to the 2025 broker (topic encryption)
-  // rather than falling back to the legacy 2024 broker.
-  return chosen ?? "hame-2025";
-}
-
-/**
- * Marstek cloud "managed" placeholder devid/mac from AstraMeter
- * (`MANAGED_MAC_PREFIX` + 6 random hex nibbles). Those entries are not real
- * hardware on local MQTT, so inverse forwarding would drop traffic.
- */
-function isAstraMeterSyntheticMac(mac: string): boolean {
-  const m = mac.trim().replace(/:/g, "").toLowerCase();
-  return /^02b250[0-9a-f]{6}$/.test(m);
-}
-
-function shouldUseRemoteTopicId(
-  device: Device,
-  broker: BrokerDefinition,
-): boolean {
-  if (device.version == null) {
-    return false;
-  }
-  const regex = /(.*)-[\d\w]+/;
-  const match = regex.exec(device.type);
-  if (!match) {
-    return false;
-  }
-  const baseType = match[1];
-  const mapping = broker.use_remote_topic_id_versions;
-  if (!mapping || !Object.prototype.hasOwnProperty.call(mapping, baseType)) {
-    return false;
-  }
-  const versions = mapping[baseType];
-  return versions.includes(device.version);
+  const role = brokerRoleFor(device.type, device.version);
+  return findBrokerIdByRole(brokers, role);
 }
 
 function cleanAndValidate(config: { devices: Device[] }): void {
@@ -269,10 +230,7 @@ async function start() {
     for (const device of devicesConfig.devices) {
       // Set inverse forwarding based on device type and configuration
       if (device.inverse_forwarding === undefined) {
-        const deviceType = device.type.toUpperCase();
-        const selectableTypes = ["HMA", "HMF", "HMK", "HMJ", "HMB"];
-
-        if (selectableTypes.some((type) => deviceType.startsWith(type))) {
+        if (inverseForwardingPolicy(device.type) === "selectable") {
           // For selectable device types, check if device ID is in the list
           device.inverse_forwarding = selectiveInverseDeviceIds.has(
             device.device_id,
@@ -323,9 +281,8 @@ async function start() {
     cleanAndValidate(devicesConfig);
 
     for (const device of devicesConfig.devices) {
-      const baseType = device.type.replace(/-.*$/, "");
       if (
-        baseType === "HME" &&
+        isAstraMeterFamily(device.type) &&
         isAstraMeterSyntheticMac(device.mac) &&
         device.inverse_forwarding
       ) {
@@ -367,7 +324,7 @@ async function start() {
         } else if (
           device.salt &&
           device.version &&
-          CommonHelper.isSupportVid(device.type, device.version.toString())
+          supportsVid(device.type, device.version)
         ) {
           logger.debug(
             `Device ${device.device_id} supports CommonHelper.cq method, using salt-based calculation`,
@@ -406,8 +363,8 @@ async function start() {
           device.remote_id = device.device_id;
         }
       }
-      if (device.use_remote_topic_id == null) {
-        const autoRemote = shouldUseRemoteTopicId(device, broker);
+      if (device.use_remote_topic_id == null && device.version != null) {
+        const autoRemote = usesRemoteTopicId(device.type, device.version);
         if (autoRemote) {
           device.use_remote_topic_id = true;
           logger.debug(

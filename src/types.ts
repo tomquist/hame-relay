@@ -66,8 +66,12 @@ export interface BrokerDefinition {
   local_topic_prefix?: string;
   topic_encryption_key?: string;
   client_id_prefix?: string;
-  use_remote_topic_id_versions?: Record<string, number[]>;
-  min_versions?: Record<string, number>;
+  /**
+   * Broker generation. Device-to-broker routing is decided by the device matrix
+   * (`device_matrix.ts`), which yields a "legacy" / "modern" role; this marker
+   * maps that role onto a concrete broker entry.
+   */
+  role?: "legacy" | "modern";
 }
 
 export interface ForwarderConfig {

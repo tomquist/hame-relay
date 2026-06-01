@@ -6,16 +6,7 @@
     "key": "@certs/hame-2024.key",
     "topic_prefix": "hame_energy/",
     "client_id_prefix": "hm_",
-    "min_versions": {
-      "HMA": 0,
-      "HMB": 0,
-      "HMF": 0,
-      "HMJ": 0,
-      "HMG": 0,
-      "HMM": 0,
-      "HMN": 0,
-      "JPLS": 0
-    }
+    "role": "legacy"
   },
   "hame-2025": {
     "url": "@certs/hame-2025-url",
@@ -26,26 +17,6 @@
     "local_topic_prefix": "hame_energy/",
     "client_id_prefix": "mst_",
     "topic_encryption_key": "@certs/hame-2025-topic-encryption-key",
-    "use_remote_topic_id_versions": {
-      "HMA": [226],
-      "HMF": [226],
-      "HMK": [226],
-      "HMJ": [108]
-    },
-    "min_versions": {
-      "HMA": 226,
-      "HME": 120,
-      "HMF": 226,
-      "HMI": 130,
-      "HMJ": 108,
-      "HMK": 226,
-      "HMG": 153,
-      "HMM": 135,
-      "HMN": 135,
-      "JPLS": 135,
-      "VNSE3": 0,
-      "VNSA": 0,
-      "VNSD": 0
-    }
+    "role": "modern"
   }
 }
