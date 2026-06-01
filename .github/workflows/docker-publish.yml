@@ -43,14 +43,17 @@ jobs:
 
   build:
     needs: [lint, test]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: linux/amd64
+            runner: ubuntu-24.04
           - platform: linux/arm64
+            runner: ubuntu-24.04-arm
           - platform: linux/arm/v7
+            runner: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -73,9 +76,6 @@ jobs:
           echo "${{ secrets.HAME_2025_URL }}" > certs/hame-2025-url
           echo "${{ secrets.TOPIC_ENCRYPTION_KEY_2025 }}" > certs/hame-2025-topic-encryption-key
         shell: bash
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -113,8 +113,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=main-${{ matrix.platform }}
+          cache-to: type=gha,scope=main-${{ matrix.platform }},mode=max
 
       - name: Export digest
         run: |
@@ -199,14 +199,17 @@ jobs:
 
   build-addon:
     needs: [lint, test]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: linux/amd64
+            runner: ubuntu-24.04
           - platform: linux/arm64
+            runner: ubuntu-24.04-arm
           - platform: linux/arm/v7
+            runner: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -229,9 +232,6 @@ jobs:
           echo "${{ secrets.HAME_2025_URL }}" > certs/hame-2025-url
           echo "${{ secrets.TOPIC_ENCRYPTION_KEY_2025 }}" > certs/hame-2025-topic-encryption-key
         shell: bash
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -270,8 +270,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=addon-${{ matrix.platform }}
+          cache-to: type=gha,scope=addon-${{ matrix.platform }},mode=max
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Export digest
