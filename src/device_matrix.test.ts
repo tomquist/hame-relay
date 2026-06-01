@@ -180,6 +180,11 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMF-1", 226), "hame-2025");
     });
 
+    test("HMK: hame-2024 below 226, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMK-1", 225), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMK-1", 226), "hame-2025");
+    });
+
     test("HMJ: hame-2024 below 108, hame-2025 at/above", () => {
       assert.strictEqual(brokerForVersion("HMJ-1", 107), "hame-2024");
       assert.strictEqual(brokerForVersion("HMJ-1", 108), "hame-2025");
@@ -224,7 +229,6 @@ describe("device_matrix", () => {
 
     test("2025-only families are always hame-2025", () => {
       for (const type of [
-        "HMK-1",
         "HME-1",
         "HMD-1",
         "HMI-1",

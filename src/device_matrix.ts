@@ -164,6 +164,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HMK",
     matches: startsWith("HMK"),
+    brokerRoutes: migrate2024to2025(226),
     vidSupportVersion: 230,
     useRemoteTopicIdVersions: [226],
     inverse: "selectable",

@@ -33,7 +33,7 @@ switches to encrypted topic ids, and how forwarding is configured.
 | HMA                 | hame-2024 → hame-2025 @226  | 230   | [226]           | selectable  | |
 | HMB                 | hame-2024                   | 230   | —               | selectable  | never offered the 2025 broker |
 | HMF                 | hame-2024 → hame-2025 @226  | 230   | [226]           | selectable  | |
-| HMK                 | hame-2025                   | 230   | [226]           | selectable  | |
+| HMK                 | hame-2024 → hame-2025 @226  | 230   | [226]           | selectable  | |
 | HMJ                 | hame-2024 → hame-2025 @108  | 116   | [108]           | selectable  | |
 | HMG                 | hame-2024 → hame-2025 @153  | 154   | —               | auto        | |
 | HMM                 | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
