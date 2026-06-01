@@ -227,13 +227,23 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion(" hmi-350 ", 999), "hame-2024");
     });
 
+    test("HMI (regular): hame-2024 below 129, hame-2025 at/above (#173)", () => {
+      assert.strictEqual(brokerForVersion("HMI-1", 128), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-1", 129), "hame-2025");
+      // HMI-3500 / HMI-5000 are not route-1 devices; they follow regular HMI.
+      assert.strictEqual(brokerForVersion("HMI-3500", 128), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-3500", 129), "hame-2025");
+    });
+
+    test("HMI-2000: hame-2024 below 113, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMI-2000", 112), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-2000", 113), "hame-2025");
+    });
+
     test("2025-only families are always hame-2025", () => {
       for (const type of [
         "HME-1",
         "HMD-1",
-        "HMI-1",
-        "HMI-2000",
-        "HMI-3500",
         "VNSE3-0",
         "VNSA-0",
         "TPM-CN",

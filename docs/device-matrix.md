@@ -44,8 +44,8 @@ switches to encrypted topic ids, and how forwarding is configured.
 | HME-2, HME-4        | hame-2024 → hame-2025 @119  | 122   | —               | auto        | AstraMeter family |
 | HME-3, HME-5        | hame-2024 → hame-2025 @116  | 120   | —               | auto        | AstraMeter family |
 | TPM-CN              | hame-2025                   | 122   | —               | auto        | standalone identifier |
-| HMI (regular)       | hame-2025                   | 120   | —               | auto        | |
-| HMI-2000            | hame-2025                   | 105   | —               | auto        | 4-PV microinverter |
+| HMI (regular)       | hame-2024 → hame-2025 @129  | 120   | —               | auto        | |
+| HMI-2000            | hame-2024 → hame-2025 @113  | 105   | —               | auto        | 4-PV microinverter |
 | HMI-350, HMI-500    | hame-2024                   | never | —               | auto        | "route 1", see #158 / #164 |
 | VNSE3, VNSA, VNSD   | hame-2025                   | 123   | —               | auto        | Venus series |
 | _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device |

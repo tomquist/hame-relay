@@ -132,6 +132,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     // HMI models. Whole-token match so "HMI-12000" / "HMI-20001" don't match.
     name: "HMI-2000",
     matches: (t) => t.startsWith("HMI") && /\b2000\b/.test(t),
+    brokerRoutes: migrate2024to2025(113),
     vidSupportVersion: 105,
     inverse: "auto",
   },
@@ -222,8 +223,14 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     astraMeter: true,
   },
   {
+    // Regular HMI inverters migrate from the 2024 broker to the 2025 broker at
+    // firmware 129. The HMI-350/HMI-500 (always 2024) and HMI-2000 (migrates at
+    // 113) exact entries above take precedence. Without an explicit brokerRoutes
+    // this would silently default to always-2025 and strand pre-129 devices on
+    // the wrong broker (#173).
     name: "HMI",
     matches: startsWith("HMI"),
+    brokerRoutes: migrate2024to2025(129),
     vidSupportVersion: 120,
     inverse: "auto",
   },
