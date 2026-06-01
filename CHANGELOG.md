@@ -1,8 +1,7 @@
 # Changelog
 ## [Next]
 - Fixed add-on failing to start when the log level was set to "warn" (#142)
-- Support HMI-2000 microinverter (fw ≥105) and default unknown/new device types to the 2025 broker with topic encryption (#158)
-- Apply model-aware HMI firmware gates: HMI-2000 uses the 2025 broker from fw ≥113 and topic encryption from fw ≥105, while other HMI inverters use ≥130 and ≥120 respectively (#158)
+- Support HMI-2000 microinverter and default unknown/new device types to the 2025 broker with topic encryption. HMI-2000 uses the 2025 broker from fw ≥113 and topic encryption from fw ≥105, while other HMI inverters use ≥130 and ≥120 respectively. Note: the HMI-2000 path is not yet confirmed against a live device (#158)
 
 
 ## [1.4.0] - 2026-05-31
