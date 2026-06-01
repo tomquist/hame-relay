@@ -144,6 +144,11 @@ describe("device_matrix", () => {
         assert.strictEqual(supportsVid("HMJ", ""), false);
         assert.strictEqual(supportsVid("HMJ", "invalid"), false);
       });
+      test("partially-numeric firmware fails closed", () => {
+        assert.strictEqual(supportsVid("HMJ", "116foo"), false);
+        assert.strictEqual(supportsVid("HMJ", "120 "), true);
+        assert.strictEqual(supportsVid("HMJ", "1.2.3"), false);
+      });
       test("null/undefined inputs -> false", () => {
         assert.strictEqual(supportsVid(null as any, "200.0"), false);
         assert.strictEqual(supportsVid("HMJ", null), false);

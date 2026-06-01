@@ -254,7 +254,16 @@ export function resolveProfile(type: string): DeviceProfile {
 }
 
 function parseVersion(version: string | number): number {
-  return typeof version === "number" ? version : parseFloat(version);
+  if (typeof version === "number") {
+    return version;
+  }
+  // Only accept fully-numeric strings; fail closed (NaN) on trailing junk like
+  // "116foo" so supportsVid does not satisfy a threshold from a partial parse.
+  const trimmed = version.trim();
+  if (!/^[+-]?\d+(\.\d+)?$/.test(trimmed)) {
+    return NaN;
+  }
+  return parseFloat(trimmed);
 }
 
 /**

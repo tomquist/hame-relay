@@ -290,7 +290,12 @@ async function start() {
       if (!device.remote_id) {
         // Cloud placeholder MACs from AstraMeter are not real firmware: cq/salt
         // paths do not apply; remote topics use the same AES id as other HME.
-        if (isAstraMeterSyntheticMac(device.mac)) {
+        // Gate on the HME family too (mirrors the inverse-forwarding check) so a
+        // non-AstraMeter device with a placeholder-like MAC keeps the normal path.
+        if (
+          isAstraMeterFamily(device.type) &&
+          isAstraMeterSyntheticMac(device.mac)
+        ) {
           if (!broker.topic_encryption_key) {
             throw new Error(
               `Device ${device.device_id}: broker "${brokerId}" has no topic_encryption_key; required to derive remote_id for AstraMeter synthetic MAC (calculateNewVersionTopicId).`,
