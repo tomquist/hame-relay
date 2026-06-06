@@ -140,7 +140,7 @@ jobs:
           echo "name=$SAFE_PLATFORM" >> $GITHUB_OUTPUT
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: digests-${{ steps.platform.outputs.name }}
           path: /tmp/digests/*
@@ -153,7 +153,7 @@ jobs:
     needs: [build]
     steps:
       - name: Merge Artifacts
-        uses: actions/upload-artifact/merge@v4
+        uses: actions/upload-artifact/merge@v7
         with:
           name: digests
           pattern: digests-*
@@ -309,7 +309,7 @@ jobs:
           echo "name=$SAFE_PLATFORM" >> $GITHUB_OUTPUT
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: addon-digests-${{ steps.platform.outputs.name }}
           path: /tmp/addon-digests/*
@@ -322,7 +322,7 @@ jobs:
     needs: [build-addon]
     steps:
       - name: Merge Artifacts
-        uses: actions/upload-artifact/merge@v4
+        uses: actions/upload-artifact/merge@v7
         with:
           name: addon-digests
           pattern: addon-digests-*
