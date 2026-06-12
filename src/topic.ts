@@ -314,17 +314,40 @@ class CommonHelper {
   }
 
   /**
-   * Extracts the first salt value from a comma-separated salt pair
+   * Selects the salt component that must be fed into {@link cq} to derive a
+   * device's remote topic id, from the comma-separated salt pair the Hame API
+   * returns in its device list (`salt: "<a>,<b>"`).
+   *
+   * This matches the official Marstek app's behavior: the first component is
+   * not always salt material. When it starts with "0" it is a control flag,
+   * and the **second** component is the salt used to derive the topic id.
+   * Only when the first component is real salt (does not start with "0") is
+   * it used directly. Always taking `parts[0]` therefore produces a wrong
+   * remote id for devices whose salt begins with a "0" flag, so their cloud
+   * responses never come back (see issue #182).
+   *
    * @param saltPair The comma-separated salt pair (e.g., "salt1,salt2")
-   * @returns The first salt value, or empty string if invalid
+   * @returns The salt value to use with `cq`, or empty string if invalid
    */
-  static extractFirstSalt(saltPair: string): string {
+  static selectSalt(saltPair: string): string {
     if (!saltPair || typeof saltPair !== "string") {
       return "";
     }
 
-    const parts = saltPair.split(",");
-    return parts.length > 0 ? parts[0].trim() : "";
+    const parts = saltPair.split(",").map((part) => part.trim());
+    // First component is a control flag ("0..."): use the second salt value.
+    if (parts.length > 1 && parts[0].startsWith("0")) {
+      return parts[1];
+    }
+    return parts[0];
+  }
+
+  /**
+   * @deprecated Use {@link selectSalt}, which also handles the "0"-flag salt
+   * pairs. Retained as an alias so existing references keep compiling.
+   */
+  static extractFirstSalt(saltPair: string): string {
+    return CommonHelper.selectSalt(saltPair);
   }
 }
 

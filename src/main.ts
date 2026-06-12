@@ -316,10 +316,10 @@ async function start() {
           logger.debug(
             `Device ${device.device_id} supports CommonHelper.cq method, using salt-based calculation`,
           );
-          const firstSalt = CommonHelper.extractFirstSalt(device.salt);
-          if (firstSalt) {
+          const selectedSalt = CommonHelper.selectSalt(device.salt);
+          if (selectedSalt) {
             device.remote_id = CommonHelper.cq(
-              firstSalt,
+              selectedSalt,
               device.mac,
               device.type,
             );
