@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Fixed `remote_id` derivation for devices whose API `salt` begins with a "0" flag (e.g. some HMI-2000 / MI2000W on fw V115): the relay now selects the correct salt component for `CommonHelper.cq` to match the official app's behavior. Previously it always used the first component, producing a remote topic id the cloud never assigned, so polls were forwarded local→remote but device responses never came back (#182). Note: not yet confirmed against a live device
 
 
 ## [1.4.2] - 2026-06-01

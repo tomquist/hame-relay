@@ -122,40 +122,59 @@ describe("CommonHelper", () => {
     });
   });
 
-  describe("extractFirstSalt method", () => {
-    test("should extract first salt from comma-separated pair", () => {
-      assert.strictEqual(CommonHelper.extractFirstSalt("salt1,salt2"), "salt1");
+  describe("selectSalt method", () => {
+    test("should use the first salt when it is real salt material", () => {
+      assert.strictEqual(CommonHelper.selectSalt("salt1,salt2"), "salt1");
       assert.strictEqual(
-        CommonHelper.extractFirstSalt("first,second,third"),
+        CommonHelper.selectSalt("first,second,third"),
         "first",
       );
     });
 
+    test("should use the second salt when the first starts with a '0' flag", () => {
+      // Matches the official app's behavior: a leading "0" component is a
+      // control flag, so cq must be fed the second component (issue #182).
+      assert.strictEqual(CommonHelper.selectSalt("0,realsalt"), "realsalt");
+      assert.strictEqual(CommonHelper.selectSalt("0abc,realsalt"), "realsalt");
+      assert.strictEqual(CommonHelper.selectSalt(" 0 , realsalt "), "realsalt");
+    });
+
+    test("should not treat a non-leading '0' as a flag", () => {
+      assert.strictEqual(CommonHelper.selectSalt("a0,salt2"), "a0");
+    });
+
     test("should handle single salt value", () => {
-      assert.strictEqual(CommonHelper.extractFirstSalt("onlysalt"), "onlysalt");
+      assert.strictEqual(CommonHelper.selectSalt("onlysalt"), "onlysalt");
+      // A lone "0..." component has no second value to fall back to.
+      assert.strictEqual(CommonHelper.selectSalt("0only"), "0only");
     });
 
     test("should handle salt with whitespace", () => {
+      assert.strictEqual(CommonHelper.selectSalt(" salt1 , salt2 "), "salt1");
       assert.strictEqual(
-        CommonHelper.extractFirstSalt(" salt1 , salt2 "),
-        "salt1",
-      );
-      assert.strictEqual(
-        CommonHelper.extractFirstSalt("  trimmed  ,  other  "),
+        CommonHelper.selectSalt("  trimmed  ,  other  "),
         "trimmed",
       );
     });
 
     test("should return empty string for invalid input", () => {
-      assert.strictEqual(CommonHelper.extractFirstSalt(""), "");
-      assert.strictEqual(CommonHelper.extractFirstSalt(null as any), "");
-      assert.strictEqual(CommonHelper.extractFirstSalt(undefined as any), "");
+      assert.strictEqual(CommonHelper.selectSalt(""), "");
+      assert.strictEqual(CommonHelper.selectSalt(null as any), "");
+      assert.strictEqual(CommonHelper.selectSalt(undefined as any), "");
     });
 
     test("should handle edge cases", () => {
-      assert.strictEqual(CommonHelper.extractFirstSalt(",second"), "");
-      assert.strictEqual(CommonHelper.extractFirstSalt("first,"), "first");
-      assert.strictEqual(CommonHelper.extractFirstSalt(","), "");
+      assert.strictEqual(CommonHelper.selectSalt(",second"), "");
+      assert.strictEqual(CommonHelper.selectSalt("first,"), "first");
+      assert.strictEqual(CommonHelper.selectSalt(","), "");
+    });
+
+    test("extractFirstSalt remains as a backward-compatible alias", () => {
+      assert.strictEqual(CommonHelper.extractFirstSalt("salt1,salt2"), "salt1");
+      assert.strictEqual(
+        CommonHelper.extractFirstSalt("0,realsalt"),
+        "realsalt",
+      );
     });
   });
 });
