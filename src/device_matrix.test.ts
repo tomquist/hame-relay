@@ -264,16 +264,29 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMD-41", 155), "hame-2025");
     });
 
-    test("VNSD/VNSA migrate at 153; VNSE3* stay always hame-2025", () => {
-      assert.strictEqual(brokerForVersion("VNSD-0", 152), "hame-2024");
-      assert.strictEqual(brokerForVersion("VNSD-0", 153), "hame-2025");
-      assert.strictEqual(brokerForVersion("VNSA-0", 152), "hame-2024");
-      assert.strictEqual(brokerForVersion("VNSA2-0", 153), "hame-2025");
-      assert.strictEqual(brokerForVersion("VNSE3-0", 0), "hame-2025");
+    test("all Venus VNS* types are always hame-2025 (no 2024 migration)", () => {
+      // The whole Venus family runs on the 2025 broker at any firmware, including
+      // VNSD-0 on firmware 142.
+      for (const type of [
+        "VNSD-0",
+        "VNSA-0",
+        "VNSD2-0",
+        "VNSA2-0",
+        "VNSE3-0",
+        "VNSE4-0",
+      ]) {
+        assert.strictEqual(brokerForVersion(type, 0), "hame-2025", type);
+        assert.strictEqual(brokerForVersion(type, 142), "hame-2025", type);
+        assert.strictEqual(brokerForVersion(type, 999), "hame-2025", type);
+      }
     });
 
     test("2025-only families are always hame-2025", () => {
       for (const type of [
+        "VNSD-0",
+        "VNSA-0",
+        "VNSD2-0",
+        "VNSA2-0",
         "VNSE3-0",
         "VNSE4-0",
         "VDAC-0",
