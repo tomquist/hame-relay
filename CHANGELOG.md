@@ -1,4 +1,7 @@
 # Changelog
+## [1.4.3] - 2026-06-13
+
+
 ## [1.4.2] - 2026-06-01
 - Fixed HMI inverters (e.g. Marstek Saturn M800 / HMI-1) becoming unavailable after updating to 1.4.1: a regression placed all HMI devices on the 2025 broker regardless of firmware. Regular HMI now migrates from the 2024 broker to the 2025 broker at fw ≥129 (corrected from 130), HMI-2000 at fw ≥113, and HMI-350/HMI-500 stay on the legacy broker (#173)
 - Fixed HMK devices being placed on the 2025 broker at every firmware; they now migrate at fw ≥226 like HMA/HMF
