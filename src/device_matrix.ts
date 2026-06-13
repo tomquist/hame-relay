@@ -252,19 +252,10 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     inverse: "auto",
   },
   {
-    // Venus VNSD* / VNSA* (incl. VNSD2, VNSA2) migrate from the 2024 broker to
-    // the 2025 broker at firmware 153. Must precede the general VNS entry. The
-    // other Venus strategies (VNSE3*, VNSE4) short-circuit to the 2025 broker
-    // unconditionally and are handled by the catch-all below; VAAC2/VDAC do not
-    // start with "VNS" and fall through to the default (also always-2025).
-    name: "VNSD/VNSA",
-    matches: (t) => t.startsWith("VNSD") || t.startsWith("VNSA"),
-    brokerRoutes: migrate2024to2025(153),
-    vidSupportVersion: 123,
-    inverse: "auto",
-  },
-  {
-    // VNSE3* / VNSE4: always on the 2025 broker.
+    // Venus series (VNSD*/VNSA* incl. VNSD2/VNSA2, VNSE3*, VNSE4): always on the
+    // 2025 broker, at any firmware — the whole family runs on the 2025
+    // infrastructure and never used the 2024 broker. VAAC2/VDAC do not start with
+    // "VNS" and reach the default (also always-2025).
     name: "VNS",
     matches: startsWith("VNS"),
     vidSupportVersion: 123,

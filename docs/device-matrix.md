@@ -48,7 +48,7 @@ switches to encrypted topic ids, and how forwarding is configured.
 | HMI (regular)       | hame-2024 → hame-2025 @129  | 120   | —               | auto        | |
 | HMI-2000            | hame-2024 → hame-2025 @113  | 105   | —               | auto        | 4-PV microinverter |
 | HMI-350, HMI-500    | hame-2024                   | never | —               | auto        | "route 1", see #158 / #164 |
-| VNSD, VNSA (incl. VNSD2, VNSA2) | hame-2024 → hame-2025 @153 | 123 | —          | auto        | Venus series |
+| VNSD, VNSA (incl. VNSD2, VNSA2) | hame-2025      | 123   | —               | auto        | Venus series; always 2025 |
 | VNSE3, VNSE4        | hame-2025                   | 123   | —               | auto        | Venus series |
 | _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device |
 
@@ -62,7 +62,6 @@ A device type is matched most-specific first:
      like `HMI-3500`, `HMI-5000`, `HMI-12000` or `HMI-20001` fall through to the
      regular HMI profile.
    - `HMD-V*`/`HMD-N*` (V6000 / M5000 sub-types) before base `HMD`.
-   - `VNSD`/`VNSA` (incl. `VNSD2`/`VNSA2`) before base `VNS`.
 3. Base-type prefixes — `HMA`, `HMB`, `HMF`, `HMK`, `HMJ`, `HMG`, `HMM`, `HMN`,
    `JPLS`, `HMD`, `HME`, `HMI`, `VNS`.
 4. Unknown — assume a `hame-2025`, topic-encryption-capable device.
