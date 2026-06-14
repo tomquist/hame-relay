@@ -1,5 +1,6 @@
 # Changelog
 ## [1.4.3] - 2026-06-13
+- Fixed Venus series devices (e.g. VNSD/VNSA, including VNSD2/VNSA2) using the wrong broker: the whole Venus family now always uses the hame-2025 broker at any firmware instead of migrating from the 2024 broker at firmware 153. This restores connectivity for devices such as a VNSD-0 on firmware 142 that only work against hame-2025 (#187)
 
 
 ## [1.4.2] - 2026-06-01
