@@ -74,6 +74,7 @@ describe("device_matrix", () => {
 
     describe("TPM2 (CT002 new generation) - always topic-encryption capable", () => {
       test("true at any firmware (threshold 0)", () => {
+        assert.strictEqual(supportsVid("TPM2-0", "0"), true);
         assert.strictEqual(supportsVid("TPM2-0", "105.0"), true);
         assert.strictEqual(supportsVid("TPM2-0", "1.0"), true);
       });
