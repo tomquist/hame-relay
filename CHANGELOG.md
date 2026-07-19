@@ -1,6 +1,6 @@
 # Changelog
 ## [Next]
-- Add support for the Marstek CT002 new generation (device type `TPM2-0`): it uses the 2025 broker with salt-based topic-id encryption on every firmware and always uses inverse forwarding. The type is now recognized so it no longer logs an "Unknown device type" warning (#201)
+- Add support for the Marstek CT002 new generation (device type `TPM2-0`) (#201)
 
 
 ## [1.4.3] - 2026-06-13
