@@ -115,6 +115,16 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     vidSupportVersion: 101,
     inverse: "auto",
   },
+  {
+    // Marstek CT002 "new generation" (reported as TPM2-0, #201). Ships on the
+    // 2025 broker and uses salt-based topic-id encryption on every firmware, so
+    // there is no pre-encryption threshold. Whole-family match (TPM2-*) so future
+    // generations are covered; TPM-CN starts with "TPM-" and is unaffected.
+    name: "TPM2",
+    matches: startsWith("TPM2"),
+    vidSupportVersion: 0,
+    inverse: "auto",
+  },
 
   // --- HMI model-token rules (must precede the HMI base entry) ---
   {

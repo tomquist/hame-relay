@@ -78,7 +78,7 @@ Marstek storage systems can be configured to use either:
 This tool bridges these two scenarios by forwarding MQTT messages between your local broker and the Hame broker. The app automatically determines the best forwarding direction for each device type:
 
 ### Automatic Configuration
-- **JPLS, HMM, HMN, HME, TPM-CN, HMG and other devices**: Always use inverse forwarding (required for proper operation)
+- **JPLS, HMM, HMN, HME, TPM-CN, TPM2 (CT002), HMG and other devices**: Always use inverse forwarding (required for proper operation)
 - **HMA, HMF, HMK, HMJ, HMB devices**: Use selective forwarding based on your configuration (see `inverse_forwarding_device_ids`)
 
 See the full [device support matrix](docs/device-matrix.md) for per-device broker selection and topic-encryption behavior across firmware versions.

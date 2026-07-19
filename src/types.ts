@@ -15,6 +15,7 @@ export const deviceTypes = [
   "HMI",
   "HMM",
   "HMN",
+  "TPM2",
   "VNSE3",
   "VNSA",
   "VNSD",
