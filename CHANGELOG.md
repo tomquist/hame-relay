@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Add support for the Marstek CT002 new generation (device type `TPM2-0`) (#201)
 
 
 ## [1.4.3] - 2026-06-13

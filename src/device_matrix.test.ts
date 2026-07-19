@@ -72,6 +72,17 @@ describe("device_matrix", () => {
       });
     });
 
+    describe("TPM2 (CT002 new generation) - always topic-encryption capable", () => {
+      test("true at any firmware (threshold 0)", () => {
+        assert.strictEqual(supportsVid("TPM2-0", "0"), true);
+        assert.strictEqual(supportsVid("TPM2-0", "105.0"), true);
+        assert.strictEqual(supportsVid("TPM2-0", "1.0"), true);
+      });
+      test("case insensitive", () => {
+        assert.strictEqual(supportsVid("tpm2-0", "105.0"), true);
+      });
+    });
+
     describe("HME-3, HME-5 - require firmware >= 120.0", () => {
       test("true at/above 120", () => {
         assert.strictEqual(supportsVid("HME-3", "120.0"), true);
@@ -294,6 +305,7 @@ describe("device_matrix", () => {
         "HMD-V1",
         "HMD-N1",
         "TPM-CN",
+        "TPM2-0",
         "UNKNOWN-9",
       ]) {
         assert.strictEqual(brokerForVersion(type, 0), "hame-2025", type);
@@ -340,6 +352,7 @@ describe("device_matrix", () => {
         "HMI-1",
         "HMI-350",
         "TPM-CN",
+        "TPM2-0",
         "VNSE3-0",
         "UNKNOWN",
       ]) {
@@ -382,6 +395,11 @@ describe("device_matrix", () => {
       assert.strictEqual(resolveProfile("HME-3").name, "HME-3/HME-5");
       assert.strictEqual(resolveProfile("HME-25").name, "HME");
       assert.strictEqual(resolveProfile("HME-1").name, "HME");
+    });
+
+    test("TPM2 resolves to its own profile without colliding with TPM-CN", () => {
+      assert.strictEqual(resolveProfile("TPM2-0").name, "TPM2");
+      assert.strictEqual(resolveProfile("TPM-CN").name, "TPM-CN");
     });
 
     test("unknown types resolve to the default profile", () => {

@@ -45,6 +45,7 @@ switches to encrypted topic ids, and how forwarding is configured.
 | HME-2, HME-4        | hame-2024 → hame-2025 @119  | 122   | —               | auto        | AstraMeter family |
 | HME-3, HME-5        | hame-2024 → hame-2025 @116  | 120   | —               | auto        | AstraMeter family |
 | TPM-CN              | hame-2025                   | 101   | —               | auto        | standalone identifier |
+| TPM2                | hame-2025                   | 0     | —               | auto        | CT002 new generation (`TPM2-0`, #201) |
 | HMI (regular)       | hame-2024 → hame-2025 @129  | 120   | —               | auto        | |
 | HMI-2000            | hame-2024 → hame-2025 @113  | 105   | —               | auto        | 4-PV microinverter |
 | HMI-350, HMI-500    | hame-2024                   | never | —               | auto        | "route 1", see #158 / #164 |
@@ -63,7 +64,7 @@ A device type is matched most-specific first:
      regular HMI profile.
    - `HMD-V*`/`HMD-N*` (V6000 / M5000 sub-types) before base `HMD`.
 3. Base-type prefixes — `HMA`, `HMB`, `HMF`, `HMK`, `HMJ`, `HMG`, `HMM`, `HMN`,
-   `JPLS`, `HMD`, `HME`, `HMI`, `VNS`.
+   `JPLS`, `HMD`, `HME`, `HMI`, `TPM2`, `VNS`.
 4. Unknown — assume a `hame-2025`, topic-encryption-capable device.
 
 ## AstraMeter placeholder devices
