@@ -172,10 +172,23 @@ async function start() {
             `Unknown device type from API: ${device.type}. Using as-is.`,
           );
         }
-        // Shared with the device matrix so both agree on what a version means.
-        // Notably it keeps the fractional part: the HMD-N broker threshold is
-        // 1.42, which truncating parsers such as parseInt can never satisfy.
-        const v = parseVersion(device.version);
+        // parseVersion is shared with the device matrix so both agree on what a
+        // version means, and it keeps the fractional part: the HMD-N broker
+        // threshold is 1.42, which truncating parsers such as parseInt can
+        // never satisfy. Its strictness is deliberate there — it must not
+        // satisfy a threshold from a partial parse — but it is not the safe
+        // default here: reading a suffixed version like "116foo" as 1 would
+        // pick the wrong broker and strand the device, so fall back to its
+        // numeric prefix. Either way, say so rather than routing silently on a
+        // version we could not read exactly.
+        const exact = parseVersion(device.version);
+        const v = isNaN(exact) ? parseFloat(device.version) : exact;
+        if (isNaN(exact)) {
+          logger.warn(
+            `Could not read firmware version "${device.version}" for device ${device.devid} exactly; ` +
+              (isNaN(v) ? "assuming version 1" : `assuming version ${v}`),
+          );
+        }
         return {
           device_id: device.devid,
           mac: device.mac,
