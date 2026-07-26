@@ -1,48 +1,92 @@
 export const deviceGenerations = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 50,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 31, 41, 50, 51,
+  61, 71, 72,
 ] as const;
 export type DeviceGen = (typeof deviceGenerations)[number];
 
 export const deviceTypes = [
   "HMA",
   "HMB",
+  "HMC",
   "HMD",
   "HME",
   "HMF",
   "HMG",
+  "HMH",
+  "HMHL",
   "HMJ",
   "HMK",
   "HMI",
+  "HML",
   "HMM",
   "HMN",
+  "SCH",
+  "SDH",
+  "SMR",
   "TPM2",
-  "VNSE3",
+  "UB",
+  "VAAC2",
+  "VDAC",
+  "VENX",
+  "VEPRO",
   "VNSA",
+  "VNSA2",
+  "VNSACH",
+  "VNSB",
   "VNSD",
+  "VNSD2",
+  "VNSDCH",
+  "VNSE3",
+  "VNSE3AU",
+  "VNSE3CH",
+  "VNSE3US",
+  "VNSE4",
+  "VNSEMAX",
+  "VNSEMINI",
+  "VNSG",
+  "VNSGPV",
 ] as const;
 export type DeviceType = (typeof deviceTypes)[number];
 
-export type DeviceTypeIdentifier =
-  | `${DeviceType}-${DeviceGen}`
-  | `JPLS-${number}H`
-  | `HMI-${number}`;
-
 // Model-suffixed HMI identifiers (e.g. HMI-2000, the 4-PV microinverter) that
 // don't follow the generation numbering used above.
-export const hmiModelTypes: DeviceTypeIdentifier[] = [
+export const hmiModelTypes = [
   "HMI-2000",
   "HMI-350",
   "HMI-500",
-];
+  "HMI-350S",
+  "HMI-500S",
+  "HMI-02KS",
+] as const;
+
+// Identifiers that carry no generation suffix at all.
+export const standaloneDeviceTypes = ["TPM-CN"] as const;
+
+export type DeviceTypeIdentifier =
+  | `${DeviceType}-${DeviceGen}`
+  // HMD-V*/HMD-N* are sub-types with their own profiles, and SDH ids carry a
+  // "K" suffix (SDH-6K); neither fits the plain `${type}-${gen}` shape.
+  | `HMD-${"V" | "N"}${DeviceGen}`
+  | `SDH-${DeviceGen}K`
+  | `JPLS-${number}H`
+  | `HMI-${number}`
+  | (typeof hmiModelTypes)[number]
+  | (typeof standaloneDeviceTypes)[number];
 
 export const knownDeviceTypes: DeviceTypeIdentifier[] = [
   ...(deviceGenerations.flatMap((gen) =>
     deviceTypes.map((type) => `${type}-${gen}` as const),
   ) as DeviceTypeIdentifier[]),
+  ...(deviceGenerations.flatMap((gen) => [
+    `HMD-V${gen}` as const,
+    `HMD-N${gen}` as const,
+    `SDH-${gen}K` as const,
+  ]) as DeviceTypeIdentifier[]),
   ...(deviceGenerations.map(
     (gen) => `JPLS-${gen}H` as const,
   ) as DeviceTypeIdentifier[]),
   ...hmiModelTypes,
+  ...standaloneDeviceTypes,
 ];
 
 export interface Device {
