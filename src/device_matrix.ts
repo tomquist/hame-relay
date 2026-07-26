@@ -36,6 +36,15 @@ const DEFAULT_BROKER_ROUTES: BrokerRoute[] = [
   { since: 0, broker: BROKER_2025 },
 ];
 
+/**
+ * One step of a device family's salt-based (`cq`) topic-id encryption: from
+ * firmware `since` (and up, until the next step) encryption is used or not.
+ */
+export interface VidRoute {
+  since: number;
+  supported: boolean;
+}
+
 export interface DeviceProfile {
   /** Stable name for logging/debugging (not used for matching). */
   name: string;
@@ -52,6 +61,13 @@ export interface DeviceProfile {
    * "always supported"; `Infinity` means "never".
    */
   vidSupportVersion: number;
+  /**
+   * Optional step list for families whose firmware does not encrypt in one
+   * contiguous range (see the Jupiter entries). Takes precedence over
+   * {@link vidSupportVersion} when set; ascending by `since`, and firmware
+   * below the first step is unencrypted.
+   */
+  vidRoutes?: VidRoute[];
   /** Exact firmware versions that enable the remote topic id on the local broker. */
   useRemoteTopicIdVersions?: number[];
   /** Inverse-forwarding policy for this family. */
@@ -70,6 +86,31 @@ function migrate2024to2025(migrationVersion: number): BrokerRoute[] {
 
 /** Routing for a device that always uses the 2024 broker. */
 const ALWAYS_2024: BrokerRoute[] = [{ since: 0, broker: BROKER_2024 }];
+
+/**
+ * The Jupiter family (HMM/HMN/JPLS) ships two independent firmware lines: a
+ * 1xx line and a 2xx line (e.g. Jupiter C Plus / JPLS-8H is on 2xx). The app
+ * picks its thresholds per line — `JupiterVersionController.isRelease()` is
+ * true only for a three-digit firmware starting with "1" — so a 2xx device is
+ * *not* simply "newer than" a 1xx one: it starts over on the 2024 broker with
+ * plaintext topics and migrates again at its own, much higher thresholds
+ * (#209). Expressed as version steps, both lines are covered by one table.
+ */
+function jupiterBrokerRoutes(secondLineMigration: number): BrokerRoute[] {
+  return [
+    { since: 0, broker: BROKER_2024 },
+    { since: 135, broker: BROKER_2025 },
+    { since: 200, broker: BROKER_2024 },
+    { since: secondLineMigration, broker: BROKER_2025 },
+  ];
+}
+
+/** Salt-based (`cq`) topic-id encryption for both Jupiter firmware lines. */
+const JUPITER_VID_ROUTES: VidRoute[] = [
+  { since: 136, supported: true },
+  { since: 200, supported: false },
+  { since: 236, supported: true },
+];
 
 /** Trim + uppercase so base-type handling is done exactly one way everywhere. */
 export function normalizeType(type: string): string {
@@ -198,22 +239,25 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HMM",
     matches: startsWith("HMM"),
-    brokerRoutes: migrate2024to2025(135),
+    brokerRoutes: jupiterBrokerRoutes(230),
     vidSupportVersion: 136,
+    vidRoutes: JUPITER_VID_ROUTES,
     inverse: "auto",
   },
   {
     name: "HMN",
     matches: startsWith("HMN"),
-    brokerRoutes: migrate2024to2025(135),
+    brokerRoutes: jupiterBrokerRoutes(230),
     vidSupportVersion: 136,
+    vidRoutes: JUPITER_VID_ROUTES,
     inverse: "auto",
   },
   {
     name: "JPLS",
     matches: startsWith("JPLS"),
-    brokerRoutes: migrate2024to2025(135),
+    brokerRoutes: jupiterBrokerRoutes(232),
     vidSupportVersion: 136,
+    vidRoutes: JUPITER_VID_ROUTES,
     inverse: "auto",
   },
   {
@@ -321,7 +365,17 @@ export function supportsVid(
   if (isNaN(parsed)) {
     return false;
   }
-  return parsed >= resolveProfile(type).vidSupportVersion;
+  const profile = resolveProfile(type);
+  if (profile.vidRoutes) {
+    let supported = false;
+    for (const route of profile.vidRoutes) {
+      if (parsed >= route.since) {
+        supported = route.supported;
+      }
+    }
+    return supported;
+  }
+  return parsed >= profile.vidSupportVersion;
 }
 
 /**

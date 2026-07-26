@@ -29,6 +29,26 @@ describe("device_matrix", () => {
       });
     });
 
+    describe("Jupiter 2xx firmware line - requires firmware >= 236 (#209)", () => {
+      test("false across the whole 2xx range below 236", () => {
+        assert.strictEqual(supportsVid("JPLS-8H", "200"), false);
+        assert.strictEqual(supportsVid("JPLS-8H", "231"), false);
+        assert.strictEqual(supportsVid("JPLS-8H", "235.9"), false);
+        assert.strictEqual(supportsVid("HMM-1", "231"), false);
+        assert.strictEqual(supportsVid("HMN-1", "231"), false);
+      });
+
+      test("true at/above 236", () => {
+        assert.strictEqual(supportsVid("JPLS-8H", "236"), true);
+        assert.strictEqual(supportsVid("HMM-1", "240"), true);
+      });
+
+      test("1xx line is unaffected", () => {
+        assert.strictEqual(supportsVid("JPLS-8H", "136"), true);
+        assert.strictEqual(supportsVid("JPLS-8H", "199"), true);
+      });
+    });
+
     describe("HMB/HMA/HMK/HMF devices - require firmware >= 230.0", () => {
       test("true at/above 230", () => {
         assert.strictEqual(supportsVid("HMB", "230.0"), true);
@@ -220,6 +240,19 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMN-1", 134), "hame-2024");
       assert.strictEqual(brokerForVersion("JPLS-8H", 134), "hame-2024");
       assert.strictEqual(brokerForVersion("JPLS-8H", 135), "hame-2025");
+    });
+
+    test("Jupiter 2xx firmware line restarts on hame-2024 (#209)", () => {
+      // JPLS migrates at 232, HMM/HMN at 230.
+      assert.strictEqual(brokerForVersion("JPLS-8H", 200), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", 231), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", 232), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMM-1", 229), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMM-1", 230), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMN-1", 229), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMN-1", 230), "hame-2025");
+      // The 1xx line keeps its own thresholds.
+      assert.strictEqual(brokerForVersion("JPLS-8H", 199), "hame-2025");
     });
 
     test("HME-2/HME-4: hame-2024 below 119, hame-2025 at/above (#145)", () => {

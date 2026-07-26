@@ -1,6 +1,7 @@
 # Changelog
 ## [Next]
 - Add support for the Marstek CT002 new generation (device type `TPM2-0`) (#201)
+- Fixed Marstek Jupiter devices (JPLS, HMM, HMN) on firmware 2xx never receiving device data: messages were forwarded to the app but nothing came back, so no entities were created. Jupiter ships two separate firmware lines and the 2xx line needs different handling than the 1xx line (#209)
 
 
 ## [1.4.3] - 2026-06-13
