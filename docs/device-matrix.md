@@ -36,9 +36,12 @@ switches to encrypted topic ids, and how forwarding is configured.
 | HMK                 | hame-2024 → hame-2025 @226  | 230   | [226]           | selectable  | |
 | HMJ                 | hame-2024 → hame-2025 @108  | 116   | [108]           | selectable  | |
 | HMG                 | hame-2024 → hame-2025 @153  | 154   | —               | auto        | |
-| HMM                 | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
-| HMN                 | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
-| JPLS (`JPLS-NH`)    | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
+| HMM (1xx firmware)  | hame-2024 → hame-2025 @135  | 136   | —               | auto        | see "Jupiter firmware lines" |
+| HMM (2xx firmware)  | hame-2024 → hame-2025 @230  | 236   | —               | auto        | |
+| HMN (1xx firmware)  | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
+| HMN (2xx firmware)  | hame-2024 → hame-2025 @230  | 236   | —               | auto        | |
+| JPLS (1xx firmware) | hame-2024 → hame-2025 @135  | 136   | —               | auto        | `JPLS-NH` |
+| JPLS (2xx firmware) | hame-2024 → hame-2025 @232  | 236   | —               | auto        | e.g. Jupiter C Plus, #209 |
 | HMD-V, HMD-N        | hame-2025                   | never | —               | auto        | V6000 / M5000 outdoor power |
 | HMD (other)         | hame-2024 → hame-2025 @155  | never | —               | auto        | outdoor power station |
 | HME (base / other)  | hame-2024                   | never | —               | auto        | AstraMeter family; non-2/3/4/5 |
@@ -52,6 +55,15 @@ switches to encrypted topic ids, and how forwarding is configured.
 | VNSD, VNSA (incl. VNSD2, VNSA2) | hame-2025      | 123   | —               | auto        | Venus series; always 2025 |
 | VNSE3, VNSE4        | hame-2025                   | 123   | —               | auto        | Venus series |
 | _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device |
+
+## Jupiter firmware lines
+
+The Jupiter family (HMM, HMN, JPLS) ships two independent firmware lines, a
+1xx line and a 2xx line (Jupiter C Plus / `JPLS-8H` is on the 2xx line). A 2xx
+firmware is not simply "newer" than a 1xx one: the line starts over on the 2024
+broker with plaintext topic ids and migrates again at its own thresholds. So a
+JPLS on fw 231 is on the 2024 broker without topic encryption, while the same
+family on fw 136 is already on the 2025 broker with encrypted topic ids.
 
 ## Matching precedence
 

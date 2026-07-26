@@ -12,20 +12,55 @@ import {
 
 describe("device_matrix", () => {
   describe("supportsVid (salt-based topic encryption threshold)", () => {
-    describe("Jupiter devices (JPLS, HMM, HMN) - require firmware >= 136.0", () => {
-      test("true for JPLS at 136.0, HMM at 140, HMN at 150.5", () => {
-        assert.strictEqual(supportsVid("JPLS", "136.0"), true);
-        assert.strictEqual(supportsVid("HMM", "140.0"), true);
-        assert.strictEqual(supportsVid("HMN", "150.5"), true);
+    describe("Jupiter devices (JPLS, HMM, HMN) - require firmware >= 136", () => {
+      test("true for JPLS at 136, HMM at 140, HMN at 150", () => {
+        assert.strictEqual(supportsVid("JPLS", "136"), true);
+        assert.strictEqual(supportsVid("HMM", "140"), true);
+        assert.strictEqual(supportsVid("HMN", "150"), true);
       });
 
-      test("false for JPLS at 135.9", () => {
-        assert.strictEqual(supportsVid("JPLS", "135.9"), false);
+      test("false for JPLS at 135", () => {
+        assert.strictEqual(supportsVid("JPLS", "135"), false);
       });
 
       test("case insensitive", () => {
-        assert.strictEqual(supportsVid("jpls", "136.0"), true);
-        assert.strictEqual(supportsVid("hmm", "136.0"), true);
+        assert.strictEqual(supportsVid("jpls", "136"), true);
+        assert.strictEqual(supportsVid("hmm", "136"), true);
+      });
+
+      // The app puts a device on the 1xx line only when the raw firmware
+      // string is exactly three digits starting with "1", so a value that is
+      // numerically inside 136–199 but shaped differently belongs to the 2xx
+      // line, where nothing below 236 is encrypted.
+      test("versions not shaped like 1xx stay off the encrypted 1xx line", () => {
+        assert.strictEqual(supportsVid("JPLS", "136.0"), false);
+        assert.strictEqual(supportsVid("HMN", "150.5"), false);
+        assert.strictEqual(supportsVid("HMM", "199.9"), false);
+      });
+
+      test("the 2xx line is unaffected by shape (>= 236 either way)", () => {
+        assert.strictEqual(supportsVid("JPLS", "236.5"), true);
+        assert.strictEqual(supportsVid("JPLS", "231.5"), false);
+      });
+    });
+
+    describe("Jupiter 2xx firmware line - requires firmware >= 236 (#209)", () => {
+      test("false across the whole 2xx range below 236", () => {
+        assert.strictEqual(supportsVid("JPLS-8H", "200"), false);
+        assert.strictEqual(supportsVid("JPLS-8H", "231"), false);
+        assert.strictEqual(supportsVid("JPLS-8H", "235.9"), false);
+        assert.strictEqual(supportsVid("HMM-1", "231"), false);
+        assert.strictEqual(supportsVid("HMN-1", "231"), false);
+      });
+
+      test("true at/above 236", () => {
+        assert.strictEqual(supportsVid("JPLS-8H", "236"), true);
+        assert.strictEqual(supportsVid("HMM-1", "240"), true);
+      });
+
+      test("1xx line is unaffected", () => {
+        assert.strictEqual(supportsVid("JPLS-8H", "136"), true);
+        assert.strictEqual(supportsVid("JPLS-8H", "199"), true);
       });
     });
 
@@ -220,6 +255,19 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMN-1", 134), "hame-2024");
       assert.strictEqual(brokerForVersion("JPLS-8H", 134), "hame-2024");
       assert.strictEqual(brokerForVersion("JPLS-8H", 135), "hame-2025");
+    });
+
+    test("Jupiter 2xx firmware line restarts on hame-2024 (#209)", () => {
+      // JPLS migrates at 232, HMM/HMN at 230.
+      assert.strictEqual(brokerForVersion("JPLS-8H", 200), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", 231), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", 232), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMM-1", 229), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMM-1", 230), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMN-1", 229), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMN-1", 230), "hame-2025");
+      // The 1xx line keeps its own thresholds.
+      assert.strictEqual(brokerForVersion("JPLS-8H", 199), "hame-2025");
     });
 
     test("HME-2/HME-4: hame-2024 below 119, hame-2025 at/above (#145)", () => {

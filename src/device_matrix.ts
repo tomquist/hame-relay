@@ -36,6 +36,15 @@ const DEFAULT_BROKER_ROUTES: BrokerRoute[] = [
   { since: 0, broker: BROKER_2025 },
 ];
 
+/**
+ * One step of a device family's salt-based (`cq`) topic-id encryption: from
+ * firmware `since` (and up, until the next step) encryption is used or not.
+ */
+export interface VidRoute {
+  since: number;
+  supported: boolean;
+}
+
 export interface DeviceProfile {
   /** Stable name for logging/debugging (not used for matching). */
   name: string;
@@ -49,9 +58,28 @@ export interface DeviceProfile {
   brokerRoutes?: BrokerRoute[];
   /**
    * Minimum firmware for salt-based (`cq`) topic-id encryption. `0` means
-   * "always supported"; `Infinity` means "never".
+   * "always supported"; `Infinity` means "never". Omit it only when
+   * {@link vidRoutes} covers the family instead — a profile with neither never
+   * encrypts.
    */
-  vidSupportVersion: number;
+  vidSupportVersion?: number;
+  /**
+   * Step list for families whose firmware does not encrypt in one contiguous
+   * range (see the Jupiter entries), ascending by `since`, with firmware below
+   * the first step unencrypted. Set this *or* {@link vidSupportVersion}: this
+   * one wins outright, so a profile carrying both hides the other value.
+   */
+  vidRoutes?: VidRoute[];
+  /**
+   * For families whose firmware runs in two lines, the app reads the line off
+   * the *shape* of the raw version string rather than its numeric value, so
+   * {@link vidRoutes} alone cannot place a version like `"150.5"`: it is
+   * numerically inside the first line but is not shaped like one. `shape`
+   * matches the raw versions that really are on the first line, and
+   * `endsBefore` is where the second line starts — below it, a version that
+   * does not match `shape` belongs to the second line and is not encrypted.
+   */
+  vidFirstLine?: { shape: RegExp; endsBefore: number };
   /** Exact firmware versions that enable the remote topic id on the local broker. */
   useRemoteTopicIdVersions?: number[];
   /** Inverse-forwarding policy for this family. */
@@ -70,6 +98,40 @@ function migrate2024to2025(migrationVersion: number): BrokerRoute[] {
 
 /** Routing for a device that always uses the 2024 broker. */
 const ALWAYS_2024: BrokerRoute[] = [{ since: 0, broker: BROKER_2024 }];
+
+/**
+ * The Jupiter family (HMM/HMN/JPLS) ships two independent firmware lines: a
+ * 1xx line and a 2xx line (e.g. Jupiter C Plus / JPLS-8H is on 2xx). The app
+ * picks its thresholds per line — `JupiterVersionController.isRelease()` is
+ * true only for a three-digit firmware starting with "1" — so a 2xx device is
+ * *not* simply "newer than" a 1xx one: it starts over on the 2024 broker with
+ * plaintext topics and migrates again at its own, much higher thresholds
+ * (#209). Expressed as version steps, both lines are covered by one table.
+ */
+function jupiterBrokerRoutes(secondLineMigration: number): BrokerRoute[] {
+  return [
+    { since: 0, broker: BROKER_2024 },
+    { since: 135, broker: BROKER_2025 },
+    { since: 200, broker: BROKER_2024 },
+    { since: secondLineMigration, broker: BROKER_2025 },
+  ];
+}
+
+/** Salt-based (`cq`) topic-id encryption for both Jupiter firmware lines. */
+const JUPITER_VID_ROUTES: VidRoute[] = [
+  { since: 136, supported: true },
+  { since: 200, supported: false },
+  { since: 236, supported: true },
+];
+
+/**
+ * `JupiterVersionController.isRelease()` puts a device on the 1xx line only
+ * when its raw firmware string is exactly three digits starting with "1" — so
+ * "150.5" is *not* on that line even though it sits between 100 and 200.
+ * Numbers and 1xx strings agree with the steps above; this only keeps
+ * differently shaped versions out of the encrypted 1xx range.
+ */
+const JUPITER_FIRST_LINE = { shape: /^1\d\d$/, endsBefore: 200 };
 
 /** Trim + uppercase so base-type handling is done exactly one way everywhere. */
 export function normalizeType(type: string): string {
@@ -198,22 +260,25 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HMM",
     matches: startsWith("HMM"),
-    brokerRoutes: migrate2024to2025(135),
-    vidSupportVersion: 136,
+    brokerRoutes: jupiterBrokerRoutes(230),
+    vidRoutes: JUPITER_VID_ROUTES,
+    vidFirstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
     name: "HMN",
     matches: startsWith("HMN"),
-    brokerRoutes: migrate2024to2025(135),
-    vidSupportVersion: 136,
+    brokerRoutes: jupiterBrokerRoutes(230),
+    vidRoutes: JUPITER_VID_ROUTES,
+    vidFirstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
     name: "JPLS",
     matches: startsWith("JPLS"),
-    brokerRoutes: migrate2024to2025(135),
-    vidSupportVersion: 136,
+    brokerRoutes: jupiterBrokerRoutes(232),
+    vidRoutes: JUPITER_VID_ROUTES,
+    vidFirstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -321,7 +386,32 @@ export function supportsVid(
   if (isNaN(parsed)) {
     return false;
   }
-  return parsed >= resolveProfile(type).vidSupportVersion;
+  const profile = resolveProfile(type);
+  if (profile.vidRoutes) {
+    // Only the raw string carries the shape the app keys off, so check it
+    // before falling back to the numeric steps. A number reaching here is
+    // already whole in practice (`main.ts` parses the API version with
+    // parseInt) and stringifies back to the same shape the app saw.
+    const raw = String(version).trim();
+    const firstLine = profile.vidFirstLine;
+    if (
+      firstLine &&
+      parsed < firstLine.endsBefore &&
+      !firstLine.shape.test(raw)
+    ) {
+      return false;
+    }
+    let supported = false;
+    for (const route of profile.vidRoutes) {
+      if (parsed >= route.since) {
+        supported = route.supported;
+      }
+    }
+    return supported;
+  }
+  // A profile with neither vidRoutes nor a threshold never encrypts, rather
+  // than comparing against undefined (which would silently be false anyway).
+  return parsed >= (profile.vidSupportVersion ?? Infinity);
 }
 
 /**
