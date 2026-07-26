@@ -58,14 +58,16 @@ export interface DeviceProfile {
   brokerRoutes?: BrokerRoute[];
   /**
    * Minimum firmware for salt-based (`cq`) topic-id encryption. `0` means
-   * "always supported"; `Infinity` means "never".
+   * "always supported"; `Infinity` means "never". Omit it only when
+   * {@link vidRoutes} covers the family instead — a profile with neither never
+   * encrypts.
    */
-  vidSupportVersion: number;
+  vidSupportVersion?: number;
   /**
-   * Optional step list for families whose firmware does not encrypt in one
-   * contiguous range (see the Jupiter entries). Takes precedence over
-   * {@link vidSupportVersion} when set; ascending by `since`, and firmware
-   * below the first step is unencrypted.
+   * Step list for families whose firmware does not encrypt in one contiguous
+   * range (see the Jupiter entries), ascending by `since`, with firmware below
+   * the first step unencrypted. Set this *or* {@link vidSupportVersion}: this
+   * one wins outright, so a profile carrying both hides the other value.
    */
   vidRoutes?: VidRoute[];
   /** Exact firmware versions that enable the remote topic id on the local broker. */
@@ -240,7 +242,6 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     name: "HMM",
     matches: startsWith("HMM"),
     brokerRoutes: jupiterBrokerRoutes(230),
-    vidSupportVersion: 136,
     vidRoutes: JUPITER_VID_ROUTES,
     inverse: "auto",
   },
@@ -248,7 +249,6 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     name: "HMN",
     matches: startsWith("HMN"),
     brokerRoutes: jupiterBrokerRoutes(230),
-    vidSupportVersion: 136,
     vidRoutes: JUPITER_VID_ROUTES,
     inverse: "auto",
   },
@@ -256,7 +256,6 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     name: "JPLS",
     matches: startsWith("JPLS"),
     brokerRoutes: jupiterBrokerRoutes(232),
-    vidSupportVersion: 136,
     vidRoutes: JUPITER_VID_ROUTES,
     inverse: "auto",
   },
@@ -375,7 +374,9 @@ export function supportsVid(
     }
     return supported;
   }
-  return parsed >= profile.vidSupportVersion;
+  // A profile with neither vidRoutes nor a threshold never encrypts, rather
+  // than comparing against undefined (which would silently be false anyway).
+  return parsed >= (profile.vidSupportVersion ?? Infinity);
 }
 
 /**

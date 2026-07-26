@@ -12,20 +12,27 @@ import {
 
 describe("device_matrix", () => {
   describe("supportsVid (salt-based topic encryption threshold)", () => {
-    describe("Jupiter devices (JPLS, HMM, HMN) - require firmware >= 136.0", () => {
-      test("true for JPLS at 136.0, HMM at 140, HMN at 150.5", () => {
-        assert.strictEqual(supportsVid("JPLS", "136.0"), true);
-        assert.strictEqual(supportsVid("HMM", "140.0"), true);
-        assert.strictEqual(supportsVid("HMN", "150.5"), true);
+    // Jupiter firmware is integer-valued, and only integers are asserted here:
+    // the app decides which firmware line a device is on from the *shape* of
+    // the version string (three digits starting with "1"), which the numeric
+    // steps below can only reproduce for whole numbers. A fractional version
+    // such as "150.5" would fall out of the app's 1xx line but still sits
+    // inside the 136–199 step, so asserting it would encode our model rather
+    // than the device's behavior.
+    describe("Jupiter devices (JPLS, HMM, HMN) - require firmware >= 136", () => {
+      test("true for JPLS at 136, HMM at 140, HMN at 150", () => {
+        assert.strictEqual(supportsVid("JPLS", "136"), true);
+        assert.strictEqual(supportsVid("HMM", "140"), true);
+        assert.strictEqual(supportsVid("HMN", "150"), true);
       });
 
-      test("false for JPLS at 135.9", () => {
-        assert.strictEqual(supportsVid("JPLS", "135.9"), false);
+      test("false for JPLS at 135", () => {
+        assert.strictEqual(supportsVid("JPLS", "135"), false);
       });
 
       test("case insensitive", () => {
-        assert.strictEqual(supportsVid("jpls", "136.0"), true);
-        assert.strictEqual(supportsVid("hmm", "136.0"), true);
+        assert.strictEqual(supportsVid("jpls", "136"), true);
+        assert.strictEqual(supportsVid("hmm", "136"), true);
       });
     });
 
