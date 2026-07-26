@@ -2,6 +2,7 @@
 ## [Next]
 - Add support for the Marstek CT002 new generation (device type `TPM2-0`) (#201)
 - Fixed Marstek Jupiter devices (JPLS, HMM, HMN) on firmware 2xx never receiving device data: messages were forwarded to the app but nothing came back, so no entities were created. Jupiter ships two separate firmware lines and the 2xx line needs different handling than the 1xx line (#209)
+- Fixed Marstek HME-2/HME-3/HME-4/HME-5 meters (e.g. CT003) on a two-digit firmware version never receiving device data, so no entities were created. Like Jupiter, these meters ship two separate firmware lines, and the second one needs different handling (#212)
 
 
 ## [1.4.3] - 2026-06-13
