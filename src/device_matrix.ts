@@ -65,9 +65,10 @@ export interface DeviceProfile {
   vidSupportVersion?: number;
   /**
    * Step list for families whose firmware does not encrypt in one contiguous
-   * range (see the Jupiter entries), ascending by `since`, with firmware below
-   * the first step unencrypted. Set this *or* {@link vidSupportVersion}: this
-   * one wins outright, so a profile carrying both hides the other value.
+   * range (see the Jupiter and HME entries), ascending by `since`, with
+   * firmware below the first step unencrypted. Set this *or*
+   * {@link vidSupportVersion}: this one wins outright, so a profile carrying
+   * both hides the other value.
    */
   vidRoutes?: VidRoute[];
   /**
@@ -133,6 +134,47 @@ const JUPITER_VID_ROUTES: VidRoute[] = [
  */
 const JUPITER_FIRST_LINE = { shape: /^1\d\d$/, endsBefore: 200 };
 
+/**
+ * Where the HME meters' main firmware line starts. `CtVersionController` reads
+ * the line off the *length* of the raw version string: a three-character
+ * version ("116", "119") is on the main line, anything else — a two-digit
+ * version such as "50", or a four-digit one — is on the second line. For whole
+ * versions that is exactly the range 100–999, so the numeric steps below
+ * reproduce the app's choice; only a fractional version inside that range
+ * would need the {@link DeviceProfile.vidFirstLine} treatment, and HME
+ * firmware is always reported whole.
+ */
+const HME_MAIN_LINE_START = 100;
+
+/**
+ * Broker routing for an HME meter across both of its firmware lines (#212).
+ * Like the Jupiter family, a main-line firmware is not simply "newer" than a
+ * second-line one: the second line migrated to the 2025 broker at a far lower
+ * version, and the main line starts over on the 2024 broker at 100. Above 999
+ * the second line resumes, where both thresholds are long since passed and the
+ * last step already says 2025.
+ */
+function hmeBrokerRoutes(
+  secondLineMigration: number,
+  mainLineMigration: number,
+): BrokerRoute[] {
+  return [
+    { since: 0, broker: BROKER_2024 },
+    { since: secondLineMigration, broker: BROKER_2025 },
+    { since: HME_MAIN_LINE_START, broker: BROKER_2024 },
+    { since: mainLineMigration, broker: BROKER_2025 },
+  ];
+}
+
+/** Salt-based (`cq`) topic-id encryption across both HME firmware lines. */
+function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
+  return [
+    { since: secondLineVid, supported: true },
+    { since: HME_MAIN_LINE_START, supported: false },
+    { since: mainLineVid, supported: true },
+  ];
+}
+
 /** Trim + uppercase so base-type handling is done exactly one way everywhere. */
 export function normalizeType(type: string): string {
   return type.trim().toUpperCase();
@@ -158,16 +200,16 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     name: "HME-2/HME-4",
     matches: exact("HME-2", "HME-4"),
-    brokerRoutes: migrate2024to2025(119),
-    vidSupportVersion: 122,
+    brokerRoutes: hmeBrokerRoutes(24, 119),
+    vidRoutes: hmeVidRoutes(25, 122),
     inverse: "auto",
     astraMeter: true,
   },
   {
     name: "HME-3/HME-5",
     matches: exact("HME-3", "HME-5"),
-    brokerRoutes: migrate2024to2025(116),
-    vidSupportVersion: 120,
+    brokerRoutes: hmeBrokerRoutes(33, 116),
+    vidRoutes: hmeVidRoutes(34, 120),
     inverse: "auto",
     astraMeter: true,
   },

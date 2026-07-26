@@ -45,8 +45,10 @@ switches to encrypted topic ids, and how forwarding is configured.
 | HMD-V, HMD-N        | hame-2025                   | never | —               | auto        | V6000 / M5000 outdoor power |
 | HMD (other)         | hame-2024 → hame-2025 @155  | never | —               | auto        | outdoor power station |
 | HME (base / other)  | hame-2024                   | never | —               | auto        | AstraMeter family; non-2/3/4/5 |
-| HME-2, HME-4        | hame-2024 → hame-2025 @119  | 122   | —               | auto        | AstraMeter family |
-| HME-3, HME-5        | hame-2024 → hame-2025 @116  | 120   | —               | auto        | AstraMeter family |
+| HME-2, HME-4 (3-digit fw) | hame-2024 → hame-2025 @119  | 122   | —               | auto        | AstraMeter family; see "HME firmware lines" |
+| HME-2, HME-4 (other fw)   | hame-2024 → hame-2025 @24   | 25    | —               | auto        | |
+| HME-3, HME-5 (3-digit fw) | hame-2024 → hame-2025 @116  | 120   | —               | auto        | AstraMeter family |
+| HME-3, HME-5 (other fw)   | hame-2024 → hame-2025 @33   | 34    | —               | auto        | |
 | TPM-CN              | hame-2025                   | 101   | —               | auto        | standalone identifier |
 | TPM2                | hame-2025                   | 0     | —               | auto        | CT002 new generation (`TPM2-0`, #201) |
 | HMI (regular)       | hame-2024 → hame-2025 @129  | 120   | —               | auto        | |
@@ -64,6 +66,16 @@ firmware is not simply "newer" than a 1xx one: the line starts over on the 2024
 broker with plaintext topic ids and migrates again at its own thresholds. So a
 JPLS on fw 231 is on the 2024 broker without topic encryption, while the same
 family on fw 136 is already on the 2025 broker with encrypted topic ids.
+
+## HME firmware lines
+
+The HME meters (HME-2/HME-4 and HME-3/HME-5) have the same two-line split. The
+line is picked from the *length* of the firmware version string: a three-digit
+version (`116`, `119`) is on the main line, any other length (a two-digit
+version such as `50`, or a four-digit one) is on the second line, which reached
+the 2025 broker and encrypted topic ids at much lower versions. So an HME-2 on
+fw 50 is on the 2025 broker with encrypted topic ids, while the same meter on
+fw 100 is back on the 2024 broker with plaintext ones (#212).
 
 ## Matching precedence
 

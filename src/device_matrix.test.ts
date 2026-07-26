@@ -87,13 +87,13 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("HME-2, HME-4 - require firmware >= 122.0", () => {
+    describe("HME-2, HME-4 - main firmware line requires >= 122", () => {
       test("true at/above 122", () => {
-        assert.strictEqual(supportsVid("HME-2", "122.0"), true);
-        assert.strictEqual(supportsVid("HME-4", "125.0"), true);
+        assert.strictEqual(supportsVid("HME-2", "122"), true);
+        assert.strictEqual(supportsVid("HME-4", "125"), true);
       });
       test("false below 122", () => {
-        assert.strictEqual(supportsVid("HME-2", "121.9"), false);
+        assert.strictEqual(supportsVid("HME-2", "121"), false);
       });
     });
 
@@ -118,17 +118,45 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("HME-3, HME-5 - require firmware >= 120.0", () => {
+    describe("HME-3, HME-5 - main firmware line requires >= 120", () => {
       test("true at/above 120", () => {
-        assert.strictEqual(supportsVid("HME-3", "120.0"), true);
-        assert.strictEqual(supportsVid("HME-5", "125.0"), true);
+        assert.strictEqual(supportsVid("HME-3", "120"), true);
+        assert.strictEqual(supportsVid("HME-5", "125"), true);
       });
       test("false below 120", () => {
-        assert.strictEqual(supportsVid("HME-3", "119.9"), false);
-        assert.strictEqual(supportsVid("HME-5", "115.0"), false);
+        assert.strictEqual(supportsVid("HME-3", "119"), false);
+        assert.strictEqual(supportsVid("HME-5", "115"), false);
         // At the broker-migration fw (116) the meter moves to the 2025 broker
         // but still does not encrypt topic ids (#145): thresholds are distinct.
         assert.strictEqual(supportsVid("HME-3", "116"), false);
+      });
+    });
+
+    describe("HME second firmware line - much lower thresholds (#212)", () => {
+      test("HME-2/HME-4 encrypt from 25 on the second line", () => {
+        assert.strictEqual(supportsVid("HME-2", "24"), false);
+        assert.strictEqual(supportsVid("HME-2", "25"), true);
+        assert.strictEqual(supportsVid("HME-4", "50"), true);
+        assert.strictEqual(supportsVid("HME-2", "99"), true);
+      });
+
+      test("HME-3/HME-5 encrypt from 34 on the second line", () => {
+        assert.strictEqual(supportsVid("HME-3", "33"), false);
+        assert.strictEqual(supportsVid("HME-3", "34"), true);
+        assert.strictEqual(supportsVid("HME-5", "50"), true);
+        assert.strictEqual(supportsVid("HME-3", "99"), true);
+      });
+
+      test("the main line starts over unencrypted at 100", () => {
+        assert.strictEqual(supportsVid("HME-2", "100"), false);
+        assert.strictEqual(supportsVid("HME-3", "100"), false);
+      });
+
+      // Four-digit versions are on the second line again, where everything
+      // from 25 / 34 up is encrypted.
+      test("four-digit versions stay encrypted", () => {
+        assert.strictEqual(supportsVid("HME-2", "1000"), true);
+        assert.strictEqual(supportsVid("HME-3", "1000"), true);
       });
     });
 
@@ -270,16 +298,32 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("JPLS-8H", 199), "hame-2025");
     });
 
-    test("HME-2/HME-4: hame-2024 below 119, hame-2025 at/above (#145)", () => {
+    test("HME-2/HME-4 main line: hame-2024 below 119, hame-2025 at/above (#145)", () => {
       assert.strictEqual(brokerForVersion("HME-2", 118), "hame-2024");
       assert.strictEqual(brokerForVersion("HME-2", 119), "hame-2025");
       assert.strictEqual(brokerForVersion("HME-4", 119), "hame-2025");
     });
 
-    test("HME-3/HME-5: hame-2024 below 116, hame-2025 at/above (#145)", () => {
+    test("HME-3/HME-5 main line: hame-2024 below 116, hame-2025 at/above (#145)", () => {
       assert.strictEqual(brokerForVersion("HME-3", 115), "hame-2024");
       assert.strictEqual(brokerForVersion("HME-3", 116), "hame-2025");
       assert.strictEqual(brokerForVersion("HME-5", 116), "hame-2025");
+    });
+
+    test("HME second firmware line migrates far earlier (#212)", () => {
+      // HME-2/HME-4 at 24, HME-3/HME-5 at 33 — then the main line starts over
+      // on the 2024 broker at 100.
+      assert.strictEqual(brokerForVersion("HME-2", 23), "hame-2024");
+      assert.strictEqual(brokerForVersion("HME-2", 24), "hame-2025");
+      assert.strictEqual(brokerForVersion("HME-4", 99), "hame-2025");
+      assert.strictEqual(brokerForVersion("HME-2", 100), "hame-2024");
+      assert.strictEqual(brokerForVersion("HME-3", 32), "hame-2024");
+      assert.strictEqual(brokerForVersion("HME-3", 33), "hame-2025");
+      assert.strictEqual(brokerForVersion("HME-5", 99), "hame-2025");
+      assert.strictEqual(brokerForVersion("HME-3", 100), "hame-2024");
+      // Four-digit versions are back on the second line, long since migrated.
+      assert.strictEqual(brokerForVersion("HME-2", 1000), "hame-2025");
+      assert.strictEqual(brokerForVersion("HME-3", 1000), "hame-2025");
     });
 
     test("HMB: always hame-2024 (never migrates to the 2025 broker)", () => {
