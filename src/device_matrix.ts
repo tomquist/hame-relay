@@ -70,6 +70,16 @@ export interface DeviceProfile {
    * one wins outright, so a profile carrying both hides the other value.
    */
   vidRoutes?: VidRoute[];
+  /**
+   * For families whose firmware runs in two lines, the app reads the line off
+   * the *shape* of the raw version string rather than its numeric value, so
+   * {@link vidRoutes} alone cannot place a version like `"150.5"`: it is
+   * numerically inside the first line but is not shaped like one. `shape`
+   * matches the raw versions that really are on the first line, and
+   * `endsBefore` is where the second line starts — below it, a version that
+   * does not match `shape` belongs to the second line and is not encrypted.
+   */
+  vidFirstLine?: { shape: RegExp; endsBefore: number };
   /** Exact firmware versions that enable the remote topic id on the local broker. */
   useRemoteTopicIdVersions?: number[];
   /** Inverse-forwarding policy for this family. */
@@ -113,6 +123,15 @@ const JUPITER_VID_ROUTES: VidRoute[] = [
   { since: 200, supported: false },
   { since: 236, supported: true },
 ];
+
+/**
+ * `JupiterVersionController.isRelease()` puts a device on the 1xx line only
+ * when its raw firmware string is exactly three digits starting with "1" — so
+ * "150.5" is *not* on that line even though it sits between 100 and 200.
+ * Numbers and 1xx strings agree with the steps above; this only keeps
+ * differently shaped versions out of the encrypted 1xx range.
+ */
+const JUPITER_FIRST_LINE = { shape: /^1\d\d$/, endsBefore: 200 };
 
 /** Trim + uppercase so base-type handling is done exactly one way everywhere. */
 export function normalizeType(type: string): string {
@@ -243,6 +262,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("HMM"),
     brokerRoutes: jupiterBrokerRoutes(230),
     vidRoutes: JUPITER_VID_ROUTES,
+    vidFirstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -250,6 +270,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("HMN"),
     brokerRoutes: jupiterBrokerRoutes(230),
     vidRoutes: JUPITER_VID_ROUTES,
+    vidFirstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -257,6 +278,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("JPLS"),
     brokerRoutes: jupiterBrokerRoutes(232),
     vidRoutes: JUPITER_VID_ROUTES,
+    vidFirstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -366,6 +388,19 @@ export function supportsVid(
   }
   const profile = resolveProfile(type);
   if (profile.vidRoutes) {
+    // Only the raw string carries the shape the app keys off, so check it
+    // before falling back to the numeric steps. A number reaching here is
+    // already whole in practice (`main.ts` parses the API version with
+    // parseInt) and stringifies back to the same shape the app saw.
+    const raw = String(version).trim();
+    const firstLine = profile.vidFirstLine;
+    if (
+      firstLine &&
+      parsed < firstLine.endsBefore &&
+      !firstLine.shape.test(raw)
+    ) {
+      return false;
+    }
     let supported = false;
     for (const route of profile.vidRoutes) {
       if (parsed >= route.since) {

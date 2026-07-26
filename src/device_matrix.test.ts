@@ -12,13 +12,6 @@ import {
 
 describe("device_matrix", () => {
   describe("supportsVid (salt-based topic encryption threshold)", () => {
-    // Jupiter firmware is integer-valued, and only integers are asserted here:
-    // the app decides which firmware line a device is on from the *shape* of
-    // the version string (three digits starting with "1"), which the numeric
-    // steps below can only reproduce for whole numbers. A fractional version
-    // such as "150.5" would fall out of the app's 1xx line but still sits
-    // inside the 136–199 step, so asserting it would encode our model rather
-    // than the device's behavior.
     describe("Jupiter devices (JPLS, HMM, HMN) - require firmware >= 136", () => {
       test("true for JPLS at 136, HMM at 140, HMN at 150", () => {
         assert.strictEqual(supportsVid("JPLS", "136"), true);
@@ -33,6 +26,21 @@ describe("device_matrix", () => {
       test("case insensitive", () => {
         assert.strictEqual(supportsVid("jpls", "136"), true);
         assert.strictEqual(supportsVid("hmm", "136"), true);
+      });
+
+      // The app puts a device on the 1xx line only when the raw firmware
+      // string is exactly three digits starting with "1", so a value that is
+      // numerically inside 136–199 but shaped differently belongs to the 2xx
+      // line, where nothing below 236 is encrypted.
+      test("versions not shaped like 1xx stay off the encrypted 1xx line", () => {
+        assert.strictEqual(supportsVid("JPLS", "136.0"), false);
+        assert.strictEqual(supportsVid("HMN", "150.5"), false);
+        assert.strictEqual(supportsVid("HMM", "199.9"), false);
+      });
+
+      test("the 2xx line is unaffected by shape (>= 236 either way)", () => {
+        assert.strictEqual(supportsVid("JPLS", "236.5"), true);
+        assert.strictEqual(supportsVid("JPLS", "231.5"), false);
       });
     });
 
