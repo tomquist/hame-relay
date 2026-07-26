@@ -7,10 +7,43 @@ import {
   inverseForwardingPolicy,
   isAstraMeterFamily,
   isAstraMeterSyntheticMac,
+  parseVersion,
   resolveProfile,
 } from "./device_matrix.js";
 
 describe("device_matrix", () => {
+  describe("parseVersion", () => {
+    // main.ts converts the API's version string through this function, so a
+    // truncating parser here would silently strand HMD-N on the 2024 broker.
+    test("keeps the fractional part", () => {
+      assert.strictEqual(parseVersion("1.42"), 1.42);
+      assert.strictEqual(parseVersion("153.2"), 153.2);
+    });
+
+    test("an HMD-N reporting 1.42 reaches the 2025 broker", () => {
+      assert.strictEqual(
+        brokerForVersion("HMD-N1", parseVersion("1.42")),
+        "hame-2025",
+      );
+      assert.strictEqual(
+        brokerForVersion("HMD-N1", parseVersion("1.41")),
+        "hame-2024",
+      );
+    });
+
+    test("whole versions are unchanged", () => {
+      assert.strictEqual(parseVersion("226"), 226);
+      assert.strictEqual(parseVersion(226), 226);
+      assert.strictEqual(parseVersion(" 142 "), 142);
+    });
+
+    test("non-numeric strings fail closed", () => {
+      assert.ok(isNaN(parseVersion("1.4.3")));
+      assert.ok(isNaN(parseVersion("116foo")));
+      assert.ok(isNaN(parseVersion("")));
+    });
+  });
+
   describe("supportsVid (salt-based topic encryption threshold)", () => {
     describe("Jupiter devices (JPLS, HMM, HMN) - require firmware >= 136", () => {
       test("true for JPLS at 136, HMM at 140, HMN at 150", () => {

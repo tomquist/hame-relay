@@ -1,5 +1,6 @@
 export const deviceGenerations = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 50,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 25, 31, 41, 50, 51,
+  61, 71, 72,
 ] as const;
 export type DeviceGen = (typeof deviceGenerations)[number];
 
@@ -20,6 +21,7 @@ export const deviceTypes = [
   "HMM",
   "HMN",
   "SCH",
+  "SDH",
   "SMR",
   "TPM2",
   "UB",
@@ -58,10 +60,14 @@ export const hmiModelTypes = [
 ] as const;
 
 // Identifiers that carry no generation suffix at all.
-export const standaloneDeviceTypes = ["TPM-CN", "SDH-6K"] as const;
+export const standaloneDeviceTypes = ["TPM-CN"] as const;
 
 export type DeviceTypeIdentifier =
   | `${DeviceType}-${DeviceGen}`
+  // HMD-V*/HMD-N* are sub-types with their own profiles, and SDH ids carry a
+  // "K" suffix (SDH-6K); neither fits the plain `${type}-${gen}` shape.
+  | `HMD-${"V" | "N"}${DeviceGen}`
+  | `SDH-${DeviceGen}K`
   | `JPLS-${number}H`
   | `HMI-${number}`
   | (typeof hmiModelTypes)[number]
@@ -71,6 +77,11 @@ export const knownDeviceTypes: DeviceTypeIdentifier[] = [
   ...(deviceGenerations.flatMap((gen) =>
     deviceTypes.map((type) => `${type}-${gen}` as const),
   ) as DeviceTypeIdentifier[]),
+  ...(deviceGenerations.flatMap((gen) => [
+    `HMD-V${gen}` as const,
+    `HMD-N${gen}` as const,
+    `SDH-${gen}K` as const,
+  ]) as DeviceTypeIdentifier[]),
   ...(deviceGenerations.map(
     (gen) => `JPLS-${gen}H` as const,
   ) as DeviceTypeIdentifier[]),

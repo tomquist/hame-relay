@@ -102,7 +102,8 @@ A device type is matched most-specific first:
    - `HMD-V*` and `HMD-N*` before base `HMD`.
    - `HMHL` before `HMH`.
    - `SDH-6K` before `SDH`.
-   - `VNSGPV` before `VNSG`.
+   - `VNSE3US`/`VNSE3CH` before `VNS`.
+   - `VNSGPV` before `VNSG`, and both before `VNS`.
 4. Base-type prefixes — `HMA`, `HMB`, `HMF`, `HMK`, `HMJ`, `HMG`, `HMM`, `HMN`,
    `JPLS`, `HMD`, `HME`, `HMH`, `SDH`, `VENX`, `SMR-`, `HMC`, `SCH`, `HML`,
    `UB`, `TPM2`, `VNS`, `VAAC2`.

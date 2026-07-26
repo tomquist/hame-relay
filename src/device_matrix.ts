@@ -81,7 +81,11 @@ export interface DeviceProfile {
    * does not match `shape` belongs to the second line and is not encrypted.
    */
   vidFirstLine?: { shape: RegExp; endsBefore: number };
-  /** Exact firmware versions that enable the remote topic id on the local broker. */
+  /**
+   * Exact firmware versions that enable the remote topic id on the local
+   * broker. Matched by equality, so a device reporting a fractional version
+   * (e.g. `226.5`) does not match the `226` entry.
+   */
   useRemoteTopicIdVersions?: number[];
   /** Inverse-forwarding policy for this family. */
   inverse: InversePolicy;
@@ -503,7 +507,13 @@ export function resolveProfile(type: string): DeviceProfile {
   );
 }
 
-function parseVersion(version: string | number): number {
+/**
+ * Parses a reported firmware version. Fractional versions are preserved: the
+ * HMD-N broker threshold is `1.42`, so truncating here would make it
+ * unreachable. Callers that turn an API string into a `Device.version` must go
+ * through this too, so the whole codebase agrees on what a version means.
+ */
+export function parseVersion(version: string | number): number {
   if (typeof version === "number") {
     return version;
   }

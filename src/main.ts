@@ -12,6 +12,7 @@ import {
   inverseForwardingPolicy,
   isAstraMeterFamily,
   isAstraMeterSyntheticMac,
+  parseVersion,
   supportsVid,
 } from "./device_matrix.js";
 import {
@@ -171,12 +172,10 @@ async function start() {
             `Unknown device type from API: ${device.type}. Using as-is.`,
           );
         }
-        // parseFloat, not parseInt: some families report a dotted firmware
-        // ("1.42") whose fractional part decides both the broker and the
-        // topic-encryption behaviour. Truncating it here would make those
-        // thresholds unreachable. No-op for the whole versions everything else
-        // reports.
-        const v = parseFloat(device.version);
+        // Shared with the device matrix so both agree on what a version means.
+        // Notably it keeps the fractional part: the HMD-N broker threshold is
+        // 1.42, which truncating parsers such as parseInt can never satisfy.
+        const v = parseVersion(device.version);
         return {
           device_id: device.devid,
           mac: device.mac,
