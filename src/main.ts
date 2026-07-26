@@ -171,7 +171,12 @@ async function start() {
             `Unknown device type from API: ${device.type}. Using as-is.`,
           );
         }
-        const v = parseInt(device.version, 10);
+        // parseFloat, not parseInt: some families report a dotted firmware
+        // ("1.42") whose fractional part decides both the broker and the
+        // topic-encryption behaviour. Truncating it here would make those
+        // thresholds unreachable. No-op for the whole versions everything else
+        // reports.
+        const v = parseFloat(device.version);
         return {
           device_id: device.devid,
           mac: device.mac,

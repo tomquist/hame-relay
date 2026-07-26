@@ -116,6 +116,10 @@ describe("device_matrix", () => {
       test("case insensitive", () => {
         assert.strictEqual(supportsVid("tpm2-0", "105.0"), true);
       });
+      test("only the exact TPM2-0 id is recognized", () => {
+        assert.strictEqual(supportsVid("TPM2-1", "105.0"), false);
+        assert.strictEqual(supportsVid("TPM2-1", "999.0"), false);
+      });
     });
 
     describe("HME-3, HME-5 - main firmware line requires >= 120", () => {
@@ -183,23 +187,32 @@ describe("device_matrix", () => {
     });
 
     describe("HMI devices", () => {
-      test("HMI-2000 from 105", () => {
+      test("route 4 (HMI-2000 / HMI-02KS) from 105", () => {
         assert.strictEqual(supportsVid("HMI-2000", "105.0"), true);
         assert.strictEqual(supportsVid("HMI-2000", "104.9"), false);
+        assert.strictEqual(supportsVid("HMI-02KS", "105.0"), true);
+        assert.strictEqual(supportsVid("HMI-02KS", "104.9"), false);
       });
-      test("other HMI from 120", () => {
+      test("route 2 (regular HMI) from 120", () => {
         assert.strictEqual(supportsVid("HMI-1", "120.0"), true);
         assert.strictEqual(supportsVid("HMI-1", "119.9"), false);
       });
-      test("HMI-350 / HMI-500 never support topic encryption", () => {
-        assert.strictEqual(supportsVid("HMI-350", "120.0"), false);
-        assert.strictEqual(supportsVid("HMI-350", "999.0"), false);
-        assert.strictEqual(supportsVid("HMI-500", "120.0"), false);
-        assert.strictEqual(supportsVid("HMI-500", "999.0"), false);
+      test("route 1 (HMI-350 / HMI-500, incl. the S models) never encrypts", () => {
+        for (const type of ["HMI-350", "HMI-500", "HMI-350S", "HMI-500S"]) {
+          assert.strictEqual(supportsVid(type, "120.0"), false, type);
+          assert.strictEqual(supportsVid(type, "999.0"), false, type);
+        }
       });
-      test("ids containing 350/500 as a substring stay on the regular HMI path", () => {
-        assert.strictEqual(supportsVid("HMI-3500", "120.0"), true);
-        assert.strictEqual(supportsVid("HMI-5000", "119.9"), false);
+      test("route 0 (e.g. HMI-6) never encrypts", () => {
+        assert.strictEqual(supportsVid("HMI-6", "120.0"), false);
+        assert.strictEqual(supportsVid("HMI-6", "999.0"), false);
+      });
+      // The app classifies by substring, so an id merely containing 350/500 or
+      // 2000 takes that route rather than the regular HMI one.
+      test("substring matching decides the route", () => {
+        assert.strictEqual(supportsVid("HMI-3500", "999.0"), false);
+        assert.strictEqual(supportsVid("HMI-5000", "999.0"), false);
+        assert.strictEqual(supportsVid("HMI-12000", "105.0"), true);
       });
     });
 
@@ -215,6 +228,50 @@ describe("device_matrix", () => {
       test("case insensitive", () => {
         assert.strictEqual(supportsVid("vnse3", "123.0"), true);
         assert.strictEqual(supportsVid("vnsa", "122.9"), false);
+      });
+      test("VNSE3US / VNSE3CH encrypt unconditionally", () => {
+        assert.strictEqual(supportsVid("VNSE3US", "0"), true);
+        assert.strictEqual(supportsVid("VNSE3US", "122.9"), true);
+        assert.strictEqual(supportsVid("VNSE3CH", "122.9"), true);
+        // VNSE3AU is a plain Venus and keeps the 123 threshold.
+        assert.strictEqual(supportsVid("VNSE3AU", "122.9"), false);
+        assert.strictEqual(supportsVid("VNSE3AU", "123.0"), true);
+      });
+      test("VNS-prefixed non-Venus devices never encrypt", () => {
+        for (const type of ["VNSG-0", "VNSGPV-0", "VNSEMINI-0", "VNSB-0"]) {
+          assert.strictEqual(supportsVid(type, "999.0"), false, type);
+        }
+      });
+      test("VAAC2 never encrypts", () => {
+        assert.strictEqual(supportsVid("VAAC2-0", "999.0"), false);
+      });
+    });
+
+    describe("families that never encrypt", () => {
+      test("HMC / SCH / HML / UB", () => {
+        for (const type of ["HMC-1", "HMC-3", "SCH-1", "HML-0", "UB-0"]) {
+          assert.strictEqual(supportsVid(type, "999.0"), false, type);
+        }
+      });
+      test("HMH / SDH / VENX, but not HMHL or SDH-6K", () => {
+        for (const type of ["HMH-0", "SDH-0", "VENX-0"]) {
+          assert.strictEqual(supportsVid(type, "999.0"), false, type);
+        }
+        assert.strictEqual(supportsVid("HMHL-0", "0"), true);
+        assert.strictEqual(supportsVid("SDH-6K", "0"), true);
+      });
+      test("HMD never encrypts on any sub-type or firmware", () => {
+        for (const type of ["HMD-1", "HMD-41", "HMD-V1", "HMD-N1", "HMD"]) {
+          assert.strictEqual(supportsVid(type, "999.0"), false, type);
+        }
+      });
+    });
+
+    describe("SMR (CT003 meter readers) - always topic-encryption capable", () => {
+      test("true at any firmware", () => {
+        for (const type of ["SMR-0", "SMR-1", "SMR-2"]) {
+          assert.strictEqual(supportsVid(type, "0"), true, type);
+        }
       });
     });
 
@@ -331,24 +388,32 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMB-1", 999), "hame-2024");
     });
 
-    test("HMI-350 / HMI-500 are always hame-2024 (route 1)", () => {
-      assert.strictEqual(brokerForVersion("HMI-350", 0), "hame-2024");
-      assert.strictEqual(brokerForVersion("HMI-350", 999), "hame-2024");
-      assert.strictEqual(brokerForVersion("HMI-500", 999), "hame-2024");
+    test("route 1 (HMI-350 / HMI-500, incl. the S models) is always hame-2024", () => {
+      for (const type of ["HMI-350", "HMI-500", "HMI-350S", "HMI-500S"]) {
+        assert.strictEqual(brokerForVersion(type, 0), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 999), "hame-2024", type);
+      }
       assert.strictEqual(brokerForVersion(" hmi-350 ", 999), "hame-2024");
+      // Substring matching: HMI-3500 / HMI-5000 are route-1 too.
+      assert.strictEqual(brokerForVersion("HMI-3500", 999), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-5000", 999), "hame-2024");
     });
 
-    test("HMI (regular): hame-2024 below 129, hame-2025 at/above (#173)", () => {
+    test("route 2 (regular HMI): hame-2024 below 129, hame-2025 at/above (#173)", () => {
       assert.strictEqual(brokerForVersion("HMI-1", 128), "hame-2024");
       assert.strictEqual(brokerForVersion("HMI-1", 129), "hame-2025");
-      // HMI-3500 / HMI-5000 are not route-1 devices; they follow regular HMI.
-      assert.strictEqual(brokerForVersion("HMI-3500", 128), "hame-2024");
-      assert.strictEqual(brokerForVersion("HMI-3500", 129), "hame-2025");
     });
 
-    test("HMI-2000: hame-2024 below 113, hame-2025 at/above", () => {
-      assert.strictEqual(brokerForVersion("HMI-2000", 112), "hame-2024");
-      assert.strictEqual(brokerForVersion("HMI-2000", 113), "hame-2025");
+    test("route 0 (e.g. HMI-6) is always hame-2024", () => {
+      assert.strictEqual(brokerForVersion("HMI-6", 0), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMI-6", 999), "hame-2024");
+    });
+
+    test("route 4 (HMI-2000 / HMI-02KS): hame-2024 below 113, hame-2025 at/above", () => {
+      for (const type of ["HMI-2000", "HMI-02KS", "HMI-12000"]) {
+        assert.strictEqual(brokerForVersion(type, 112), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 113), "hame-2025", type);
+      }
     });
 
     test("HME base (non-2/3/4/5) is always hame-2024", () => {
@@ -357,14 +422,38 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HME", 999), "hame-2024");
     });
 
-    test("HMD-V/HMD-N always hame-2025; other HMD migrates at 155", () => {
+    test("HMD-V is always hame-2025", () => {
       assert.strictEqual(brokerForVersion("HMD-V1", 0), "hame-2025");
-      assert.strictEqual(brokerForVersion("HMD-N1", 0), "hame-2025");
-      assert.strictEqual(brokerForVersion("HMD-1", 154), "hame-2024");
-      assert.strictEqual(brokerForVersion("HMD-1", 155), "hame-2025");
-      // Non-target HMD ids (no V/N sub-type token) follow the base HMD route.
-      assert.strictEqual(brokerForVersion("HMD-41", 154), "hame-2024");
-      assert.strictEqual(brokerForVersion("HMD-41", 155), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMD-V1", 999), "hame-2025");
+    });
+
+    test("HMD-N: hame-2024 below 1.42, hame-2025 at/above", () => {
+      assert.strictEqual(brokerForVersion("HMD-N1", 1.41), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMD-N1", 1.42), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMD-N1", 142), "hame-2025");
+    });
+
+    test("all other HMD ids are always hame-2024 (no 155 threshold)", () => {
+      for (const type of ["HMD-1", "HMD-7", "HMD-41", "HMD-72", "HMD"]) {
+        assert.strictEqual(brokerForVersion(type, 154), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 155), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 999), "hame-2024", type);
+      }
+    });
+
+    test("families that never reached the 2025 broker", () => {
+      for (const type of [
+        "HMC-1",
+        "HMC-3",
+        "SCH-1",
+        "HML-0",
+        "UB-0",
+        "VNSGPV-0",
+        "TPM2-1",
+      ]) {
+        assert.strictEqual(brokerForVersion(type, 0), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 999), "hame-2024", type);
+      }
     });
 
     test("all Venus VNS* types are always hame-2025 (no 2024 migration)", () => {
@@ -394,8 +483,17 @@ describe("device_matrix", () => {
         "VNSE4-0",
         "VDAC-0",
         "VAAC2-0",
+        "VEPRO-0",
+        "VNSG-0",
+        "VNSEMINI-0",
+        "VNSB-0",
+        "VENX-0",
         "HMD-V1",
-        "HMD-N1",
+        "HMH-0",
+        "HMHL-0",
+        "SDH-0",
+        "SDH-6K",
+        "SMR-0",
         "TPM-CN",
         "TPM2-0",
         "UNKNOWN-9",
@@ -470,16 +568,54 @@ describe("device_matrix", () => {
   });
 
   describe("resolveProfile precedence", () => {
-    test("HMI token rules beat the HMI base entry", () => {
+    test("HMI routes are tested 4 -> 1 -> 2 -> 0", () => {
       assert.strictEqual(
         resolveProfile("HMI-350").name,
         "HMI-350/HMI-500 (route 1)",
       );
-      assert.strictEqual(resolveProfile("HMI-2000").name, "HMI-2000");
-      assert.strictEqual(resolveProfile("HMI-1").name, "HMI");
-      // substring-only ids fall through to the regular HMI profile
-      assert.strictEqual(resolveProfile("HMI-3500").name, "HMI");
-      assert.strictEqual(resolveProfile("HMI-12000").name, "HMI");
+      assert.strictEqual(
+        resolveProfile("HMI-350S").name,
+        "HMI-350/HMI-500 (route 1)",
+      );
+      assert.strictEqual(
+        resolveProfile("HMI-2000").name,
+        "HMI-2000/HMI-02KS (route 4)",
+      );
+      assert.strictEqual(
+        resolveProfile("HMI-02KS").name,
+        "HMI-2000/HMI-02KS (route 4)",
+      );
+      assert.strictEqual(resolveProfile("HMI-1").name, "HMI (route 2)");
+      assert.strictEqual(resolveProfile("HMI-6").name, "HMI (route 0)");
+      // Substring matching: an id merely containing the token takes that route.
+      assert.strictEqual(
+        resolveProfile("HMI-3500").name,
+        "HMI-350/HMI-500 (route 1)",
+      );
+      assert.strictEqual(
+        resolveProfile("HMI-12000").name,
+        "HMI-2000/HMI-02KS (route 4)",
+      );
+      // Route 4 is tested before route 1, so a (hypothetical) id carrying both
+      // tokens resolves to route 4.
+      assert.strictEqual(
+        resolveProfile("HMI-2000-500").name,
+        "HMI-2000/HMI-02KS (route 4)",
+      );
+    });
+
+    test("sub-type entries beat their base prefix", () => {
+      assert.strictEqual(resolveProfile("HMD-V1").name, "HMD-V");
+      assert.strictEqual(resolveProfile("HMD-N1").name, "HMD-N");
+      assert.strictEqual(resolveProfile("HMD-1").name, "HMD");
+      assert.strictEqual(resolveProfile("HMHL-0").name, "HMHL (Mars SE)");
+      assert.strictEqual(resolveProfile("HMH-0").name, "HMH/SDH/VENX");
+      assert.strictEqual(resolveProfile("SDH-6K").name, "SDH-6K (V6000)");
+      assert.strictEqual(resolveProfile("SDH-0").name, "HMH/SDH/VENX");
+      assert.strictEqual(resolveProfile("VNSGPV-0").name, "VNSGPV");
+      assert.strictEqual(resolveProfile("VNSG-0").name, "VNSG/VNSEMINI/VNSB");
+      assert.strictEqual(resolveProfile("VNSE3US-0").name, "VNSE3US/VNSE3CH");
+      assert.strictEqual(resolveProfile("VNSE3-0").name, "VNS");
     });
 
     test("HME exact models beat the HME base entry", () => {
@@ -490,7 +626,8 @@ describe("device_matrix", () => {
     });
 
     test("TPM2 resolves to its own profile without colliding with TPM-CN", () => {
-      assert.strictEqual(resolveProfile("TPM2-0").name, "TPM2");
+      assert.strictEqual(resolveProfile("TPM2-0").name, "TPM2-0");
+      assert.strictEqual(resolveProfile("TPM2-1").name, "TPM2 (other)");
       assert.strictEqual(resolveProfile("TPM-CN").name, "TPM-CN");
     });
 

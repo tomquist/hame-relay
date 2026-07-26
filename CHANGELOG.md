@@ -3,6 +3,12 @@
 - Add support for the Marstek CT002 new generation (device type `TPM2-0`) (#201)
 - Fixed Marstek Jupiter devices (JPLS, HMM, HMN) on firmware 2xx never receiving device data: messages were forwarded to the app but nothing came back, so no entities were created. Jupiter ships two separate firmware lines and the 2xx line needs different handling than the 1xx line (#209)
 - Fixed Marstek HME-2/HME-3/HME-4/HME-5 meters (e.g. CT003) on a two-digit firmware version never receiving device data, so no entities were created. Like Jupiter, these meters ship two separate firmware lines, and the second one needs different handling (#212)
+- Fixed HMD outdoor power stations (`HMD-1`…`HMD-7`, `HMD-41/61/71/72`) losing all traffic after a firmware update to 155 or later. These models stay on the legacy broker at every firmware; only the `HMD-V` and `HMD-N` variants ever moved (#214)
+- Fixed the `HMI-350S`, `HMI-500S` and `HMI-02KS` inverters being treated as regular HMI devices, which put them on the wrong broker and used the wrong topic ids above certain firmware versions (#214)
+- Added support for several device types that previously could not be forwarded at all: `HMC` and `SCH-1` (M5000), `HML`, `UB` and the Venus G PV (`VNSGPV`) (#214)
+- Fixed the Mars (`HMH`), M5000 (`SDH`), Venus X (`VENX`), Venus G (`VNSG`), Venus E Mini (`VNSEMINI`), `VNSB` and `VAAC2` devices using encrypted topic ids they do not support, and the US/CH Venus 3 variants (`VNSE3US`/`VNSE3CH`) not using them below firmware 123 (#214)
+- Devices reporting a firmware version with a decimal point are no longer rounded down, which could select the wrong broker or topic format (#214)
+- Removed the spurious "Unknown device type" warning on startup for a range of supported devices (#214)
 
 
 ## [1.4.3] - 2026-06-13
