@@ -6,6 +6,14 @@ updates:
     schedule:
       interval: weekly
     target-branch: develop
+    ignore:
+      # @types/node must describe the oldest Node we ship on, not the newest
+      # that exists, otherwise tsc accepts APIs the runtime does not have.
+      # That floor is Node 22 (Node 24 dropped the 32-bit ARM builds we need
+      # for the armv7 add-on), so major bumps here are always wrong until the
+      # runtime itself moves. Patch and minor updates still come through.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
