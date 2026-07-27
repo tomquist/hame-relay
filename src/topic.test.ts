@@ -12,7 +12,7 @@ function loadSensitiveTestData(): any {
       const fileContent = readFileSync(localFilePath, "utf8");
       console.log("📍 Loading sensitive test data from local file");
       return JSON.parse(fileContent);
-    } catch (fileError) {
+    } catch {
       // File doesn't exist or can't be read - this is expected in public CI
       console.log("ℹ️  No sensitive test data available");
       return null;
@@ -87,7 +87,7 @@ describe("CommonHelper", () => {
     const sensitiveTestData = loadSensitiveTestData();
     if (sensitiveTestData && sensitiveTestData.realTestCases) {
       sensitiveTestData.realTestCases.forEach(
-        (testCase: any, index: number) => {
+        (testCase: any, _index: number) => {
           test(`should return ${testCase.expected} for ${testCase.name}`, () => {
             const result = CommonHelper.cq(
               testCase.input.salt,
