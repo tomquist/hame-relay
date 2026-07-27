@@ -54,9 +54,11 @@ switches to encrypted topic ids, and how forwarding is configured.
 | TPM2-0              | hame-2025                   | 0     | —               | auto        | CT002 new generation (#201) |
 | TPM2 (other)        | hame-2024                   | never | —               | auto        | unrecognised; only `TPM2-0` ships today |
 | SMR-0, SMR-1, SMR-2 | hame-2025                   | 0     | —               | auto        | CT003 meter readers: P1 (NL) / IR (DE) / TIC (FR) |
-| HMI-2000, HMI-02KS  | hame-2024 → hame-2025 @113  | 105   | —               | auto        | "route 4"; 4-PV microinverter |
+| HMI-2000, HMI-02KS (fw ≥100)    | hame-2024 → hame-2025 @113  | 105   | —               | auto        | "route 4"; 4-PV microinverter; see "HMI firmware lines" |
+| HMI-2000, HMI-02KS (fw <100)    | hame-2025                   | 0     | —               | auto        | second firmware line |
 | HMI-350, HMI-500    | hame-2024                   | never | —               | auto        | "route 1", incl. `HMI-350S` / `HMI-500S`; see #158 / #164 |
-| HMI (regular)       | hame-2024 → hame-2025 @129  | 120   | —               | auto        | "route 2": any remaining HMI id containing a digit 1-5 |
+| HMI (regular, fw ≥100)    | hame-2024 → hame-2025 @129  | 120   | —               | auto        | "route 2": any remaining HMI id containing a digit 1-5 |
+| HMI (regular, fw <100)    | hame-2025                   | 0     | —               | auto        | second firmware line |
 | HMI (other)         | hame-2024                   | never | —               | auto        | "route 0", e.g. `HMI-6` |
 | HMC, SCH, HML, UB   | hame-2024                   | never | —               | auto        | M5000 (`HMC-1/2/7`, `SCH-1`), Mars-A (other HMC) |
 | HMHL                | hame-2025                   | 0     | —               | auto        | Mars SE |
@@ -78,6 +80,16 @@ firmware is not simply "newer" than a 1xx one: the line starts over on the 2024
 broker with plaintext topic ids and migrates again at its own thresholds. So a
 JPLS on fw 231 is on the 2024 broker without topic encryption, while the same
 family on fw 136 is already on the 2025 broker with encrypted topic ids.
+
+## HMI firmware lines
+
+The HMI inverters on routes 2 and 4 have the same split, keyed on the numeric
+version rather than its shape: `InvertVersionController` compares the parsed
+version against 100 *before* the route's own threshold, and anything below it
+takes the supported branch on both axes. So an HMI-2000 on fw 50 is on the 2025
+broker with encrypted topic ids, while the same inverter on fw 100 is back on
+the 2024 broker with plaintext ones until it reaches 113 (129 for route 2).
+Routes 0 and 1 return false unconditionally and have no second line.
 
 ## HME firmware lines
 
