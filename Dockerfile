@@ -1,6 +1,9 @@
 # Node 22 is the newest major we can use: Node 24 dropped the 32-bit ARM
 # (linux-armv7l) builds, and there is no node:24-alpine armv7 image, but we
-# publish a linux/arm/v7 image. Node 22 is Active LTS until 2027-04-30.
+# publish a linux/arm/v7 image. Node 22 entered Maintenance LTS on 2025-10-21
+# and reaches end-of-life on 2027-04-30, so it takes security fixes only. There
+# is no newer major that still builds for armv7, so dropping the armv7 image is
+# a prerequisite for moving off Node 22 before that date.
 # Keep this in sync with hassio-addon/Dockerfile, the CI node-version and the
 # @types/node major in package.json.
 FROM node:22-alpine AS builder
