@@ -9,6 +9,7 @@
 - Fixed Mars (HMH), M5000 (SDH), Venus X, Venus G, Venus E Mini, VNSB and VAAC2 devices not responding to control requests, and the same on the US and CH variants of Venus 3 on older firmware (#214)
 - Fixed devices whose firmware version contains a decimal point being handled as if they were on a much older firmware (#214)
 - Removed the spurious "Unknown device type" warning on startup for many supported devices (#214)
+- Updated the bundled runtime and add-on base image to currently supported versions. No change in behavior (#197)
 
 
 ## [1.4.3] - 2026-06-13
