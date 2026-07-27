@@ -179,6 +179,39 @@ function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
   ];
 }
 
+/**
+ * Where the HMI inverters' main firmware line starts. `InvertVersionController`
+ * tests the parsed version against 100 *before* the per-route threshold, and
+ * anything below it takes the "supported" branch on both axes — so a two-digit
+ * HMI firmware is on the 2025 broker with encrypted topic ids, exactly like the
+ * Jupiter and HME second lines. The comparison is numeric (`double.parse`), so
+ * no {@link DeviceProfile.vidFirstLine} shape rule is needed here.
+ */
+const HMI_MAIN_LINE_START = 100;
+
+/**
+ * Broker routing for an HMI inverter across both of its firmware lines. Below
+ * {@link HMI_MAIN_LINE_START} the device is on the second line and already on
+ * the 2025 broker; the main line starts over on the 2024 broker and migrates
+ * again at `mainLineMigration`.
+ */
+function hmiBrokerRoutes(mainLineMigration: number): BrokerRoute[] {
+  return [
+    { since: 0, broker: BROKER_2025 },
+    { since: HMI_MAIN_LINE_START, broker: BROKER_2024 },
+    { since: mainLineMigration, broker: BROKER_2025 },
+  ];
+}
+
+/** Salt-based (`cq`) topic-id encryption across both HMI firmware lines. */
+function hmiVidRoutes(mainLineVid: number): VidRoute[] {
+  return [
+    { since: 0, supported: true },
+    { since: HMI_MAIN_LINE_START, supported: false },
+    { since: mainLineVid, supported: true },
+  ];
+}
+
 /** Trim + uppercase so base-type handling is done exactly one way everywhere. */
 export function normalizeType(type: string): string {
   return type.trim().toUpperCase();
@@ -251,12 +284,13 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   // carrying more than one of those tokens lands on.
   {
     // Route 4. HMI-2000 (4-PV) and HMI-02KS use topic encryption from an
-    // earlier firmware than other HMI models.
+    // earlier firmware than other HMI models. Both axes also have a second
+    // firmware line below 100 — see hmiBrokerRoutes.
     name: "HMI-2000/HMI-02KS (route 4)",
     matches: (t) =>
       t.startsWith("HMI") && (t.includes("2000") || t.includes("02KS")),
-    brokerRoutes: migrate2024to2025(113),
-    vidSupportVersion: 105,
+    brokerRoutes: hmiBrokerRoutes(113),
+    vidRoutes: hmiVidRoutes(105),
     inverse: "auto",
   },
   {
@@ -272,11 +306,12 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   {
     // Route 2: any remaining HMI id containing a digit 1-5. Without an explicit
     // brokerRoutes this would silently default to always-2025 and strand
-    // pre-129 devices on the wrong broker (#173).
+    // main-line devices below 129 on the wrong broker (#173). Same second
+    // firmware line below 100 as route 4.
     name: "HMI (route 2)",
     matches: (t) => t.startsWith("HMI") && /[1-5]/u.test(t),
-    brokerRoutes: migrate2024to2025(129),
-    vidSupportVersion: 120,
+    brokerRoutes: hmiBrokerRoutes(129),
+    vidRoutes: hmiVidRoutes(120),
     inverse: "auto",
   },
   {
