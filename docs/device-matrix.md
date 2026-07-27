@@ -54,10 +54,10 @@ switches to encrypted topic ids, and how forwarding is configured.
 | TPM2-0              | hame-2025                   | 0     | —               | auto        | CT002 new generation (#201) |
 | TPM2 (other)        | hame-2024                   | never | —               | auto        | unrecognised; only `TPM2-0` ships today |
 | SMR-0, SMR-1, SMR-2 | hame-2025                   | 0     | —               | auto        | CT003 meter readers: P1 (NL) / IR (DE) / TIC (FR) |
-| HMI-2000, HMI-02KS (3-digit fw) | hame-2024 → hame-2025 @113  | 105   | —               | auto        | "route 4"; 4-PV microinverter; see "HMI firmware lines" |
+| HMI-2000, HMI-02KS (fw ≥100)    | hame-2024 → hame-2025 @113  | 105   | —               | auto        | "route 4"; 4-PV microinverter; see "HMI firmware lines" |
 | HMI-2000, HMI-02KS (fw <100)    | hame-2025                   | 0     | —               | auto        | second firmware line |
 | HMI-350, HMI-500    | hame-2024                   | never | —               | auto        | "route 1", incl. `HMI-350S` / `HMI-500S`; see #158 / #164 |
-| HMI (regular, 3-digit fw) | hame-2024 → hame-2025 @129  | 120   | —               | auto        | "route 2": any remaining HMI id containing a digit 1-5 |
+| HMI (regular, fw ≥100)    | hame-2024 → hame-2025 @129  | 120   | —               | auto        | "route 2": any remaining HMI id containing a digit 1-5 |
 | HMI (regular, fw <100)    | hame-2025                   | 0     | —               | auto        | second firmware line |
 | HMI (other)         | hame-2024                   | never | —               | auto        | "route 0", e.g. `HMI-6` |
 | HMC, SCH, HML, UB   | hame-2024                   | never | —               | auto        | M5000 (`HMC-1/2/7`, `SCH-1`), Mars-A (other HMC) |
