@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2020",
+    // Node 22 provides ES2022 built-ins (String#replaceAll, Error cause). The
+    // target stays at ES2020 so the emitted syntax does not change.
+    "lib": ["ES2022"],
     "module": "Node16",
     "moduleResolution": "node16",
     "outDir": "./dist",

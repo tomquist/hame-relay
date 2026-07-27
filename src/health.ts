@@ -1,12 +1,12 @@
-import { createServer, IncomingMessage, ServerResponse } from "http";
-import { MqttClient } from "mqtt";
+import { createServer, type IncomingMessage, type ServerResponse } from "http";
+import { type MqttClient } from "mqtt";
 import { logger } from "./logger.js";
 
 export class HealthServer {
   private server: ReturnType<typeof createServer>;
   private brokers: Record<string, MqttClient> = {};
 
-  constructor(port: number = 8080) {
+  constructor(port = 8080) {
     this.server = createServer(this.handleRequest.bind(this));
     this.server.listen(port, () => {
       logger.info(`Health server listening on port ${port}`);

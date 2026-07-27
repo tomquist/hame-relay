@@ -327,6 +327,7 @@ describe("device_matrix", () => {
       test("null/undefined inputs -> false", () => {
         assert.strictEqual(supportsVid(null as any, "200.0"), false);
         assert.strictEqual(supportsVid("HMJ", null), false);
+        // oxlint-disable-next-line unicorn/no-useless-undefined
         assert.strictEqual(supportsVid("HMJ", undefined), false);
       });
       test("accepts numeric firmware versions", () => {

@@ -49,7 +49,7 @@ export interface DeviceProfile {
   /** Stable name for logging/debugging (not used for matching). */
   name: string;
   /** Matches a device type that has already been normalized (trim + uppercase). */
-  matches(normalizedType: string): boolean;
+  matches: (normalizedType: string) => boolean;
   /**
    * Broker routing across firmware versions, ascending by `since`. The entry
    * with the greatest `since` not exceeding the device firmware wins. Defaults
@@ -136,7 +136,7 @@ const JUPITER_VID_ROUTES: VidRoute[] = [
  * Numbers and 1xx strings agree with the steps above; this only keeps
  * differently shaped versions out of the encrypted 1xx range.
  */
-const JUPITER_FIRST_LINE = { shape: /^1\d\d$/, endsBefore: 200 };
+const JUPITER_FIRST_LINE = { shape: /^1\d\d$/u, endsBefore: 200 };
 
 /**
  * Where the HME meters' main firmware line starts. `CtVersionController` reads
@@ -274,7 +274,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     // brokerRoutes this would silently default to always-2025 and strand
     // pre-129 devices on the wrong broker (#173).
     name: "HMI (route 2)",
-    matches: (t) => t.startsWith("HMI") && /[1-5]/.test(t),
+    matches: (t) => t.startsWith("HMI") && /[1-5]/u.test(t),
     brokerRoutes: migrate2024to2025(129),
     vidSupportVersion: 120,
     inverse: "auto",
@@ -520,10 +520,10 @@ export function parseVersion(version: string | number): number {
   // Only accept fully-numeric strings; fail closed (NaN) on trailing junk like
   // "116foo" so supportsVid does not satisfy a threshold from a partial parse.
   const trimmed = version.trim();
-  if (!/^[+-]?\d+(\.\d+)?$/.test(trimmed)) {
+  if (!/^[+-]?\d+(?:\.\d+)?$/u.test(trimmed)) {
     return NaN;
   }
-  return parseFloat(trimmed);
+  return Number(trimmed);
 }
 
 /**
@@ -609,6 +609,6 @@ export function isAstraMeterFamily(type: string): boolean {
  * paths do not apply.
  */
 export function isAstraMeterSyntheticMac(mac: string): boolean {
-  const normalized = mac.trim().replace(/:/g, "").toLowerCase();
-  return /^02b250[0-9a-f]{6}$/.test(normalized);
+  const normalized = mac.trim().replaceAll(":", "").toLowerCase();
+  return /^02b250[0-9a-f]{6}$/u.test(normalized);
 }
