@@ -1,5 +1,8 @@
 # Changelog
 ## [Next]
+
+
+## [1.5.0] - 2026-07-28
 - Add support for the Marstek CT002 new generation (device type `TPM2-0`) (#201)
 - Fixed Marstek Jupiter devices (JPLS, HMM, HMN) on firmware 2xx never receiving device data: messages were forwarded to the app but nothing came back, so no entities were created. Jupiter ships two separate firmware lines and the 2xx line needs different handling than the 1xx line (#209)
 - Fixed Marstek HME-2/HME-3/HME-4/HME-5 meters (e.g. CT003) on a two-digit firmware version never receiving device data, so no entities were created. Like Jupiter, these meters ship two separate firmware lines, and the second one needs different handling (#212)
@@ -14,6 +17,7 @@
 
 
 ## [1.4.3] - 2026-06-13
+- Fixed Venus series devices (e.g. VNSD/VNSA, including VNSD2/VNSA2) using the wrong broker: the whole Venus family now always uses the hame-2025 broker at any firmware instead of migrating from the 2024 broker at firmware 153. This restores connectivity for devices such as a VNSD-0 on firmware 142 that only work against hame-2025 (#187)
 
 
 ## [1.4.2] - 2026-06-01
