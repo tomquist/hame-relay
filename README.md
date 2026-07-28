@@ -7,6 +7,19 @@ This project helps you integrate your Marstek storage systems with both the offi
 
 **Important Note**: Hame Relay only forwards MQTT messages between the Hame cloud and your local MQTT broker. It does not create Home Assistant device entities or provide device integration. For full Home Assistant integration with automatic device discovery and control entities, use [hm2mqtt](https://github.com/tomquist/hm2mqtt) on top of Hame Relay.
 
+<!-- marstek-family:start -->
+**🔋 The Marstek ecosystem.** This repo is part of a family of open-source tools for Marstek batteries (B2500, Venus, Jupiter, …):
+
+| Project | What it does |
+|---|---|
+| [hm2mqtt](https://github.com/tomquist/hm2mqtt) | Brings your battery into your smart home, turning its raw data into readable sensors and controls (e.g. in Home Assistant) |
+| **hame-relay** (this repo) | Connects the official Marstek cloud/app and your local smart home so both work together, forwarding data whichever way your battery is set up |
+| [marsrelay](https://github.com/tomquist/marsrelay) | Runs your battery completely offline, with no internet or Marstek cloud, while still sending all its data to your smart home |
+| [AstraMeter](https://github.com/tomquist/astrameter) | Tells your battery your live grid usage (read from your existing meter) so it charges and discharges to avoid buying or selling power |
+| [hmjs](https://github.com/tomquist/hmjs) | Sets up and configures B2500 batteries over Bluetooth, right from your web browser, with no app or account needed |
+| [esphome-b2500](https://github.com/tomquist/esphome-b2500) | Continuously monitors and controls a B2500 over Bluetooth using a small ESP32 board |
+<!-- marstek-family:end -->
+
 ## Quick Start for Home Assistant Users
 
 The easiest way to get started is with the Home Assistant app (part of Home Assistant **Apps (formerly known as add-ons)**):
@@ -65,7 +78,7 @@ Marstek storage systems can be configured to use either:
 This tool bridges these two scenarios by forwarding MQTT messages between your local broker and the Hame broker. The app automatically determines the best forwarding direction for each device type:
 
 ### Automatic Configuration
-- **JPLS, HMM, HMN, HME, TPM-CN, HMG and other devices**: Always use inverse forwarding (required for proper operation)
+- **JPLS, HMM, HMN, HME, TPM-CN, TPM2 (CT002), HMG and other devices**: Always use inverse forwarding (required for proper operation)
 - **HMA, HMF, HMK, HMJ, HMB devices**: Use selective forwarding based on your configuration (see `inverse_forwarding_device_ids`)
 
 See the full [device support matrix](docs/device-matrix.md) for per-device broker selection and topic-encryption behavior across firmware versions.

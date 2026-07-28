@@ -1,4 +1,3 @@
-import { logger } from "./logger.js";
 import { createHash } from "crypto";
 
 class StreamUtil {
@@ -56,9 +55,9 @@ class StreamUtil {
     let seed = 0;
 
     // Calculate a seed value from the key using a common string hashing algorithm.
-    for (let i = 0; i < keyBytes.length; i++) {
+    for (const byte of keyBytes) {
       // JavaScript's % operator behaves correctly here as the dividend is always positive.
-      seed = (seed * 31 + keyBytes[i]) % 2147483647;
+      seed = (seed * 31 + byte) % 2_147_483_647;
     }
 
     const keyStream: number[] = [];
@@ -66,7 +65,7 @@ class StreamUtil {
 
     // Generate the key stream using a Linear Congruential Generator (LCG).
     for (let i = 0; i < length; i++) {
-      state = (state * 1664525 + 1013904223) % 4294967296;
+      state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296;
 
       // The bitwise operations in JS operate on 32-bit signed integers.
       // Since `state` is always positive, `>>` (sign-propagating right shift)
@@ -130,8 +129,7 @@ class CodeUtil {
     const buffer: string[] = [];
 
     for (const byte of bytes) {
-      buffer.push(charset[byte % 62]);
-      buffer.push(charset[(byte * 31) % 62]);
+      buffer.push(charset[byte % 62], charset[(byte * 31) % 62]);
     }
 
     return buffer.join("");
@@ -149,14 +147,18 @@ class HexUtil {
    * @returns The transformed string in hexadecimal format.
    */
   static textForRand(content: string, mac: string): string {
-    if (!content || !mac) return "";
+    if (!content || !mac) {
+      return "";
+    }
 
     const hexContent = this.strToHex(content);
-    if (hexContent.length < 2) return "";
+    if (hexContent.length < 2) {
+      return "";
+    }
 
     // N is the core value, derived from the last byte of hexContent.
-    let parsed = parseInt(hexContent.slice(-2), 16);
-    let N = parsed % 5 || 1;
+    const parsed = parseInt(hexContent.slice(-2), 16);
+    const N = parsed % 5 || 1;
 
     let processedBytes = this._hexToBytes(hexContent);
     const macBytes = this._hexToBytes(this.strToHex(mac));

@@ -36,35 +36,90 @@ switches to encrypted topic ids, and how forwarding is configured.
 | HMK                 | hame-2024 → hame-2025 @226  | 230   | [226]           | selectable  | |
 | HMJ                 | hame-2024 → hame-2025 @108  | 116   | [108]           | selectable  | |
 | HMG                 | hame-2024 → hame-2025 @153  | 154   | —               | auto        | |
-| HMM                 | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
-| HMN                 | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
-| JPLS (`JPLS-NH`)    | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
-| HMD-V, HMD-N        | hame-2025                   | never | —               | auto        | V6000 / M5000 outdoor power |
-| HMD (other)         | hame-2024 → hame-2025 @155  | never | —               | auto        | outdoor power station |
+| HMM (1xx firmware)  | hame-2024 → hame-2025 @135  | 136   | —               | auto        | see "Jupiter firmware lines" |
+| HMM (2xx firmware)  | hame-2024 → hame-2025 @230  | 236   | —               | auto        | |
+| HMN (1xx firmware)  | hame-2024 → hame-2025 @135  | 136   | —               | auto        | |
+| HMN (2xx firmware)  | hame-2024 → hame-2025 @230  | 236   | —               | auto        | |
+| JPLS (1xx firmware) | hame-2024 → hame-2025 @135  | 136   | —               | auto        | `JPLS-NH` |
+| JPLS (2xx firmware) | hame-2024 → hame-2025 @232  | 236   | —               | auto        | e.g. Jupiter C Plus, #209 |
+| HMD-V               | hame-2025                   | never | —               | auto        | outdoor power station |
+| HMD-N               | hame-2024 → hame-2025 @1.42 | never | —               | auto        | outdoor power station |
+| HMD (other)         | hame-2024                   | never | —               | auto        | `HMD-1`…`HMD-7`, `HMD-41/61/71/72`, bare `HMD`; never offered the 2025 broker |
 | HME (base / other)  | hame-2024                   | never | —               | auto        | AstraMeter family; non-2/3/4/5 |
-| HME-2, HME-4        | hame-2024 → hame-2025 @119  | 122   | —               | auto        | AstraMeter family |
-| HME-3, HME-5        | hame-2024 → hame-2025 @116  | 120   | —               | auto        | AstraMeter family |
+| HME-2, HME-4 (3-digit fw) | hame-2024 → hame-2025 @119  | 122   | —               | auto        | AstraMeter family; see "HME firmware lines" |
+| HME-2, HME-4 (other fw)   | hame-2024 → hame-2025 @24   | 25    | —               | auto        | |
+| HME-3, HME-5 (3-digit fw) | hame-2024 → hame-2025 @116  | 120   | —               | auto        | AstraMeter family |
+| HME-3, HME-5 (other fw)   | hame-2024 → hame-2025 @33   | 34    | —               | auto        | |
 | TPM-CN              | hame-2025                   | 101   | —               | auto        | standalone identifier |
-| HMI (regular)       | hame-2024 → hame-2025 @129  | 120   | —               | auto        | |
-| HMI-2000            | hame-2024 → hame-2025 @113  | 105   | —               | auto        | 4-PV microinverter |
-| HMI-350, HMI-500    | hame-2024                   | never | —               | auto        | "route 1", see #158 / #164 |
+| TPM2-0              | hame-2025                   | 0     | —               | auto        | CT002 new generation (#201) |
+| TPM2 (other)        | hame-2024                   | never | —               | auto        | unrecognised; only `TPM2-0` ships today |
+| SMR-0, SMR-1, SMR-2 | hame-2025                   | 0     | —               | auto        | CT003 meter readers: P1 (NL) / IR (DE) / TIC (FR) |
+| HMI-2000, HMI-02KS (fw ≥100)    | hame-2024 → hame-2025 @113  | 105   | —               | auto        | "route 4"; 4-PV microinverter; see "HMI firmware lines" |
+| HMI-2000, HMI-02KS (fw <100)    | hame-2025                   | 0     | —               | auto        | second firmware line |
+| HMI-350, HMI-500    | hame-2024                   | never | —               | auto        | "route 1", incl. `HMI-350S` / `HMI-500S`; see #158 / #164 |
+| HMI (regular, fw ≥100)    | hame-2024 → hame-2025 @129  | 120   | —               | auto        | "route 2": any remaining HMI id containing a digit 1-5 |
+| HMI (regular, fw <100)    | hame-2025                   | 0     | —               | auto        | second firmware line |
+| HMI (other)         | hame-2024                   | never | —               | auto        | "route 0", e.g. `HMI-6` |
+| HMC, SCH, HML, UB   | hame-2024                   | never | —               | auto        | M5000 (`HMC-1/2/7`, `SCH-1`), Mars-A (other HMC) |
+| HMHL                | hame-2025                   | 0     | —               | auto        | Mars SE |
+| SDH-6K              | hame-2025                   | 0     | —               | auto        | V6000 |
+| HMH, SDH, VENX      | hame-2025                   | never | —               | auto        | Mars, M5000 (other SDH), Venus X |
 | VNSD, VNSA (incl. VNSD2, VNSA2) | hame-2025      | 123   | —               | auto        | Venus series; always 2025 |
-| VNSE3, VNSE4        | hame-2025                   | 123   | —               | auto        | Venus series |
-| _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device |
+| VNSE3, VNSE3AU, VNSE4, VNSEMAX | hame-2025       | 123   | —               | auto        | Venus series |
+| VNSE3US, VNSE3CH    | hame-2025                   | 0     | —               | auto        | Venus series; encrypts unconditionally |
+| VNSGPV              | hame-2024                   | never | —               | auto        | Venus G PV; unlike its VNSG sibling |
+| VNSG, VNSEMINI, VNSB | hame-2025                  | never | —               | auto        | VNS-prefixed but not Venus devices |
+| VAAC2               | hame-2025                   | never | —               | auto        | |
+| _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device; incl. `VEPRO`, `VDAC` |
+
+## Jupiter firmware lines
+
+The Jupiter family (HMM, HMN, JPLS) ships two independent firmware lines, a
+1xx line and a 2xx line (Jupiter C Plus / `JPLS-8H` is on the 2xx line). A 2xx
+firmware is not simply "newer" than a 1xx one: the line starts over on the 2024
+broker with plaintext topic ids and migrates again at its own thresholds. So a
+JPLS on fw 231 is on the 2024 broker without topic encryption, while the same
+family on fw 136 is already on the 2025 broker with encrypted topic ids.
+
+## HMI firmware lines
+
+The HMI inverters on routes 2 and 4 have the same split, keyed on the numeric
+version rather than its shape: `InvertVersionController` compares the parsed
+version against 100 *before* the route's own threshold, and anything below it
+takes the supported branch on both axes. So an HMI-2000 on fw 50 is on the 2025
+broker with encrypted topic ids, while the same inverter on fw 100 is back on
+the 2024 broker with plaintext ones until it reaches 113 (129 for route 2).
+Routes 0 and 1 return false unconditionally and have no second line.
+
+## HME firmware lines
+
+The HME meters (HME-2/HME-4 and HME-3/HME-5) have the same two-line split. The
+line is picked from the *length* of the firmware version string: a three-digit
+version (`116`, `119`) is on the main line, any other length (a two-digit
+version such as `50`, or a four-digit one) is on the second line, which reached
+the 2025 broker and encrypted topic ids at much lower versions. So an HME-2 on
+fw 50 is on the 2025 broker with encrypted topic ids, while the same meter on
+fw 100 is back on the 2024 broker with plaintext ones (#212).
 
 ## Matching precedence
 
 A device type is matched most-specific first:
 
-1. Exact identifiers — `HME-2`/`HME-4`, `HME-3`/`HME-5`, `TPM-CN`.
-2. Model-token rules (must precede their base prefix):
-   - `HMI-350`/`HMI-500` and `HMI-2000`, matched on a whole number token so ids
-     like `HMI-3500`, `HMI-5000`, `HMI-12000` or `HMI-20001` fall through to the
-     regular HMI profile.
-   - `HMD-V*`/`HMD-N*` (V6000 / M5000 sub-types) before base `HMD`.
-3. Base-type prefixes — `HMA`, `HMB`, `HMF`, `HMK`, `HMJ`, `HMG`, `HMM`, `HMN`,
-   `JPLS`, `HMD`, `HME`, `HMI`, `VNS`.
-4. Unknown — assume a `hame-2025`, topic-encryption-capable device.
+1. Exact identifiers — `HME-2`/`HME-4`, `HME-3`/`HME-5`, `TPM-CN`, `TPM2-0`.
+2. HMI routes, tested in the order 4 → 1 → 2 → 0. The app classifies an HMI id
+   by plain **substring**, not by whole token, and checks `2000`/`02KS` before
+   `350`/`500` — so `HMI-3500` is route 1 and `HMI-12000` is route 4, not the
+   regular HMI profile.
+3. Sub-type rules that must precede their base prefix:
+   - `HMD-V*` and `HMD-N*` before base `HMD`.
+   - `HMHL` before `HMH`.
+   - `SDH-6K` before `SDH`.
+   - `VNSE3US`/`VNSE3CH` before `VNS`.
+   - `VNSGPV` before `VNSG`, and both before `VNS`.
+4. Base-type prefixes — `HMA`, `HMB`, `HMF`, `HMK`, `HMJ`, `HMG`, `HMM`, `HMN`,
+   `JPLS`, `HMD`, `HME`, `HMH`, `SDH`, `VENX`, `SMR-`, `HMC`, `SCH`, `HML`,
+   `UB`, `TPM2`, `VNS`, `VAAC2`.
+5. Unknown — assume a `hame-2025`, topic-encryption-capable device.
 
 ## AstraMeter placeholder devices
 

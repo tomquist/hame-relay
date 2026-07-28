@@ -15,26 +15,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Run Prettier
+      - name: Run oxlint and oxfmt
         run: npm run lint
 
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: Install dependencies
         run: npm ci
@@ -65,7 +65,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Create certificates directory
         run: mkdir -p certs
@@ -232,7 +232,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Create certificates directory
         run: mkdir -p certs
@@ -291,7 +291,7 @@ jobs:
           file: hassio-addon/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
-          build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+          build-args: BUILD_FROM=ghcr.io/hassio-addons/base:17.2.1
           cache-from: type=gha,scope=addon-${{ matrix.platform }}
           cache-to: type=gha,scope=addon-${{ matrix.platform }},mode=max
           labels: ${{ steps.meta.outputs.labels }}

@@ -1,0 +1,100 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "node"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "pedantic": "error",
+    "perf": "error",
+    "style": "error"
+  },
+  "env": {
+    "builtin": true,
+    "node": true,
+    "es2024": true
+  },
+  "rules": {
+    // Source files use snake_case names.
+    "unicorn/filename-case": ["error", { "case": "snakeCase" }],
+
+    // `T[]` for simple element types, `Array<T>` for anything else.
+    "typescript/array-type": ["error", { "default": "array-simple" }],
+
+    // Keep type-only imports inline instead of splitting every module into two
+    // import statements.
+    "typescript/consistent-type-imports": [
+      "error",
+      { "fixStyle": "inline-type-imports" }
+    ],
+    "import/consistent-type-specifier-style": ["error", "prefer-inline"],
+
+    // `== null` is the idiomatic null-or-undefined check.
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+
+    // Destructuring reads well for object properties, less so for indexing
+    // into a regex match.
+    "prefer-destructuring": [
+      "error",
+      {
+        "VariableDeclarator": { "array": false, "object": true },
+        "AssignmentExpression": { "array": false, "object": false }
+      }
+    ],
+
+    // Size and complexity metrics: the device matrix and the forwarder setup
+    // are intentionally long, table-driven blocks.
+    "max-classes-per-file": "off",
+    "max-depth": "off",
+    "max-lines": "off",
+    "max-lines-per-function": "off",
+    "max-params": "off",
+    "max-statements": "off",
+
+    // Protocol constants (device types, firmware versions, byte offsets) are
+    // documented in place and would only get less readable behind names.
+    "no-magic-numbers": "off",
+
+    // oxfmt normalizes numeric literals to lowercase, so the rule and the
+    // formatter would fight over every hex literal.
+    "unicorn/number-literal-case": "off",
+
+    // Formatting/ordering opinions that oxfmt does not enforce and that would
+    // only add churn.
+    "capitalized-comments": "off",
+    "no-inline-comments": "off",
+    "sort-imports": "off",
+    "sort-keys": "off",
+
+    // Style preferences that contradict how this codebase is written.
+    "func-style": "off",
+    "id-length": "off",
+    "init-declarations": "off",
+    "no-ternary": "off",
+    "no-underscore-dangle": "off",
+    "unicorn/no-null": "off",
+
+    // This is a Node application with named exports throughout.
+    "import/no-nodejs-modules": "off",
+    "import/no-named-export": "off",
+    "import/prefer-default-export": "off",
+    "import/group-exports": "off",
+    "import/exports-last": "off",
+
+    // Sequential awaits are deliberate: retry backoff and start-up ordering.
+    "no-await-in-loop": "off",
+
+    // Config is read once at start-up, before the event loop matters.
+    "node/no-sync": "off",
+
+    // Static-only helper classes mirror the device protocol implementation.
+    "typescript/no-extraneous-class": "off",
+    "unicorn/no-static-only-class": "off",
+
+    // Constructor parameter properties are idiomatic TypeScript.
+    "typescript/parameter-properties": "off",
+
+    // MQTT.js is callback-based, and a delay needs a hand-rolled promise.
+    "promise/prefer-await-to-callbacks": "off",
+    "promise/avoid-new": "off"
+  }
+}

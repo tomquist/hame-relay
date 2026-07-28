@@ -3,7 +3,7 @@ import { join, dirname } from "path";
 import { calculateNewVersionTopicId } from "./encryption.js";
 import { HealthServer } from "./health.js";
 import { logger } from "./logger.js";
-import { HameApi, DeviceInfo } from "./hame_api.js";
+import { HameApi, type DeviceInfo } from "./hame_api.js";
 import { MQTTForwarder } from "./mqtt_forwarder.js";
 import { CommonHelper } from "./topic.js";
 import {
@@ -12,14 +12,15 @@ import {
   inverseForwardingPolicy,
   isAstraMeterFamily,
   isAstraMeterSyntheticMac,
+  parseVersion,
   supportsVid,
 } from "./device_matrix.js";
 import {
-  Device,
-  BrokerDefinition,
-  ForwarderConfig,
-  MainConfig,
-  DeviceTypeIdentifier,
+  type Device,
+  type BrokerDefinition,
+  type ForwarderConfig,
+  type MainConfig,
+  type DeviceTypeIdentifier,
   knownDeviceTypes,
 } from "./types.js";
 
@@ -35,7 +36,7 @@ function processBrokerProperties(
       const key = prop as keyof BrokerDefinition;
       const value = processedBroker[key];
       if (typeof value === "string" && value.startsWith("@")) {
-        const filePath = value.substring(1);
+        const filePath = value.slice(1);
         try {
           const absolutePath = join(configDir, filePath);
           (processedBroker as any)[key] = readFileSync(
@@ -90,7 +91,7 @@ function cleanAndValidate(config: { devices: Device[] }): void {
         throw new Error("Device type is required");
       }
       device.device_id = device.device_id.trim();
-      device.mac = device.mac.trim().replace(/:/g, "").toLowerCase();
+      device.mac = device.mac.trim().replaceAll(":", "").toLowerCase();
       device.type = device.type.trim().toUpperCase() as DeviceTypeIdentifier;
       if (
         device.device_id.length !== 12 &&
@@ -100,7 +101,7 @@ function cleanAndValidate(config: { devices: Device[] }): void {
           "Device ID must be between 22 and 24 or exactly 12 characters long",
         );
       }
-      if (!/^[0-9A-Fa-f]{12}$/.test(device.mac)) {
+      if (!/^[0-9A-Fa-f]{12}$/u.test(device.mac)) {
         throw new Error(
           "MAC address must be a 12-character hexadecimal string",
         );
@@ -138,9 +139,9 @@ async function start() {
         readFileSync(brokersPath, "utf8"),
       ) as Record<string, BrokerDefinition>;
       brokers = processBrokerProperties(rawBrokers, brokersPath);
-    } catch (err) {
-      logger.error(err, `Failed to load brokers config at ${brokersPath}`);
-      throw err;
+    } catch (error) {
+      logger.error(error, `Failed to load brokers config at ${brokersPath}`);
+      throw error;
     }
 
     // Username and password are now required since we need salt data
@@ -165,13 +166,33 @@ async function start() {
       }
 
       const apiDevices: Device[] = apiDevicesRaw.map((device) => {
-        let deviceType = device.type as DeviceTypeIdentifier;
+        const deviceType = device.type as DeviceTypeIdentifier;
         if (!knownDeviceTypes.includes(deviceType)) {
           logger.warn(
             `Unknown device type from API: ${device.type}. Using as-is.`,
           );
         }
-        const v = parseInt(device.version, 10);
+        // parseVersion is shared with the device matrix so both agree on what a
+        // version means, and it keeps the fractional part: the HMD-N broker
+        // threshold is 1.42, which truncating parsers such as parseInt can
+        // never satisfy. Its strictness is deliberate there — it must not
+        // satisfy a threshold from a partial parse — but it is not the safe
+        // default here: reading a suffixed version like "116foo" as 1 would
+        // pick the wrong broker and strand the device, so fall back to its
+        // numeric prefix. Either way, say so rather than routing silently on a
+        // version we could not read exactly.
+        const exact = parseVersion(device.version);
+        // The numeric prefix is exactly what we want here; `Number` would
+        // report NaN for a suffixed version.
+        // oxlint-disable-next-line unicorn/prefer-number-coercion
+        const v = isNaN(exact) ? parseFloat(device.version) : exact;
+        if (isNaN(exact)) {
+          logger.warn(
+            `Could not read firmware version "${device.version}" for device ${device.devid} exactly; ${
+              isNaN(v) ? "assuming version 1" : `assuming version ${v}`
+            }`,
+          );
+        }
         return {
           device_id: device.devid,
           mac: device.mac,
@@ -190,6 +211,7 @@ async function start() {
       logger.error(apiError, "Failed to fetch devices from Hame API");
       throw new Error(
         `Unable to fetch device information from Hame API: ${apiError instanceof Error ? apiError.message : String(apiError)}`,
+        { cause: apiError },
       );
     }
 
@@ -205,7 +227,7 @@ async function start() {
         .filter((id) => id.length > 0);
       deviceIds.forEach((id) => selectiveInverseDeviceIds.add(id));
       logger.info(
-        `Selective inverse forwarding enabled for device IDs: ${Array.from(selectiveInverseDeviceIds).join(", ")}`,
+        `Selective inverse forwarding enabled for device IDs: ${[...selectiveInverseDeviceIds].join(", ")}`,
       );
     }
 
@@ -418,4 +440,4 @@ async function start() {
   }
 }
 
-start();
+await start();

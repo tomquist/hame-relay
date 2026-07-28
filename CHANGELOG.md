@@ -1,4 +1,18 @@
 # Changelog
+## [1.5.0] - 2026-07-28
+- Add support for the Marstek CT002 new generation (device type `TPM2-0`) (#201)
+- Fixed Marstek Jupiter devices (JPLS, HMM, HMN) on firmware 2xx never receiving device data: messages were forwarded to the app but nothing came back, so no entities were created. Jupiter ships two separate firmware lines and the 2xx line needs different handling than the 1xx line (#209)
+- Fixed Marstek HME-2/HME-3/HME-4/HME-5 meters (e.g. CT003) on a two-digit firmware version never receiving device data, so no entities were created. Like Jupiter, these meters ship two separate firmware lines, and the second one needs different handling (#212)
+- Fixed HMD outdoor power stations losing all traffic after a recent firmware update, so no entities were created. Only the HMD-V and HMD-N variants were ever meant to switch (#214)
+- Fixed the HMI-350S, HMI-500S and HMI-02KS inverters being treated as regular HMI devices, which stopped them receiving device data on newer firmware (#214)
+- Added support for several device types that could not be forwarded at all: Marstek M5000 (HMC, SCH), HML, UB and Venus G PV (#214)
+- Fixed Mars (HMH), M5000 (SDH), Venus X, Venus G, Venus E Mini, VNSB and VAAC2 devices not responding to control requests, and the same on the US and CH variants of Venus 3 on older firmware (#214)
+- Fixed devices whose firmware version contains a decimal point being handled as if they were on a much older firmware (#214)
+- Fixed Marstek HMI inverters (e.g. Saturn M800, MI2000W) on a two-digit firmware version exchanging no data at all in either direction (#218)
+- Removed the spurious "Unknown device type" warning on startup for many supported devices (#214)
+- Updated the bundled runtime and add-on base image to currently supported versions. No change in behavior (#197)
+
+
 ## [1.4.3] - 2026-06-13
 - Fixed Venus series devices (e.g. VNSD/VNSA, including VNSD2/VNSA2) using the wrong broker: the whole Venus family now always uses the hame-2025 broker at any firmware instead of migrating from the 2024 broker at firmware 153. This restores connectivity for devices such as a VNSD-0 on firmware 142 that only work against hame-2025 (#187)
 

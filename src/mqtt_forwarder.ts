@@ -1,21 +1,20 @@
-import * as mqtt from "mqtt";
-import { MqttClient } from "mqtt";
+import { connect, type IPublishPacket, type MqttClient } from "mqtt";
 import { createHash } from "crypto";
 import { logger } from "./logger.js";
-import { Device, ForwarderConfig } from "./types.js";
+import { type Device, type ForwarderConfig } from "./types.js";
 
 export class MQTTForwarder {
-  private configBroker!: mqtt.MqttClient;
-  private remoteBroker!: mqtt.MqttClient;
+  private configBroker!: MqttClient;
+  private remoteBroker!: MqttClient;
   private readonly logger: typeof logger;
   private readonly MESSAGE_HISTORY_TIMEOUT = 1000; // 1 second timeout
   private readonly MESSAGE_CACHE_TIMEOUT = 1000; // 1 second timeout for message loop prevention
   private readonly INSTANCE_ID = createHash("md5")
     .update(`${Date.now()}-${Math.random()}`)
     .digest("hex")
-    .substring(0, 8); // Unique ID for this instance
-  private appMessageHistory: Map<string, number> = new Map(); // Store when App messages were forwarded
-  private processedMessages: Map<string, number> = new Map(); // Store message hashes to prevent loops
+    .slice(0, 8); // Unique ID for this instance
+  private appMessageHistory = new Map<string, number>(); // Store when App messages were forwarded
+  private processedMessages = new Map<string, number>(); // Store message hashes to prevent loops
 
   constructor(private readonly config: ForwarderConfig) {
     this.logger = logger.child(
@@ -53,7 +52,7 @@ export class MQTTForwarder {
       keepalive: 30,
       clientId: this.generateClientId("config_"),
     };
-    this.configBroker = mqtt.connect(this.config.broker_url, configOptions);
+    this.configBroker = connect(this.config.broker_url, configOptions);
 
     const certs = this.loadCertificates();
     const remoteOptions = {
@@ -64,7 +63,7 @@ export class MQTTForwarder {
         this.config.remote.client_id_prefix || "hm_",
       ),
     };
-    this.remoteBroker = mqtt.connect(this.config.remote.url, remoteOptions);
+    this.remoteBroker = connect(this.config.remote.url, remoteOptions);
 
     this.setupBrokerEventHandlers();
   }
@@ -152,23 +151,21 @@ export class MQTTForwarder {
           prefix: this.config.remote.topic_prefix || "hame_energy/",
           identifier: device.remote_id!,
         };
-      } else {
-        // Use local topic structure
-        return {
-          prefix:
-            this.config.remote.local_topic_prefix ||
-            this.config.remote.topic_prefix ||
-            "hame_energy/",
-          identifier: device.mac,
-        };
       }
-    } else {
-      // Remote broker - always use remote structure
+      // Use local topic structure
       return {
-        prefix: this.config.remote.topic_prefix || "hame_energy/",
-        identifier: device.remote_id!,
+        prefix:
+          this.config.remote.local_topic_prefix ||
+          this.config.remote.topic_prefix ||
+          "hame_energy/",
+        identifier: device.mac,
       };
     }
+    // Remote broker - always use remote structure
+    return {
+      prefix: this.config.remote.topic_prefix || "hame_energy/",
+      identifier: device.remote_id!,
+    };
   }
 
   private setupSubscriptions(broker: MqttClient): void {
@@ -208,7 +205,7 @@ export class MQTTForwarder {
 
     broker.on(
       "message",
-      (topic: string, message: Buffer, packet: mqtt.IPublishPacket) => {
+      (topic: string, message: Buffer, packet: IPublishPacket) => {
         this.forwardMessage(
           topic,
           message,
@@ -224,7 +221,7 @@ export class MQTTForwarder {
    * @param packet The MQTT packet containing message and properties
    * @returns true if the message has been processed and should be skipped, false otherwise
    */
-  private isMessageProcessed(packet: mqtt.IPublishPacket): boolean {
+  private isMessageProcessed(packet: IPublishPacket): boolean {
     try {
       // Check if this message has a relay header
       if (packet.properties && packet.properties.userProperties) {
@@ -237,13 +234,12 @@ export class MQTTForwarder {
             // This is our own message coming back - definitely skip it
             this.logger.debug("Skipping message from our own relay instance");
             return true;
-          } else {
-            // Message from another relay instance - also skip it to prevent loops
-            this.logger.debug(
-              `Skipping message from relay instance: ${userProps.relayInstanceId.substring(0, 8)}`,
-            );
-            return true;
           }
+          // Message from another relay instance - also skip it to prevent loops
+          this.logger.debug(
+            `Skipping message from relay instance: ${userProps.relayInstanceId.slice(0, 8)}`,
+          );
+          return true;
         }
       }
       return false;
@@ -257,7 +253,7 @@ export class MQTTForwarder {
     topic: string,
     message: Buffer,
     targetClient: MqttClient,
-    packet?: mqtt.IPublishPacket,
+    packet?: IPublishPacket,
   ): void {
     // Check if this is a looped message that should be skipped
     if (packet && this.isMessageProcessed(packet)) {
@@ -280,9 +276,12 @@ export class MQTTForwarder {
       const { prefix: expectedPrefix, identifier: expectedIdentifier } =
         this.getTopicStructureForDevice(device, sourceClient);
 
-      // Try to match this device's topic pattern
+      // Try to match this device's topic pattern. No `u` flag: the prefix is
+      // escaped character by character, which produces escapes that are only
+      // valid in non-unicode mode.
+      // oxlint-disable-next-line eslint/require-unicode-regexp
       const pattern = new RegExp(
-        `^${expectedPrefix.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}([^/]+)/(device|App)/(.*)/ctrl$`,
+        `^${expectedPrefix.replaceAll(/[-/\\^$*+?.()|[\]{}]/gu, String.raw`\$&`)}([^/]+)/(device|App)/(.*)/ctrl$`,
       );
       const matches = topic.match(pattern);
 
@@ -323,18 +322,16 @@ export class MQTTForwarder {
         );
         return;
       }
-    } else {
-      if (isDevice && inverseForwarding) {
-        this.logger.warn(
-          `Ignoring local device message for device with inverse forwarding: ${topic}`,
-        );
-        return;
-      } else if (!isDevice && !inverseForwarding) {
-        this.logger.warn(
-          `Ignoring local App message for device without direct forwarding: ${topic}`,
-        );
-        return;
-      }
+    } else if (isDevice && inverseForwarding) {
+      this.logger.warn(
+        `Ignoring local device message for device with inverse forwarding: ${topic}`,
+      );
+      return;
+    } else if (!isDevice && !inverseForwarding) {
+      this.logger.warn(
+        `Ignoring local App message for device without direct forwarding: ${topic}`,
+      );
+      return;
     }
 
     if (isDevice) {

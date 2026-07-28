@@ -1,10 +1,17 @@
 # Base image for the final stage, overridable by the Home Assistant builder.
 # Declared in the global scope (before the first FROM) so it can be used in
 # the final stage's FROM instruction without a BuildKit lint warning.
+#
+# NOTE: this base image also decides the *runtime* Node version, because the
+# final stage installs Node from the base image's Alpine repositories (see
+# `apk add nodejs` below). Base 17.2.1 is Alpine 3.21, which ships Node 22 on
+# every arch we build, matching the builder stage below. Bumping the base
+# image can therefore silently change the Node the add-on runs on.
 ARG BUILD_FROM
 
-# Build stage
-FROM node:23.11-alpine AS builder
+# Build stage. Must stay on the same Node major as the runtime stage; see the
+# armv7 note in the root Dockerfile for why that major is 22.
+FROM node:22-alpine AS builder
 
 WORKDIR /build
 
@@ -25,9 +32,10 @@ RUN npm run build
 RUN npm ci --only=production
 
 # Final stage
-FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:14.2.2}
+FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:17.2.1}
 
-# Install Node.js
+# Install Node.js from the base image's Alpine repositories. On Alpine 3.21
+# (base 17.2.1) this is Node 22, matching the builder stage.
 RUN apk add --no-cache nodejs
 
 # Set work directory

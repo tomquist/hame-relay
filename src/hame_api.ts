@@ -25,7 +25,7 @@ interface RetryOptions {
 const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   maxRetries: 3,
   baseDelayMs: 1000,
-  maxDelayMs: 10000,
+  maxDelayMs: 10_000,
   backoffMultiplier: 2,
 };
 
@@ -43,7 +43,7 @@ function shouldRetryError(error: Error, statusCode?: number): boolean {
   // For network errors without status codes, only retry specific known transient issues
   // Check Node.js system error codes (most reliable)
   if ("code" in error && typeof (error as any).code === "string") {
-    const code = (error as any).code;
+    const { code } = error as any;
     return code === "ETIMEDOUT" || code === "ECONNRESET";
   }
 
@@ -75,18 +75,15 @@ async function withRetry<T>(
       lastError = error as Error;
 
       // Extract status code if it's an HttpError
-      if (error instanceof HttpError) {
-        lastStatusCode = error.statusCode;
-      } else {
-        lastStatusCode = undefined;
-      }
+      lastStatusCode =
+        error instanceof HttpError ? error.statusCode : undefined;
 
       if (
         attempt <= maxRetries &&
         shouldRetryError(lastError, lastStatusCode)
       ) {
         const delay = Math.min(
-          baseDelayMs * Math.pow(backoffMultiplier, attempt - 1),
+          baseDelayMs * backoffMultiplier ** (attempt - 1),
           maxDelayMs,
         );
 
@@ -95,7 +92,9 @@ async function withRetry<T>(
           `${operationName} failed on attempt ${attempt}/${maxRetries + 1}: ${lastError.message}${statusInfo}. Retrying in ${delay}ms...`,
         );
 
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        await new Promise((resolve) => {
+          setTimeout(resolve, delay);
+        });
       } else {
         if (attempt <= maxRetries) {
           const statusInfo = lastStatusCode ? ` (HTTP ${lastStatusCode})` : "";
@@ -155,7 +154,7 @@ export interface DeviceInfo {
 }
 
 export class HameApi {
-  constructor(private readonly baseUrl: string = "https://eu.hamedata.com") {}
+  constructor(private readonly baseUrl = "https://eu.hamedata.com") {}
 
   private get headers() {
     return {
@@ -174,7 +173,7 @@ export class HameApi {
 
     logger.info(`Fetching device token for ${mailbox}...`);
 
-    return withRetry(async () => {
+    return await withRetry(async () => {
       const resp = await fetch(url.toString(), { headers: this.headers });
 
       // Check HTTP status first - we have the response object here
@@ -209,14 +208,14 @@ export class HameApi {
   ): Promise<HameDeviceListResponse> {
     const url = new URL(
       "/ems/api/v1/getDeviceList",
-      this.baseUrl.replace(/\/$/, ""),
+      this.baseUrl.replace(/\/$/u, ""),
     );
     url.searchParams.append("mailbox", mailbox);
     url.searchParams.append("token", token);
 
     logger.info("Fetching device list...");
 
-    return withRetry(async () => {
+    return await withRetry(async () => {
       const resp = await fetch(url.toString(), { headers: this.headers });
 
       // Check HTTP status first - we have the response object here
@@ -240,7 +239,7 @@ export class HameApi {
   }
 
   async fetchDevices(mailbox: string, password: string): Promise<DeviceInfo[]> {
-    return withRetry(
+    return await withRetry(
       async () => {
         const tokenResp = await this.fetchDeviceToken(mailbox, password);
         const list = await this.fetchDeviceList(mailbox, tokenResp.token!);
