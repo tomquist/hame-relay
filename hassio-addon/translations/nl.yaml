@@ -14,3 +14,6 @@ configuration:
   inverse_forwarding_device_ids:
     name: Selectieve Inverse Doorstuur Apparaat ID's
     description: "Kommagescheiden lijst van apparaat ID's voor HMA, HMF, HMK en HMJ apparaten die inverse doorsturen moeten gebruiken. Andere apparaattypes gebruiken automatisch inverse doorsturen."
+  device_versions:
+    name: Handmatige Firmwareversies
+    description: "Kommagescheiden lijst van <apparaat ID>=<firmwareversie> paren, bijv. e5f1a2b3c4d5=232. Alleen nodig voor apparaten waarvoor de Hame API geen firmwareversie meldt; de versie staat in de Marstek app bij de apparaatinstellingen."

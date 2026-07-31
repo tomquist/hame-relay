@@ -65,6 +65,10 @@ inverse_forwarding: false
 # Optional: For HMA/HMF/HMK/HMJ devices, specify which ones should use inverse forwarding
 # Example: "0123456789abcdef01234567,9876543210fedcba76543210"
 inverse_forwarding_device_ids: ""
+
+# Optional: Supply firmware versions by hand for devices the Hame API reports none for
+# Example: "0123456789abcdef01234567=232,9876543210fedcba76543210=1.42"
+device_versions: ""
 ```
 
 The app handles everything else automatically.
@@ -82,6 +86,18 @@ This tool bridges these two scenarios by forwarding MQTT messages between your l
 - **HMA, HMF, HMK, HMJ, HMB devices**: Use selective forwarding based on your configuration (see `inverse_forwarding_device_ids`)
 
 See the full [device support matrix](docs/device-matrix.md) for per-device broker selection and topic-encryption behavior across firmware versions.
+
+### Devices Without a Firmware Version
+
+Broker selection and topic encryption depend on the device's firmware version, which is normally read from your Hame account. For some devices the API reports no version at all — typically one that has not been online recently. Those devices fall back to `default_broker_id`, which may not be the broker they actually use.
+
+If a device is not working and the log says no firmware version was reported for it, look the version up in the Marstek app (device settings) and set it explicitly:
+
+```yaml
+device_versions: "0123456789abcdef01234567=232"
+```
+
+The device ID is the one shown in the log message. A configured version always takes precedence over what the API reports.
 
 ### Manual Mode Selection (Advanced)
 You can also manually control the forwarding direction:

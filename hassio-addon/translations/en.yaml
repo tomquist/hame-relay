@@ -14,3 +14,6 @@ configuration:
   inverse_forwarding_device_ids:
     name: Selective Inverse Forwarding Device IDs
     description: "Comma-separated list of device IDs for HMA, HMF, HMK, and HMJ devices that should use inverse forwarding. Other device types automatically use inverse forwarding."
+  device_versions:
+    name: Manual Firmware Versions
+    description: "Comma-separated list of <device id>=<firmware version> pairs, e.g. e5f1a2b3c4d5=232. Only needed for devices the Hame API reports no firmware version for; the version is shown in the Marstek app under the device's settings."

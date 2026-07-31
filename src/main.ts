@@ -12,7 +12,8 @@ import {
   inverseForwardingPolicy,
   isAstraMeterFamily,
   isAstraMeterSyntheticMac,
-  parseVersion,
+  parseDeviceVersionOverrides,
+  resolveDeviceVersion,
   supportsVid,
 } from "./device_matrix.js";
 import {
@@ -151,6 +152,19 @@ async function start() {
       );
     }
 
+    const { versions: versionOverrides, invalidEntries } =
+      parseDeviceVersionOverrides(config.device_versions);
+    for (const entry of invalidEntries) {
+      logger.warn(
+        `Ignoring device_versions entry "${entry}": expected <device_id>=<firmware version>, e.g. "e5f1a2b3c4d5=232"`,
+      );
+    }
+    if (versionOverrides.size > 0) {
+      logger.info(
+        `Using configured firmware versions for: ${[...versionOverrides.keys()].join(", ")}`,
+      );
+    }
+
     logger.info("Fetching devices from Hame API...");
     try {
       const api = new HameApi();
@@ -172,42 +186,16 @@ async function start() {
             `Unknown device type from API: ${device.type}. Using as-is.`,
           );
         }
-        // The API reports no version at all for some devices, and a device it
-        // knows nothing about must not sink the whole account: keep going with
-        // the version left unset. That is what `Device.version` being optional
-        // is for — autoDetermineBroker then falls back to the configured
-        // default broker instead of pinning the device to a firmware we made
-        // up, which would override that default.
-        const reported =
-          device.version == null ? "" : String(device.version).trim();
-        let version: number | undefined;
-        if (reported === "") {
-          logger.warn(
-            `Hame API reported no firmware version for device ${device.devid}; leaving it unset, so the device uses the configured default broker`,
-          );
-        } else {
-          // parseVersion is shared with the device matrix so both agree on what
-          // a version means, and it keeps the fractional part: the HMD-N broker
-          // threshold is 1.42, which truncating parsers such as parseInt can
-          // never satisfy. Its strictness is deliberate there — it must not
-          // satisfy a threshold from a partial parse — but it is not the safe
-          // default here: reading a suffixed version like "116foo" as 1 would
-          // pick the wrong broker and strand the device, so fall back to its
-          // numeric prefix. Either way, say so rather than routing silently on
-          // a version we could not read exactly.
-          const exact = parseVersion(reported);
-          // The numeric prefix is exactly what we want here; `Number` would
-          // report NaN for a suffixed version.
-          // oxlint-disable-next-line unicorn/prefer-number-coercion
-          const v = isNaN(exact) ? parseFloat(reported) : exact;
-          if (isNaN(exact)) {
-            logger.warn(
-              `Could not read firmware version "${device.version}" for device ${device.devid} exactly; ${
-                isNaN(v) ? "assuming version 1" : `assuming version ${v}`
-              }`,
-            );
-          }
-          version = isNaN(v) ? 1 : v;
+        // A device the API knows no version for must not sink the whole
+        // account, so resolveDeviceVersion may leave the version unset rather
+        // than refuse the device or invent a firmware for it.
+        const { version, note } = resolveDeviceVersion(
+          device.devid,
+          device.version,
+          versionOverrides.get(device.devid),
+        );
+        if (note) {
+          logger[note.level](note.message);
         }
         return {
           device_id: device.devid,

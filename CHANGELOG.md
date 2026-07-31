@@ -1,6 +1,7 @@
 # Changelog
 ## [Next]
 - Fixed the add-on failing to start with "Failed to fetch devices from Hame API" when the Hame API reports no firmware version for one of your devices, which broke all devices in the account. Such a device now uses the configured default broker and the others are unaffected (#219)
+- Added a `device_versions` option to set a device's firmware version by hand, for devices the Hame API reports no version for. Without it, those devices can only fall back to the default broker (#219)
 
 
 ## [1.5.0] - 2026-07-28

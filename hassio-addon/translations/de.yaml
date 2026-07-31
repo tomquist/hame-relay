@@ -14,3 +14,6 @@ configuration:
   inverse_forwarding_device_ids:
     name: "Selektive Weiterleitungsumkehr Geräte-IDs"
     description: "Kommagetrennte Liste von Geräte-IDs für HMA-, HMF-, HMK- und HMJ-Geräte, die inverse Weiterleitung verwenden sollen. Andere Gerätetypen verwenden automatisch inverse Weiterleitung."
+  device_versions:
+    name: "Manuelle Firmware-Versionen"
+    description: "Kommagetrennte Liste von <Geräte-ID>=<Firmware-Version>-Paaren, z. B. e5f1a2b3c4d5=232. Nur nötig für Geräte, für die die Hame-API keine Firmware-Version meldet; die Version steht in der Marstek-App in den Geräteeinstellungen."

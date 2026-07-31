@@ -569,6 +569,115 @@ export function parseVersion(
   return Number(trimmed);
 }
 
+export interface DeviceVersionOverrides {
+  /** Firmware version to use, by device id. */
+  versions: Map<string, number>;
+  /** Entries that could not be read, for the caller to report. */
+  invalidEntries: string[];
+}
+
+/**
+ * Parses the `device_versions` option: a comma-separated list of
+ * `<device_id>=<firmware version>` pairs.
+ *
+ * The Hame API reports no version at all for some devices, and there is no
+ * other way to learn it before the first message is exchanged — which is
+ * exactly when the version is needed to pick the broker and the topic scheme.
+ * This lets the version be supplied by hand instead, read from the device's
+ * settings in the Marstek app.
+ */
+export function parseDeviceVersionOverrides(
+  raw: string | undefined,
+): DeviceVersionOverrides {
+  const versions = new Map<string, number>();
+  const invalidEntries: string[] = [];
+  for (const entry of (raw ?? "").split(",")) {
+    const trimmed = entry.trim();
+    if (trimmed !== "") {
+      const separator = trimmed.indexOf("=");
+      const deviceId = trimmed.slice(0, separator).trim();
+      // parseVersion, so a hand-typed version means the same thing here as one
+      // reported by the API. It fails closed on anything it cannot read
+      // exactly, which is what an override wants: routing a device on a
+      // misread version is worse than ignoring the entry and saying so.
+      const version = parseVersion(trimmed.slice(separator + 1));
+      if (separator === -1 || deviceId === "" || isNaN(version)) {
+        invalidEntries.push(trimmed);
+      } else {
+        versions.set(deviceId, version);
+      }
+    }
+  }
+  return { versions, invalidEntries };
+}
+
+export interface ResolvedDeviceVersion {
+  /**
+   * Left unset when nothing usable was reported or configured. `Device.version`
+   * is optional for exactly that case: the device then falls back to the
+   * configured default broker rather than to a firmware we made up.
+   */
+  version?: number;
+  /** How the version was resolved, when that is worth telling the user. */
+  note?: { level: "info" | "warn"; message: string };
+}
+
+/**
+ * Decides which firmware version to use for a device, given what the API
+ * reported and what the user configured.
+ */
+export function resolveDeviceVersion(
+  deviceId: string,
+  reportedRaw: string | number | null | undefined,
+  override?: number,
+): ResolvedDeviceVersion {
+  const reported = reportedRaw == null ? "" : String(reportedRaw).trim();
+  if (override != null) {
+    // Configured by hand, so it wins over whatever the API said: the point of
+    // the option is to correct a version the API gets wrong or does not report
+    // at all.
+    return {
+      version: override,
+      note: {
+        level: "info",
+        message: `Using configured firmware version ${override} for device ${deviceId} (API reported ${reported === "" ? "none" : `"${reported}"`})`,
+      },
+    };
+  }
+  if (reported === "") {
+    return {
+      note: {
+        level: "warn",
+        message: `Hame API reported no firmware version for device ${deviceId}; leaving it unset, so the device uses the configured default broker. Set device_versions to "${deviceId}=<firmware version>" to supply it by hand`,
+      },
+    };
+  }
+  // parseVersion keeps the fractional part: the HMD-N broker
+  // threshold is 1.42, which truncating parsers such as parseInt can never
+  // satisfy. Its strictness is deliberate there — it must not satisfy a
+  // threshold from a partial parse — but it is not the safe default here:
+  // reading a suffixed version like "116foo" as 1 would pick the wrong broker
+  // and strand the device, so fall back to its numeric prefix. Either way, say
+  // so rather than routing silently on a version we could not read exactly.
+  const exactVersion = parseVersion(reported);
+  if (!isNaN(exactVersion)) {
+    return { version: exactVersion };
+  }
+  // The numeric prefix is exactly what we want here; `Number` would report NaN
+  // for a suffixed version.
+  // oxlint-disable-next-line unicorn/prefer-number-coercion
+  const prefix = parseFloat(reported);
+  return {
+    version: isNaN(prefix) ? 1 : prefix,
+    note: {
+      level: "warn",
+      message: `Could not read firmware version "${reported}" for device ${deviceId} exactly; ${
+        isNaN(prefix) ? "assuming version 1" : `assuming version ${prefix}`
+      }. Set device_versions to "${deviceId}=<firmware version>" to supply it by hand`,
+    },
+  };
+}
+
 /**
  * Whether a device type supports salt-based (`cq`) topic-id encryption at the
  * given firmware. Replaces `CommonHelper.isSupportVid`.

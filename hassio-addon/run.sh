@@ -66,51 +66,43 @@ esac
 
 bashio::log.info "Username and password found in configuration."
 
-# Build the config JSON with required fields
-CONFIG_JSON='{
-  "broker_url": $url,
-  "inverse_forwarding": $inverse,
-  "default_broker_id": $default,
-  "username": $username,
-  "password": $password
-}'
+# Build the config JSON with required fields, then layer the optional ones on
+# top so each stays a single case instead of one jq call per combination.
+jq -n \
+  --arg url "$BROKER_URL" \
+  --argjson inverse "$INVERSE_FORWARDING" \
+  --arg default "$DEFAULT_BROKER_ID" \
+  --arg username "$USERNAME" \
+  --arg password "$PASSWORD" \
+  '{
+    broker_url: $url,
+    inverse_forwarding: $inverse,
+    default_broker_id: $default,
+    username: $username,
+    password: $password
+  }' > /app/config/config.json
+
+# Adds one optional key to the config file. Keeping the read and the write in
+# separate steps matters: jq truncates its output file before reading it.
+add_config_option() {
+    local key="$1"
+    local value="$2"
+    jq --arg value "$value" ". + {\"${key}\": \$value}" /app/config/config.json > /app/config/config.json.tmp
+    mv /app/config/config.json.tmp /app/config/config.json
+}
 
 # Check for optional selective forwarding configuration
 if bashio::config.has_value 'inverse_forwarding_device_ids'; then
     INVERSE_FORWARDING_DEVICE_IDS=$(bashio::config 'inverse_forwarding_device_ids')
     bashio::log.info "Selective inverse forwarding device IDs found: $INVERSE_FORWARDING_DEVICE_IDS"
-    
-    # Create config with selective forwarding
-    jq -n \
-      --arg url "$BROKER_URL" \
-      --argjson inverse "$INVERSE_FORWARDING" \
-      --arg default "$DEFAULT_BROKER_ID" \
-      --arg username "$USERNAME" \
-      --arg password "$PASSWORD" \
-      --arg device_ids "$INVERSE_FORWARDING_DEVICE_IDS" \
-      '{
-        broker_url: $url,
-        inverse_forwarding: $inverse,
-        default_broker_id: $default,
-        username: $username,
-        password: $password,
-        inverse_forwarding_device_ids: $device_ids
-      }' > /app/config/config.json
-else
-    # Create config without selective forwarding
-    jq -n \
-      --arg url "$BROKER_URL" \
-      --argjson inverse "$INVERSE_FORWARDING" \
-      --arg default "$DEFAULT_BROKER_ID" \
-      --arg username "$USERNAME" \
-      --arg password "$PASSWORD" \
-      '{
-        broker_url: $url,
-        inverse_forwarding: $inverse,
-        default_broker_id: $default,
-        username: $username,
-        password: $password
-      }' > /app/config/config.json
+    add_config_option "inverse_forwarding_device_ids" "$INVERSE_FORWARDING_DEVICE_IDS"
+fi
+
+# Check for optional manual firmware versions
+if bashio::config.has_value 'device_versions'; then
+    DEVICE_VERSIONS=$(bashio::config 'device_versions')
+    bashio::log.info "Manual device firmware versions found: $DEVICE_VERSIONS"
+    add_config_option "device_versions" "$DEVICE_VERSIONS"
 fi
 
 bashio::log.info "Configuration file generated successfully."

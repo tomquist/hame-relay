@@ -131,4 +131,5 @@ export interface MainConfig {
   password: string; // Now required
   default_broker_id?: string;
   inverse_forwarding_device_ids?: string; // Comma-separated list of device IDs for selective inverse forwarding
+  device_versions?: string; // Comma-separated list of <device_id>=<firmware version> pairs, for devices the API reports no usable version for
 }

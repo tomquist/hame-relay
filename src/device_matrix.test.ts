@@ -8,6 +8,8 @@ import {
   isAstraMeterFamily,
   isAstraMeterSyntheticMac,
   parseVersion,
+  parseDeviceVersionOverrides,
+  resolveDeviceVersion,
   resolveProfile,
 } from "./device_matrix.js";
 
@@ -708,6 +710,106 @@ describe("device_matrix", () => {
     test("unknown types resolve to the default profile", () => {
       assert.strictEqual(resolveProfile("ZZZ-1").name, "unknown");
       assert.strictEqual(resolveProfile("").name, "unknown");
+    });
+  });
+
+  describe("parseDeviceVersionOverrides", () => {
+    test("reads device id and version pairs", () => {
+      const { versions, invalidEntries } = parseDeviceVersionOverrides(
+        "e5f1a2b3c4d5=232,aabbccddeeff=1.42",
+      );
+      assert.strictEqual(versions.get("e5f1a2b3c4d5"), 232);
+      assert.strictEqual(versions.get("aabbccddeeff"), 1.42);
+      assert.deepStrictEqual(invalidEntries, []);
+    });
+
+    test("tolerates spacing and trailing separators", () => {
+      const { versions, invalidEntries } = parseDeviceVersionOverrides(
+        " e5f1a2b3c4d5 = 232 , ,",
+      );
+      assert.strictEqual(versions.get("e5f1a2b3c4d5"), 232);
+      assert.deepStrictEqual(invalidEntries, []);
+    });
+
+    test("no configured overrides is not an error", () => {
+      for (const raw of [undefined, "", "   "]) {
+        const { versions, invalidEntries } = parseDeviceVersionOverrides(raw);
+        assert.strictEqual(versions.size, 0);
+        assert.deepStrictEqual(invalidEntries, []);
+      }
+    });
+
+    // A version that cannot be read exactly is reported back rather than guessed
+    // at: routing a device on a misread version is worse than ignoring the entry,
+    // and the caller warns about every entry returned here.
+    test("unusable entries are reported instead of applied", () => {
+      const { versions, invalidEntries } = parseDeviceVersionOverrides(
+        "e5f1a2b3c4d5,=232,aabbccddeeff=,001122334455=232foo,667788990011=1.4.3",
+      );
+      assert.strictEqual(versions.size, 0);
+      assert.deepStrictEqual(invalidEntries, [
+        "e5f1a2b3c4d5",
+        "=232",
+        "aabbccddeeff=",
+        "001122334455=232foo",
+        "667788990011=1.4.3",
+      ]);
+    });
+
+    test("a valid entry still applies alongside an unusable one", () => {
+      const { versions, invalidEntries } = parseDeviceVersionOverrides(
+        "e5f1a2b3c4d5=nope,aabbccddeeff=232",
+      );
+      assert.strictEqual(versions.get("aabbccddeeff"), 232);
+      assert.deepStrictEqual(invalidEntries, ["e5f1a2b3c4d5=nope"]);
+    });
+  });
+
+  describe("resolveDeviceVersion", () => {
+    test("uses the reported version, keeping the fractional part", () => {
+      assert.deepStrictEqual(resolveDeviceVersion("dev", "232"), {
+        version: 232,
+      });
+      assert.deepStrictEqual(resolveDeviceVersion("dev", "1.42"), {
+        version: 1.42,
+      });
+      assert.deepStrictEqual(resolveDeviceVersion("dev", 232), {
+        version: 232,
+      });
+    });
+
+    // The API returns version: null for devices it has no firmware record for.
+    // This used to throw and abort startup for every device in the account.
+    test("a missing version is left unset rather than assumed", () => {
+      for (const reported of [null, undefined, "", "  "]) {
+        const { version, note } = resolveDeviceVersion("dev", reported);
+        assert.strictEqual(version, undefined);
+        assert.strictEqual(note?.level, "warn");
+        assert.match(note.message, /device_versions/u);
+      }
+    });
+
+    test("a suffixed version falls back to its numeric prefix, with a warning", () => {
+      const { version, note } = resolveDeviceVersion("dev", "116foo");
+      assert.strictEqual(version, 116);
+      assert.strictEqual(note?.level, "warn");
+    });
+
+    test("an unreadable version assumes 1, with a warning", () => {
+      const { version, note } = resolveDeviceVersion("dev", "nope");
+      assert.strictEqual(version, 1);
+      assert.strictEqual(note?.level, "warn");
+    });
+
+    test("a configured version wins over what the API reported", () => {
+      const { version, note } = resolveDeviceVersion("dev", "116", 232);
+      assert.strictEqual(version, 232);
+      assert.strictEqual(note?.level, "info");
+    });
+
+    test("a configured version fills in a missing one", () => {
+      const { version } = resolveDeviceVersion("dev", null, 232);
+      assert.strictEqual(version, 232);
     });
   });
 });

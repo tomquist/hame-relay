@@ -24,3 +24,4 @@ schema:
   username: str
   password: password
   inverse_forwarding_device_ids: str?
+  device_versions: str?

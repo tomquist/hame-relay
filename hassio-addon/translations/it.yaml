@@ -14,3 +14,6 @@ configuration:
   inverse_forwarding_device_ids:
     name: ID Dispositivi Inoltro Inverso Selettivo
     description: "Elenco separato da virgole degli ID dispositivo per dispositivi HMA, HMF, HMK e HMJ che dovrebbero utilizzare l'inoltro inverso. Altri tipi di dispositivi utilizzano automaticamente l'inoltro inverso."
+  device_versions:
+    name: Versioni Firmware Manuali
+    description: "Elenco separato da virgole di coppie <ID dispositivo>=<versione firmware>, ad es. e5f1a2b3c4d5=232. Necessario solo per i dispositivi per cui l'API Hame non riporta una versione firmware; la versione è indicata nell'app Marstek nelle impostazioni del dispositivo."
