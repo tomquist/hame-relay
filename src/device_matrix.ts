@@ -548,9 +548,17 @@ export function resolveProfile(type: string): DeviceProfile {
  * unreachable. Callers that turn an API string into a `Device.version` must go
  * through this too, so the whole codebase agrees on what a version means.
  */
-export function parseVersion(version: string | number): number {
+export function parseVersion(
+  version: string | number | null | undefined,
+): number {
   if (typeof version === "number") {
     return version;
+  }
+  // The Hame API reports no version at all for some devices, so a missing
+  // version is a normal input here, not a caller bug: read it as "unknown"
+  // like any other unparseable value rather than throwing.
+  if (version == null) {
+    return NaN;
   }
   // Only accept fully-numeric strings; fail closed (NaN) on trailing junk like
   // "116foo" so supportsVid does not satisfy a threshold from a partial parse.

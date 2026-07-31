@@ -42,6 +42,16 @@ describe("device_matrix", () => {
       assert.ok(isNaN(parseVersion("116foo")));
       assert.ok(isNaN(parseVersion("")));
     });
+
+    // The Hame API returns version: null for devices it has no firmware record
+    // for, which used to throw here and abort startup for the whole account.
+    test("a missing version reads as unknown instead of throwing", () => {
+      assert.ok(isNaN(parseVersion(null)));
+      // Passing undefined explicitly is the point: an absent `version` key
+      // reaches callers as undefined, not as a missing argument.
+      // oxlint-disable-next-line unicorn/no-useless-undefined
+      assert.ok(isNaN(parseVersion(undefined)));
+    });
   });
 
   describe("supportsVid (salt-based topic encryption threshold)", () => {

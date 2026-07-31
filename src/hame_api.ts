@@ -139,7 +139,9 @@ export interface HameDeviceListResponse {
     name: string;
     mac: string;
     type: string;
-    version: string;
+    // Null for devices the cloud has no firmware record for; the response is
+    // cast rather than validated, so callers must treat this as untrusted.
+    version: string | null;
     salt: string; // '<salt>,<salt>'
   }>;
 }
@@ -149,7 +151,7 @@ export interface DeviceInfo {
   name: string;
   mac: string;
   type: string;
-  version: string;
+  version: string | null;
   salt?: string; // Optional salt field from device list
 }
 
