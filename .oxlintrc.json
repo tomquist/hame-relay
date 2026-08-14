@@ -28,6 +28,12 @@
     ],
     "import/consistent-type-specifier-style": ["error", "prefer-inline"],
 
+    // One declarator per statement. The opposite setting would fold every
+    // consecutive declaration into a comma-separated list, which swallows the
+    // comments in between and collides with `sort-vars` wherever one variable
+    // is derived from the one above it.
+    "one-var": ["error", "never"],
+
     // `== null` is the idiomatic null-or-undefined check.
     "eqeqeq": ["error", "always", { "null": "ignore" }],
 
