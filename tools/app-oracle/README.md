@@ -1,14 +1,31 @@
 # app-oracle
 
 Reads the Marstek app's own routing rules — which cloud broker a device talks
-to, and when its topic id is encrypted — straight out of the shipped app, and
-compares them against [`src/device_matrix.ts`](../../src/device_matrix.ts).
+to, and when its topic id is encrypted — out of the shipped app, and compares
+them against [`src/device_matrix.ts`](../../src/device_matrix.ts).
 
-Those rules are the reason a device does or does not exchange data. Until now
-each new device family or firmware line meant a manual decompile session, and
-several entries in the changelog carry the note "matches the official app's
-behavior but is not yet confirmed against a live device". This turns that into a
-command that prints a diff.
+Those rules decide whether a device exchanges data at all. The matrix is meant
+to mirror them, and this turns checking that into a command that prints a diff
+instead of an exercise for whoever picks up the next device report.
+
+## Before you run it
+
+Whether examining a program's compiled form is permitted, and on what terms,
+depends on where you are and on the licence you accepted. In the EU, Directive
+2009/24/EC Article 6 provides for it where it is indispensable to
+interoperability and limited to what that requires, which is the purpose this
+project exists for and the only purpose this tool serves — see the
+[interoperability statement](../../README.md#interoperability-statement). Other
+jurisdictions draw the line differently, and none of this is legal advice.
+
+**Run it at your own risk.** Deciding whether you may is yours to make, not this
+repository's, and the maintainers give no warranty on the question. Nothing here
+is required to use Hame Relay; the tool exists so the shipped matrix can be kept
+accurate, and it is not part of the relay or its container image.
+
+Keep what it produces local. See [What is committed](#what-is-committed) at the
+end: the derived numbers are the output worth keeping, and the app itself and
+everything the pipeline extracts from it stay on your machine.
 
 ## No emulator, no device, no account
 
@@ -135,7 +152,14 @@ Marstek changed.
 
 Everything else — the app archive, the extracted libraries, blutter's
 disassembly, the per-method detail in `work/asm-out/decision-sites.json` — stays
-in `work/`, which is gitignored. Do not commit it, attach it to an issue, or
-paste it into a PR: it is a view of Marstek's binary, and only the protocol
-facts derived from it are ours to publish. See the interoperability statement in
-the [README](../../README.md#interoperability-statement).
+in `work/`, which is gitignored. Do not commit it, attach it to an issue, paste
+it into a PR, or put it in a screenshot: it is a view of Marstek's binary, and
+publishing it is a different act from publishing the protocol facts derived from
+it. Keep it on the machine that produced it and delete it when you are done.
+
+The same restraint applies to what you write around the numbers. A threshold, a
+device type, and which broker serves them are facts about the wire protocol.
+Reproduced code, symbol names, or a walk-through of the app's internals are not,
+and they do not belong in a commit message, an issue, or the changelog — where
+entries are written for users anyway. See the
+[interoperability statement](../../README.md#interoperability-statement).

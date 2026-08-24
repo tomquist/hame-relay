@@ -7,7 +7,12 @@ import { extract } from "./extract.js";
 import { pull } from "./pull.js";
 import { report, reportPath } from "./report.js";
 
-const USAGE = `marstek app-oracle — derive Marstek app routing rules from the shipped app
+const USAGE = `app-oracle — check src/device_matrix.ts against the shipped Marstek app
+
+Optional maintainer tooling, not part of the relay. Whether you may run it
+depends on your jurisdiction and the licence you accepted; read
+tools/app-oracle/README.md and the interoperability statement first. Run it at
+your own risk.
 
 Usage: npx tsx tools/app-oracle/src/cli.ts <command> [options]
 
