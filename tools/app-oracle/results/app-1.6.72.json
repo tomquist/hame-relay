@@ -20,7 +20,39 @@
         "HMJ",
         "HMK"
       ],
-      "lengthChecks": []
+      "lengthChecks": [],
+      "rules": [
+        {
+          "types": [
+            "HMB"
+          ],
+          "threshold": 133
+        },
+        {
+          "types": [
+            "HMA"
+          ],
+          "threshold": 154
+        },
+        {
+          "types": [
+            "HMF"
+          ],
+          "threshold": 102
+        },
+        {
+          "types": [
+            "HMK"
+          ],
+          "threshold": 205
+        },
+        {
+          "types": [
+            "HMJ"
+          ],
+          "threshold": 108
+        }
+      ]
     },
     {
       "family": "b2500",
@@ -36,7 +68,24 @@
         "HMJ-",
         "HMK-"
       ],
-      "lengthChecks": []
+      "lengthChecks": [],
+      "rules": [
+        {
+          "types": [
+            "HMJ-"
+          ],
+          "threshold": 116
+        },
+        {
+          "types": [
+            "HMA-",
+            "HMB-",
+            "HMF-",
+            "HMK-"
+          ],
+          "threshold": 230
+        }
+      ]
     },
     {
       "family": "common",
@@ -81,6 +130,106 @@
         1,
         2,
         3
+      ],
+      "rules": [
+        {
+          "types": [
+            "HMM",
+            "HMN",
+            "JPLS"
+          ],
+          "threshold": 136
+        },
+        {
+          "types": [],
+          "threshold": 236
+        },
+        {
+          "types": [
+            "HMHL",
+            "HMI",
+            "SDH-6K"
+          ],
+          "threshold": 100
+        },
+        {
+          "types": [],
+          "threshold": 120
+        },
+        {
+          "types": [],
+          "threshold": 100
+        },
+        {
+          "types": [],
+          "threshold": 105
+        },
+        {
+          "types": [
+            "HME",
+            "HME-2",
+            "HME-4",
+            "SMR-",
+            "TPM-CN",
+            "TPM2-"
+          ],
+          "threshold": 122
+        },
+        {
+          "types": [
+            "HME-3",
+            "HME-5"
+          ],
+          "threshold": 120
+        },
+        {
+          "types": [
+            "TPM-CN"
+          ],
+          "threshold": 101
+        },
+        {
+          "types": [
+            "HME-2",
+            "HME-4",
+            "SMR-0",
+            "SMR-1",
+            "SMR-2",
+            "TPM2-0"
+          ],
+          "threshold": 25
+        },
+        {
+          "types": [
+            "HME-3",
+            "HME-5"
+          ],
+          "threshold": 34
+        },
+        {
+          "types": [
+            "HMA-",
+            "HMB-",
+            "HMF-",
+            "HMJ-",
+            "HMK-",
+            "SMR-0",
+            "SMR-1",
+            "SMR-2",
+            "TPM-CN",
+            "TPM2-0"
+          ],
+          "threshold": 116
+        },
+        {
+          "types": [
+            "HMA-",
+            "HMB-",
+            "HMF-",
+            "HMK-"
+          ],
+          "threshold": 230
+        }
       ]
     },
     {
@@ -107,6 +256,41 @@
       ],
       "lengthChecks": [
         3
+      ],
+      "rules": [
+        {
+          "types": [
+            "HME-2",
+            "HME-4"
+          ],
+          "threshold": 119
+        },
+        {
+          "types": [
+            "HME-3",
+            "HME-5"
+          ],
+          "threshold": 116
+        },
+        {
+          "types": [
+            "HME-2",
+            "HME-4",
+            "SMR-0",
+            "SMR-1",
+            "SMR-2",
+            "TPM-CN",
+            "TPM2-0"
+          ],
+          "threshold": 24
+        },
+        {
+          "types": [
+            "HME-3",
+            "HME-5"
+          ],
+          "threshold": 33
+        }
       ]
     },
     {
@@ -134,6 +318,46 @@
       ],
       "lengthChecks": [
         3
+      ],
+      "rules": [
+        {
+          "types": [
+            "HME-2",
+            "HME-4"
+          ],
+          "threshold": 122
+        },
+        {
+          "types": [
+            "HME-3",
+            "HME-5"
+          ],
+          "threshold": 120
+        },
+        {
+          "types": [
+            "TPM-CN"
+          ],
+          "threshold": 101
+        },
+        {
+          "types": [
+            "HME-2",
+            "HME-4",
+            "SMR-0",
+            "SMR-1",
+            "SMR-2",
+            "TPM2-0"
+          ],
+          "threshold": 25
+        },
+        {
+          "types": [
+            "HME-3",
+            "HME-5"
+          ],
+          "threshold": 34
+        }
       ]
     },
     {
@@ -144,7 +368,17 @@
         154
       ],
       "deviceTypes": [],
-      "lengthChecks": []
+      "lengthChecks": [],
+      "rules": [
+        {
+          "types": [],
+          "threshold": 1.42
+        },
+        {
+          "types": [],
+          "threshold": 154
+        }
+      ]
     },
     {
       "family": "hmg",
@@ -156,6 +390,16 @@
       "deviceTypes": [],
       "lengthChecks": [
         3
+      ],
+      "rules": [
+        {
+          "types": [],
+          "threshold": 154
+        },
+        {
+          "types": [],
+          "threshold": 154.5
+        }
       ]
     },
     {
@@ -172,6 +416,26 @@
       "lengthChecks": [
         1,
         2
+      ],
+      "rules": [
+        {
+          "types": [
+            "HMI"
+          ],
+          "threshold": 100
+        },
+        {
+          "types": [],
+          "threshold": 129
+        },
+        {
+          "types": [],
+          "threshold": 100
+        },
+        {
+          "types": [],
+          "threshold": 113
+        }
       ]
     },
     {
@@ -188,6 +452,26 @@
       "lengthChecks": [
         1,
         2
+      ],
+      "rules": [
+        {
+          "types": [
+            "HMI"
+          ],
+          "threshold": 100
+        },
+        {
+          "types": [],
+          "threshold": 120
+        },
+        {
+          "types": [],
+          "threshold": 100
+        },
+        {
+          "types": [],
+          "threshold": 105
+        }
       ]
     },
     {
@@ -205,6 +489,25 @@
       ],
       "lengthChecks": [
         3
+      ],
+      "rules": [
+        {
+          "types": [],
+          "threshold": 135
+        },
+        {
+          "types": [
+            "HMM",
+            "HMN"
+          ],
+          "threshold": 230
+        },
+        {
+          "types": [
+            "JPLS"
+          ],
+          "threshold": 232
+        }
       ]
     },
     {
@@ -221,6 +524,16 @@
       ],
       "lengthChecks": [
         3
+      ],
+      "rules": [
+        {
+          "types": [],
+          "threshold": 136
+        },
+        {
+          "types": [],
+          "threshold": 236
+        }
       ]
     },
     {
@@ -284,6 +597,135 @@
         1,
         2,
         3
+      ],
+      "rules": [
+        {
+          "types": [
+            "HMB"
+          ],
+          "threshold": 133
+        },
+        {
+          "types": [
+            "HMA"
+          ],
+          "threshold": 154
+        },
+        {
+          "types": [
+            "HMF"
+          ],
+          "threshold": 102
+        },
+        {
+          "types": [
+            "HMK"
+          ],
+          "threshold": 205
+        },
+        {
+          "types": [
+            "HMD"
+          ],
+          "threshold": 154
+        },
+        {
+          "types": [
+            "HMJ"
+          ],
+          "threshold": 108
+        },
+        {
+          "types": [
+            "HMA",
+            "HMF",
+            "HMK"
+          ],
+          "threshold": 226
+        },
+        {
+          "types": [
+            "HMD"
+          ],
+          "threshold": 1.42
+        },
+        {
+          "types": [
+            "HME",
+            "HMH",
+            "HMHL",
+            "HMI",
+            "HMM",
+            "HMN",
+            "JPLS",
+            "SDH",
+            "SMR",
+            "TPM",
+            "TPM2",
+            "VENX",
+            "VNSB",
+            "VNSG"
+          ],
+          "threshold": 135
+        },
+        {
+          "types": [
+            "HMM",
+            "HMN"
+          ],
+          "threshold": 230
+        },
+        {
+          "types": [
+            "JPLS"
+          ],
+          "threshold": 232
+        },
+        {
+          "types": [],
+          "threshold": 100
+        },
+        {
+          "types": [],
+          "threshold": 129
+        },
+        {
+          "types": [],
+          "threshold": 113
+        },
+        {
+          "types": [
+            "HME-2",
+            "HME-4"
+          ],
+          "threshold": 119
+        },
+        {
+          "types": [
+            "HME-3",
+            "HME-5"
+          ],
+          "threshold": 116
+        },
+        {
+          "types": [
+            "HME-2",
+            "HME-4",
+            "SMR-0",
+            "SMR-1",
+            "SMR-2",
+            "TPM-CN",
+            "TPM2-0"
+          ],
+          "threshold": 24
+        },
+        {
+          "types": [
+            "HME-3",
+            "HME-5"
+          ],
+          "threshold": 33
+        }
       ]
     },
     {
@@ -296,6 +738,16 @@
       "deviceTypes": [],
       "lengthChecks": [
         3
+      ],
+      "rules": [
+        {
+          "types": [],
+          "threshold": 123
+        },
+        {
+          "types": [],
+          "threshold": 114.8
+        }
       ]
     }
   ]

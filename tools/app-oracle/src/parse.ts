@@ -1,6 +1,26 @@
 import { readdirSync, readFileSync, statSync } from "fs";
 import { basename, join, relative } from "path";
 
+/**
+ * A device type or a firmware threshold, in the order the code reaches it. The
+ * order is what ties the two together: a family's decision function tests a
+ * device type and then compares the firmware against the threshold that type
+ * is routed on.
+ */
+export type CodeEvent =
+  | { kind: "type"; value: string }
+  | { kind: "threshold"; value: number };
+
+/**
+ * "These device types are routed on this firmware number." Types is empty when
+ * a threshold applies to the whole family rather than to a named type — the
+ * first-firmware-line comparison most families start with.
+ */
+export interface RoutingRule {
+  types: string[];
+  threshold: number;
+}
+
 /** Facts extracted from one method's disassembly. */
 export interface MethodFacts {
   /** Path under the app package, e.g. `pages/.../jupiter_version_controller.dart`. */
@@ -20,6 +40,8 @@ export interface MethodFacts {
   literals: string[];
   /** Callees, as `<library path>#<Class>::<method>`. */
   calls: string[];
+  /** Device types and thresholds in code order, for {@link deriveRules}. */
+  events: CodeEvent[];
 }
 
 /** A routing decision, with everything it delegates to folded in. */
@@ -28,6 +50,8 @@ export interface DecisionSite extends MethodFacts {
   axis: "broker" | "topic-id";
   /** Methods whose facts were folded in, in the order they were reached. */
   resolvedThrough: string[];
+  /** Which device types are routed on which threshold. */
+  rules: RoutingRule[];
 }
 
 /**
@@ -53,6 +77,31 @@ const APP_PACKAGE_PREFIX = "package:cross_power_x/";
  * strategy -> controller -> per-model strategy, so three hops.
  */
 const MAX_DEPTH = 3;
+
+/**
+ * A literal shaped like a device type or type prefix — `HMA`, `HME-2`,
+ * `TPM-CN`, `SMR-`. The other literals a decision function holds are generation
+ * digits and separators used to pick a type apart, which guard nothing on their
+ * own.
+ */
+export function isDeviceType(literal: string): boolean {
+  return (
+    /^[A-Z]{2,5}(?:\d|-|-[A-Z\d]+)*$/u.test(literal) &&
+    /[A-Z]{2}/u.test(literal)
+  );
+}
+
+/**
+ * blutter states a constant twice — once as the summarised operation, once on
+ * the instruction that loads it — so the same threshold arrives back to back.
+ */
+function pushThreshold(events: CodeEvent[], value: number): void {
+  const last = events.at(-1);
+  if (last?.kind === "threshold" && last.value === value) {
+    return;
+  }
+  events.push({ kind: "threshold", value });
+}
 
 function isInterestingLiteral(literal: string): boolean {
   return (
@@ -101,6 +150,7 @@ function analyze(
   const intCompares = new Map<number, number>();
   const literals = new Set<string>();
   const calls = new Set<string>();
+  const events: CodeEvent[] = [];
 
   for (const line of body) {
     // blutter resolves floating-point constants to a decimal value in its
@@ -110,10 +160,12 @@ function analyze(
     const dConst = /\bd\d+ = (-?\d+(?:\.\d+)?)/u.exec(line);
     if (dConst && Number(dConst[1]) > 0) {
       thresholds.add(Number(dConst[1]));
+      pushThreshold(events, Number(dConst[1]));
     }
     const immDouble = /IMM: double\((-?\d+(?:\.\d+)?)\)/u.exec(line);
     if (immDouble && Number(immDouble[1]) > 0) {
       thresholds.add(Number(immDouble[1]));
+      pushThreshold(events, Number(immDouble[1]));
     }
     const cmp = /\bcmp\s+[wx]?\d+, #(0x[0-9a-f]+|\d+)/u.exec(line);
     if (cmp) {
@@ -127,6 +179,9 @@ function analyze(
     const literal = /\b[rx]\d+ = "([^"]*)"/u.exec(line);
     if (literal && isInterestingLiteral(literal[1])) {
       literals.add(literal[1]);
+      if (isDeviceType(literal[1])) {
+        events.push({ kind: "type", value: literal[1] });
+      }
     }
     const call = /;\s*\[([^\]]+)\]\s*([\w$]+)::([\w$]+)/u.exec(line);
     if (call?.[1].startsWith(APP_PACKAGE_PREFIX)) {
@@ -146,7 +201,38 @@ function analyze(
       .map(([raw, untagged]) => ({ raw, untagged })),
     literals: [...literals].toSorted(),
     calls: [...calls].toSorted(),
+    events,
   };
+}
+
+/**
+ * Reads the events in code order into rules. A decision function tests a device
+ * type and then loads the threshold that type is routed on, so the types seen
+ * since the previous threshold are the ones that threshold applies to — and
+ * several types can share one, the way HMM and HMN do.
+ *
+ * The order comes from the compiled code, not from a model of it, so a rule
+ * says which numbers belong to which types, not which way the comparison goes.
+ * Read the direction off the family's existing entry in the matrix.
+ */
+export function deriveRules(events: CodeEvent[]): RoutingRule[] {
+  const rules = new Map<string, RoutingRule>();
+  let pending: string[] = [];
+  for (const event of events) {
+    if (event.kind === "type") {
+      pending.push(event.value);
+      continue;
+    }
+    const types = [...new Set(pending)].toSorted();
+    // A family checks the same firmware line repeatedly across its branches;
+    // the first statement of a rule is the one worth keeping.
+    const key = `${types.join(",")}:${event.value}`;
+    if (!rules.has(key)) {
+      rules.set(key, { types, threshold: event.value });
+    }
+    pending = [];
+  }
+  return [...rules.values()];
 }
 
 /**
@@ -240,6 +326,7 @@ export function findDecisionSites(appRoot: string): DecisionSite[] {
       facts.intCompares.map((c) => [c.raw, c.untagged]),
     );
     const literals = new Set(facts.literals);
+    const events = [...facts.events];
     const resolvedThrough: string[] = [];
     const seen = new Set([key]);
 
@@ -259,6 +346,7 @@ export function findDecisionSites(appRoot: string): DecisionSite[] {
         target.thresholds.forEach((t) => thresholds.add(t));
         target.intCompares.forEach((c) => intCompares.set(c.raw, c.untagged));
         target.literals.forEach((l) => literals.add(l));
+        events.push(...target.events);
         next.push(...target.calls);
       }
       frontier = next;
@@ -272,7 +360,9 @@ export function findDecisionSites(appRoot: string): DecisionSite[] {
         .toSorted((a, b) => a[0] - b[0])
         .map(([raw, untagged]) => ({ raw, untagged })),
       literals: [...literals].toSorted(),
+      events,
       resolvedThrough,
+      rules: deriveRules(events),
     });
   }
 

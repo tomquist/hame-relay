@@ -1,6 +1,10 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { findDecisionSites, type DecisionSite } from "./parse.js";
+import {
+  findDecisionSites,
+  type DecisionSite,
+  type RoutingRule,
+} from "./parse.js";
 import { ensureDir, type Metadata, paths, RESULTS_DIR } from "./env.js";
 
 /**
@@ -19,6 +23,12 @@ export interface RoutingFacts {
   deviceTypes: string[];
   /** String-length checks, already untagged from Dart's small-integer encoding. */
   lengthChecks: number[];
+  /**
+   * Which device types are routed on which threshold. A rule with no types is
+   * one the whole family shares — typically the firmware-line comparison a
+   * family makes before it looks at the type at all.
+   */
+  rules: RoutingRule[];
 }
 
 /**
@@ -73,6 +83,7 @@ function merge(sites: DecisionSite[]): RoutingFacts[] {
       thresholds: [],
       deviceTypes: [],
       lengthChecks: [],
+      rules: [],
     };
     existing.thresholds = [
       ...new Set([...existing.thresholds, ...site.thresholds]),
@@ -91,6 +102,18 @@ function merge(sites: DecisionSite[]): RoutingFacts[] {
           .map((c) => c.untagged),
       ]),
     ].toSorted((a, b) => a - b);
+    // Several entry points reach the same controller, so the same rule arrives
+    // more than once.
+    const seen = new Set(
+      existing.rules.map((rule) => `${rule.types.join(",")}:${rule.threshold}`),
+    );
+    for (const rule of site.rules) {
+      const ruleKey = `${rule.types.join(",")}:${rule.threshold}`;
+      if (!seen.has(ruleKey)) {
+        seen.add(ruleKey);
+        existing.rules.push(rule);
+      }
+    }
     byKey.set(key, existing);
   }
   return [...byKey.values()].toSorted((a, b) =>

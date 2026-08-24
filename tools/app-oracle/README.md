@@ -70,29 +70,61 @@ Keep the `/work` volume: it holds the Dart VM build, which is the slow part.
 
 ## Reading the diff
 
-Two lists, both advisory:
+`diff` prints three sections.
 
-- **Thresholds the matrix has that the app no longer has where expected.** A
-  number that is missing everywhere is a strong signal. A number found in
-  another family usually means the app has moved that rule.
-- **Thresholds the app has that the matrix does not model.** Some are
-  deliberate: the HMD 154 migration was removed on purpose (#214) because
-  following it broke those devices.
+**Rules the app states per device type.** The headline: one row per matrix
+profile and axis, with the numbers the profile declares next to the numbers the
+app routes those types on.
 
-Neither list should be applied blindly, for three reasons:
+```
+  ! HMA                broker    matrix 226              app b2500 154, legacy-mqtt 154/226
+    HME-3/HME-5        broker    matrix 33/116           app ct-hme 33/116, legacy-mqtt 33/116
+    HMB                broker    matrix always hame-2024 app b2500 133, legacy-mqtt 133
+```
+
+The rules come from the order of the compiled code: a decision function tests a
+device type and then loads the threshold that type is routed on, so the types
+named since the previous threshold are the ones it applies to — which is how
+`HMM` and `HMN` end up sharing 230 while `JPLS` takes 232. Types are matched to
+profiles with `resolveProfile`, the same matcher the relay uses at run time, so
+a rule about `HME-2` lands on the profile that would serve an HME-2 device.
+
+`!` marks a profile whose declared number the app no longer states for those
+types. Two things it deliberately does not mark, both worth reading anyway: a
+row where the matrix says `always hame-2024` / `never` and the app states a
+threshold (the matrix may be pinning a device on purpose — HMD is), and a
+difference that appears only in the `legacy-mqtt` column, which is the app's
+older routing path.
+
+What a rule does **not** give you is the direction of the comparison. The code
+order says `HMK` goes with 205; whether that is "2025 broker from 205 up" comes
+from how the family's existing entry reads. Families are consistent about it,
+but it is a read.
+
+**Thresholds in the matrix the app no longer has where expected**, including the
+`remote-topic-id` versions — the app has no separate decision for those, so they
+are checked against its broker constants, which is where it makes that switch.
+
+**Thresholds the app has that the matrix does not model.** Some are deliberate:
+the HMD 154 migration was removed on purpose (#214) because following it broke
+those devices.
+
+Three things keep this advisory rather than authoritative:
 
 1. **The app carries more than one routing path.** In 1.6.72 the older MQTT code
-   still holds the `226` rule that this project models for HMA/HMF/HMK, while a
-   newer per-device strategy holds different numbers for the same types. Which
-   one governs a real connection is a question for a device, not for this tool.
-2. **Numbers are shared.** `154` means different things to different families,
-   so a match is "the app still has this number", not proof of the rule.
-3. **Some decisions are dynamically dispatched.** The Venus family reaches its
-   per-model strategy through an interface, which no static reader can follow;
-   Venus broker thresholds are therefore missing from the report rather than
-   absent from the app.
+   still holds the `226` rule this project models for HMA/HMF/HMK, while a newer
+   per-device strategy holds different numbers for the same types. Which one
+   governs a real connection is a question for a device, not for this tool.
+2. **Some splits are not made on a type literal.** The app separates HMI-2000
+   from other HMI inverters somewhere other than a string comparison in the
+   decision function, so the HMI rows show the family's numbers without
+   attributing them per model.
+3. **Some decisions are dynamically dispatched.** Venus reaches its per-model
+   strategy through an interface, and HMG's broker choice goes the same way. No
+   static reader can follow that, so those rules are missing from the report
+   rather than absent from the app.
 
-The matrix stays the source of truth. This tool tells you where to look.
+The matrix stays the source of truth. This tool tells you what the app says.
 
 ## What is committed
 
