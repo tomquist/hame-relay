@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // Node 22 has Array#toSorted, which the lint rules prefer over an
+    // in-place sort. The shipped code stays on the root ES2022 lib.
+    "lib": ["ES2023"],
+    "noEmit": true,
+    "rootDir": "../..",
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "../../src/**/*"]
+}

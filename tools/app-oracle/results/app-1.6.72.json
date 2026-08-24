@@ -1,0 +1,302 @@
+{
+  "appVersion": "1.6.72",
+  "libappSha256": "668f916e09f8f3956278bc2a6a064b777122fbd41d87f74d04885ba06cf3269a",
+  "dartVersion": "3.8.1",
+  "routing": [
+    {
+      "family": "b2500",
+      "axis": "broker",
+      "thresholds": [
+        102,
+        108,
+        133,
+        154,
+        205
+      ],
+      "deviceTypes": [
+        "HMA",
+        "HMB",
+        "HMF",
+        "HMJ",
+        "HMK"
+      ],
+      "lengthChecks": []
+    },
+    {
+      "family": "b2500",
+      "axis": "topic-id",
+      "thresholds": [
+        116,
+        230
+      ],
+      "deviceTypes": [
+        "HMA-",
+        "HMB-",
+        "HMF-",
+        "HMJ-",
+        "HMK-"
+      ],
+      "lengthChecks": []
+    },
+    {
+      "family": "common",
+      "axis": "topic-id",
+      "thresholds": [
+        25,
+        34,
+        100,
+        101,
+        105,
+        116,
+        120,
+        122,
+        136,
+        230,
+        236
+      ],
+      "deviceTypes": [
+        "HMA-",
+        "HMB-",
+        "HME",
+        "HME-2",
+        "HME-3",
+        "HME-4",
+        "HME-5",
+        "HMF-",
+        "HMHL",
+        "HMI",
+        "HMJ-",
+        "HMK-",
+        "HMM",
+        "HMN",
+        "JPLS",
+        "SMR-",
+        "SMR-0",
+        "SMR-1",
+        "SMR-2",
+        "TPM2-",
+        "TPM2-0"
+      ],
+      "lengthChecks": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "family": "ct-hme",
+      "axis": "broker",
+      "thresholds": [
+        24,
+        33,
+        116,
+        119
+      ],
+      "deviceTypes": [
+        "HME",
+        "HME-2",
+        "HME-3",
+        "HME-4",
+        "HME-5",
+        "SMR-",
+        "SMR-0",
+        "SMR-1",
+        "SMR-2",
+        "TPM2-",
+        "TPM2-0"
+      ],
+      "lengthChecks": [
+        3
+      ]
+    },
+    {
+      "family": "ct-hme",
+      "axis": "topic-id",
+      "thresholds": [
+        25,
+        34,
+        101,
+        120,
+        122
+      ],
+      "deviceTypes": [
+        "HME",
+        "HME-2",
+        "HME-3",
+        "HME-4",
+        "HME-5",
+        "SMR-",
+        "SMR-0",
+        "SMR-1",
+        "SMR-2",
+        "TPM2-",
+        "TPM2-0"
+      ],
+      "lengthChecks": [
+        3
+      ]
+    },
+    {
+      "family": "hmd",
+      "axis": "broker",
+      "thresholds": [
+        1.42,
+        154
+      ],
+      "deviceTypes": [],
+      "lengthChecks": []
+    },
+    {
+      "family": "hmg",
+      "axis": "topic-id",
+      "thresholds": [
+        154,
+        154.5
+      ],
+      "deviceTypes": [],
+      "lengthChecks": [
+        3
+      ]
+    },
+    {
+      "family": "hmi",
+      "axis": "broker",
+      "thresholds": [
+        100,
+        113,
+        129
+      ],
+      "deviceTypes": [
+        "HMI"
+      ],
+      "lengthChecks": [
+        1,
+        2
+      ]
+    },
+    {
+      "family": "hmi",
+      "axis": "topic-id",
+      "thresholds": [
+        100,
+        105,
+        120
+      ],
+      "deviceTypes": [
+        "HMI"
+      ],
+      "lengthChecks": [
+        1,
+        2
+      ]
+    },
+    {
+      "family": "jupiter",
+      "axis": "broker",
+      "thresholds": [
+        135,
+        230,
+        232
+      ],
+      "deviceTypes": [
+        "HMM",
+        "HMN",
+        "JPLS"
+      ],
+      "lengthChecks": [
+        3
+      ]
+    },
+    {
+      "family": "jupiter",
+      "axis": "topic-id",
+      "thresholds": [
+        136,
+        236
+      ],
+      "deviceTypes": [
+        "HMM",
+        "HMN",
+        "JPLS"
+      ],
+      "lengthChecks": [
+        3
+      ]
+    },
+    {
+      "family": "legacy-mqtt",
+      "axis": "broker",
+      "thresholds": [
+        1.42,
+        24,
+        33,
+        100,
+        102,
+        108,
+        113,
+        116,
+        119,
+        129,
+        133,
+        135,
+        154,
+        205,
+        226,
+        230,
+        232
+      ],
+      "deviceTypes": [
+        "HMA",
+        "HMB",
+        "HMC",
+        "HMD",
+        "HME",
+        "HME-2",
+        "HME-3",
+        "HME-4",
+        "HME-5",
+        "HMF",
+        "HMH",
+        "HMHL",
+        "HMI",
+        "HMJ",
+        "HMK",
+        "HML",
+        "HMM",
+        "HMN",
+        "JPLS",
+        "SCH",
+        "SDH",
+        "SMR",
+        "SMR-",
+        "SMR-0",
+        "SMR-1",
+        "SMR-2",
+        "TPM",
+        "TPM2",
+        "TPM2-",
+        "TPM2-0",
+        "VENX",
+        "VNSB",
+        "VNSG"
+      ],
+      "lengthChecks": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "family": "venus",
+      "axis": "topic-id",
+      "thresholds": [
+        114.8,
+        123
+      ],
+      "deviceTypes": [],
+      "lengthChecks": [
+        3
+      ]
+    }
+  ]
+}

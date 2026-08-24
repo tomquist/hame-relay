@@ -11,8 +11,10 @@
     "test": "npm run build && node --test --import tsx/esm",
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
-    "lint": "oxlint src && oxfmt --check src",
-    "lint:fix": "oxlint --fix src && oxfmt src"
+    "lint": "oxlint src tools && oxfmt --check src tools",
+    "lint:fix": "oxlint --fix src tools && oxfmt src tools",
+    "oracle": "tsx tools/app-oracle/src/cli.ts",
+    "typecheck:tools": "tsc -p tools/app-oracle/tsconfig.json"
   },
   "dependencies": {
     "mqtt": "^5.15.2",

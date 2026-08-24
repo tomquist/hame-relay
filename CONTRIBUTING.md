@@ -49,6 +49,18 @@ Fix linting issues automatically:
 npm run lint:fix
 ```
 
+## Device routing rules
+
+`src/device_matrix.ts` says which broker a device talks to and when its topic id
+is encrypted, per device family and firmware version. Those rules mirror the
+official app. To check them against a current app build, see
+[`tools/app-oracle`](tools/app-oracle/README.md):
+
+```bash
+npm run oracle -- doctor
+npm run oracle -- all
+```
+
 ## Pull Requests
 
 1. Fork the repository

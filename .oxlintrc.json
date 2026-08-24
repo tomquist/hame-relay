@@ -102,5 +102,19 @@
     // MQTT.js is callback-based, and a delay needs a hand-rolled promise.
     "promise/prefer-await-to-callbacks": "off",
     "promise/avoid-new": "off"
-  }
+  },
+
+  "overrides": [
+    {
+      // tools/ holds maintainer scripts rather than shipped code. The scanner
+      // in app-oracle walks disassembly line by line, where `continue` is the
+      // clearest way to skip a line and where naming every capture group in a
+      // one-line pattern match adds noise rather than clarity.
+      "files": ["tools/**/*.ts"],
+      "rules": {
+        "no-continue": "off",
+        "prefer-named-capture-group": "off"
+      }
+    }
+  ]
 }

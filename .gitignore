@@ -41,3 +41,7 @@ npm-debug.log*
 
 # Sensitive test data
 test-data.json
+
+# App-oracle work directory: downloaded app archives, extracted native
+# libraries and disassembly. Never commit these.
+tools/app-oracle/work/
