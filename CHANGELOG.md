@@ -1,6 +1,6 @@
 # Changelog
 ## [Next]
-- Fixed the cloud connection being dropped immediately, so no data was exchanged at all, when the account has more than 8 devices. Accounts with more than 50 devices now forward the first 50 and log which devices are left out, instead of failing entirely (#232)
+- Fixed the cloud connection being dropped immediately, so no data was exchanged at all, when the account has more than 8 devices. Accounts with a large number of devices now forward as many as the cloud accepts and log which devices were left out, instead of failing entirely (#232)
 
 
 ## [1.5.0] - 2026-07-28

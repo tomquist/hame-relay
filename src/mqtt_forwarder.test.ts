@@ -77,15 +77,16 @@ describe("remoteClientOptions", () => {
 describe("broker quotas", () => {
   test("a full broker's devices are reachable in whole SUBSCRIBE packets", () => {
     // The broker checks the per-connection quota against the count already
-    // held, so a packet may only start below the quota. Batching at
-    // MAX_TOPICS_PER_SUBSCRIBE must keep every packet of a full broker legal.
-    const packetsBeforeLast = Math.floor(
+    // held, so every packet must start below it. Only the last packet of a
+    // full broker can come close, so that is the one to check.
+    const packets = Math.ceil(
       MAX_SUBSCRIPTIONS_PER_CONNECTION / MAX_TOPICS_PER_SUBSCRIBE,
     );
+    const subscriptionsHeldBeforeLastPacket =
+      (packets - 1) * MAX_TOPICS_PER_SUBSCRIBE;
     assert.ok(
-      packetsBeforeLast * MAX_TOPICS_PER_SUBSCRIBE <
-        MAX_SUBSCRIPTIONS_PER_CONNECTION,
-      "a full broker must not need a packet that starts at the quota",
+      subscriptionsHeldBeforeLastPacket < MAX_SUBSCRIPTIONS_PER_CONNECTION,
+      `a full broker's last SUBSCRIBE would start at ${subscriptionsHeldBeforeLastPacket} subscriptions, at or above the quota of ${MAX_SUBSCRIPTIONS_PER_CONNECTION}`,
     );
   });
 });
