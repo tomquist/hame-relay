@@ -4,6 +4,7 @@ import {
   MAX_SUBSCRIPTIONS_PER_CONNECTION,
   MAX_TOPICS_PER_SUBSCRIBE,
   limitToSubscribable,
+  remoteClientOptions,
 } from "./mqtt_forwarder.js";
 
 const devices = (count: number) =>
@@ -41,6 +42,35 @@ describe("limitToSubscribable", () => {
       forwarded: ["device-0", "device-1"],
       ignored: ["device-2", "device-3"],
     });
+  });
+});
+
+describe("remoteClientOptions", () => {
+  const certs = {
+    ca: Buffer.from("ca"),
+    cert: Buffer.from("cert"),
+    key: Buffer.from("key"),
+  };
+
+  test("splits SUBSCRIBE packets to what the broker accepts", () => {
+    // Without this the client sends one SUBSCRIBE for the whole device list
+    // and the broker drops the connection, which is the bug behind #232.
+    const { subscribeBatchSize } = remoteClientOptions(certs, "hm_test");
+    assert.ok(
+      subscribeBatchSize !== undefined &&
+        subscribeBatchSize <= MAX_TOPICS_PER_SUBSCRIBE,
+      `SUBSCRIBE packets of ${subscribeBatchSize} topics exceed what the broker accepts`,
+    );
+  });
+
+  test("connects with the given identity and certificates", () => {
+    const options = remoteClientOptions(certs, "hm_test");
+    assert.strictEqual(options.clientId, "hm_test");
+    assert.strictEqual(options.protocol, "mqtts");
+    assert.deepStrictEqual(
+      { ca: options.ca, cert: options.cert, key: options.key },
+      certs,
+    );
   });
 });
 

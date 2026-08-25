@@ -1,4 +1,9 @@
-import { connect, type IPublishPacket, type MqttClient } from "mqtt";
+import {
+  connect,
+  type IClientOptions,
+  type IPublishPacket,
+  type MqttClient,
+} from "mqtt";
 import { createHash } from "crypto";
 import { logger } from "./logger.js";
 import { type Device, type ForwarderConfig } from "./types.js";
@@ -25,6 +30,28 @@ import { type Device, type ForwarderConfig } from "./types.js";
  */
 export const MAX_TOPICS_PER_SUBSCRIBE = 8;
 export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 50;
+
+/**
+ * Connection options for a client of a remote broker.
+ *
+ * `subscribeBatchSize` is what keeps that client connected: without it the
+ * whole device list goes out as a single SUBSCRIBE, and the broker answers a
+ * packet over the per-packet limit by closing the connection. It applies to
+ * the automatic re-subscribe after a reconnect as well, which is the path a
+ * one-off split at startup would miss.
+ */
+export function remoteClientOptions(
+  certs: { ca: Buffer; cert: Buffer; key: Buffer },
+  clientId: string,
+): IClientOptions {
+  return {
+    ...certs,
+    protocol: "mqtts",
+    keepalive: 30,
+    clientId,
+    subscribeBatchSize: MAX_TOPICS_PER_SUBSCRIBE,
+  };
+}
 
 /**
  * Splits the devices of one broker into those it can subscribe to and those
@@ -91,20 +118,10 @@ export class MQTTForwarder {
     };
     this.configBroker = connect(this.config.broker_url, configOptions);
 
-    const certs = this.loadCertificates();
-    const remoteOptions = {
-      ...certs,
-      protocol: "mqtts" as const,
-      keepalive: 30,
-      clientId: this.generateClientId(
-        this.config.remote.client_id_prefix || "hm_",
-      ),
-      // The remote broker closes the connection instead of answering a
-      // SUBSCRIBE that carries more topics than it allows per packet. This
-      // splits every SUBSCRIBE, including the automatic one after a reconnect,
-      // into packets it accepts.
-      subscribeBatchSize: MAX_TOPICS_PER_SUBSCRIBE,
-    };
+    const remoteOptions = remoteClientOptions(
+      this.loadCertificates(),
+      this.generateClientId(this.config.remote.client_id_prefix || "hm_"),
+    );
     this.remoteBroker = connect(this.config.remote.url, remoteOptions);
 
     this.setupBrokerEventHandlers();
