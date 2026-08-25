@@ -4,7 +4,11 @@ import { calculateNewVersionTopicId } from "./encryption.js";
 import { HealthServer } from "./health.js";
 import { logger } from "./logger.js";
 import { HameApi, type DeviceInfo } from "./hame_api.js";
-import { MQTTForwarder } from "./mqtt_forwarder.js";
+import {
+  MAX_SUBSCRIPTIONS_PER_CONNECTION,
+  MQTTForwarder,
+  limitToSubscribable,
+} from "./mqtt_forwarder.js";
 import { CommonHelper } from "./topic.js";
 import {
   brokerForVersion,
@@ -383,6 +387,31 @@ async function start() {
       }
       logger.debug(`Adding device ${device.device_id} to broker ${brokerId}`);
       (devicesByBroker[brokerId] ??= []).push(device);
+    }
+
+    // One connection per broker can only hold so many subscriptions, and the
+    // relay subscribes to one topic per device. Drop the devices past that cap
+    // instead of letting the broker refuse them silently.
+    const ignoredDevices = new Set<Device>();
+    for (const [brokerId, devices] of Object.entries(devicesByBroker)) {
+      const { forwarded, ignored } = limitToSubscribable(devices);
+      if (ignored.length > 0) {
+        devicesByBroker[brokerId] = forwarded;
+        ignored.forEach((device) => ignoredDevices.add(device));
+        logger.warn(
+          `Broker ${brokerId} has ${devices.length} devices, but only ${MAX_SUBSCRIPTIONS_PER_CONNECTION} can be forwarded. These devices are ignored: ${ignored
+            .map(
+              (device) =>
+                `${device.name || device.device_id} (${device.device_id})`,
+            )
+            .join(", ")}`,
+        );
+      }
+    }
+    if (ignoredDevices.size > 0) {
+      devicesConfig.devices = devicesConfig.devices.filter(
+        (device) => !ignoredDevices.has(device),
+      );
     }
 
     logger.info(`\nConfigured devices: ${devicesConfig.devices.length} total`);

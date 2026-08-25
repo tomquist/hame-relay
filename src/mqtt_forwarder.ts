@@ -1,7 +1,71 @@
-import { connect, type IPublishPacket, type MqttClient } from "mqtt";
+import {
+  connect,
+  type IClientOptions,
+  type IPublishPacket,
+  type MqttClient,
+} from "mqtt";
 import { createHash } from "crypto";
 import { logger } from "./logger.js";
 import { type Device, type ForwarderConfig } from "./types.js";
+
+/**
+ * Subscription limits of the remote brokers.
+ *
+ * The remote brokers enforce two subscription quotas that a relay with many
+ * devices runs into. Both were measured against the live endpoints of both
+ * brokers, which behave identically:
+ *
+ *   - A single SUBSCRIBE packet may carry at most 8 topic filters. A packet
+ *     with 9 or more is not answered with a SUBACK at all — the broker closes
+ *     the connection. Because the client reconnects and re-subscribes the same
+ *     way, an account with more than 8 devices on one broker never gets past
+ *     the handshake and no data is ever exchanged. This is the quota behind
+ *     the immediate disconnects reported in #232.
+ *   - A single connection may hold at most 50 subscriptions. Beyond it the
+ *     broker answers SUBSCRIBE with 0x80 for every filter in the packet and
+ *     keeps the connection open, so the devices beyond the quota would fail
+ *     silently. The relay subscribes to one topic per device, so this is a cap
+ *     on devices per broker: the devices past it are dropped up front, with a
+ *     warning naming them, rather than left to fail without a trace.
+ */
+export const MAX_TOPICS_PER_SUBSCRIBE = 8;
+export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 50;
+
+/**
+ * Connection options for a client of a remote broker.
+ *
+ * `subscribeBatchSize` is what keeps that client connected: without it the
+ * whole device list goes out as a single SUBSCRIBE, and the broker answers a
+ * packet over the per-packet limit by closing the connection. It applies to
+ * the automatic re-subscribe after a reconnect as well, which is the path a
+ * one-off split at startup would miss.
+ */
+export function remoteClientOptions(
+  certs: { ca: Buffer; cert: Buffer; key: Buffer },
+  clientId: string,
+): IClientOptions {
+  return {
+    ...certs,
+    protocol: "mqtts",
+    keepalive: 30,
+    clientId,
+    subscribeBatchSize: MAX_TOPICS_PER_SUBSCRIBE,
+  };
+}
+
+/**
+ * Splits the devices of one broker into those it can subscribe to and those
+ * that do not fit within its subscription quota.
+ */
+export function limitToSubscribable<T>(
+  devices: readonly T[],
+  max: number = MAX_SUBSCRIPTIONS_PER_CONNECTION,
+): { forwarded: T[]; ignored: T[] } {
+  return {
+    forwarded: devices.slice(0, max),
+    ignored: devices.slice(max),
+  };
+}
 
 export class MQTTForwarder {
   private configBroker!: MqttClient;
@@ -54,15 +118,10 @@ export class MQTTForwarder {
     };
     this.configBroker = connect(this.config.broker_url, configOptions);
 
-    const certs = this.loadCertificates();
-    const remoteOptions = {
-      ...certs,
-      protocol: "mqtts" as const,
-      keepalive: 30,
-      clientId: this.generateClientId(
-        this.config.remote.client_id_prefix || "hm_",
-      ),
-    };
+    const remoteOptions = remoteClientOptions(
+      this.loadCertificates(),
+      this.generateClientId(this.config.remote.client_id_prefix || "hm_"),
+    );
     this.remoteBroker = connect(this.config.remote.url, remoteOptions);
 
     this.setupBrokerEventHandlers();
