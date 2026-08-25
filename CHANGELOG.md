@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Fixed the cloud connection being dropped immediately, so no data was exchanged at all, when the account has more than 8 devices. Accounts with a large number of devices now spread them over several cloud connections so every device stays subscribed (#232)
 
 
 ## [1.5.0] - 2026-07-28

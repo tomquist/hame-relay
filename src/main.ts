@@ -422,7 +422,9 @@ async function start() {
       };
       const fw = new MQTTForwarder(fconfig);
       forwarders.push(fw);
-      healthServer.addBroker(id, fw.getRemoteBroker());
+      for (const remote of fw.getRemoteBrokers()) {
+        healthServer.addBroker(remote.id, remote.client);
+      }
     }
     if (forwarders.length > 0) {
       healthServer.addBroker("local", forwarders[0].getConfigBroker());

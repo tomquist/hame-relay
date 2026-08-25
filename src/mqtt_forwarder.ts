@@ -1,11 +1,29 @@
 import { connect, type IPublishPacket, type MqttClient } from "mqtt";
 import { createHash } from "crypto";
 import { logger } from "./logger.js";
+import {
+  MAX_SUBSCRIPTIONS_PER_CONNECTION,
+  MAX_TOPICS_PER_SUBSCRIBE,
+  splitIntoConnections,
+} from "./subscriptions.js";
 import { type Device, type ForwarderConfig } from "./types.js";
+
+/**
+ * One connection to the remote broker together with the devices it is
+ * responsible for. The remote broker caps how many subscriptions a single
+ * connection may hold, so the devices of a broker are spread over as many
+ * connections as they need (see ./subscriptions.ts).
+ */
+interface RemoteConnection {
+  client: MqttClient;
+  devices: Device[];
+  label: string;
+}
 
 export class MQTTForwarder {
   private configBroker!: MqttClient;
-  private remoteBroker!: MqttClient;
+  private remoteConnections: RemoteConnection[] = [];
+  private remoteClientByDevice = new Map<Device, MqttClient>();
   private readonly logger: typeof logger;
   private readonly MESSAGE_HISTORY_TIMEOUT = 1000; // 1 second timeout
   private readonly MESSAGE_CACHE_TIMEOUT = 1000; // 1 second timeout for message loop prevention
@@ -26,8 +44,16 @@ export class MQTTForwarder {
     this.initializeBrokers();
   }
 
-  public getRemoteBroker(): MqttClient {
-    return this.remoteBroker;
+  /**
+   * The remote broker connections of this forwarder, in the order the devices
+   * were split over them. There is more than one only when the device count
+   * exceeds what a single connection may subscribe to.
+   */
+  public getRemoteBrokers(): Array<{ id: string; client: MqttClient }> {
+    return this.remoteConnections.map((connection) => ({
+      id: connection.label,
+      client: connection.client,
+    }));
   }
 
   public getConfigBroker(): MqttClient {
@@ -55,15 +81,40 @@ export class MQTTForwarder {
     this.configBroker = connect(this.config.broker_url, configOptions);
 
     const certs = this.loadCertificates();
-    const remoteOptions = {
-      ...certs,
-      protocol: "mqtts" as const,
-      keepalive: 30,
-      clientId: this.generateClientId(
-        this.config.remote.client_id_prefix || "hm_",
-      ),
-    };
-    this.remoteBroker = connect(this.config.remote.url, remoteOptions);
+    const deviceGroups = splitIntoConnections(this.config.devices);
+    if (deviceGroups.length > 1) {
+      this.logger.info(
+        `Splitting ${this.config.devices.length} devices over ${deviceGroups.length} remote broker connections; a single connection can subscribe to at most ${MAX_SUBSCRIPTIONS_PER_CONNECTION} devices`,
+      );
+    }
+    this.remoteConnections = deviceGroups.map((devices, index) => {
+      const remoteOptions = {
+        ...certs,
+        protocol: "mqtts" as const,
+        keepalive: 30,
+        clientId: this.generateClientId(
+          this.config.remote.client_id_prefix || "hm_",
+        ),
+        // The remote broker closes the connection instead of answering a
+        // SUBSCRIBE that carries more topics than it allows per packet. This
+        // splits every SUBSCRIBE, including the automatic one after a
+        // reconnect, into packets it accepts.
+        subscribeBatchSize: MAX_TOPICS_PER_SUBSCRIBE,
+      };
+      return {
+        client: connect(this.config.remote.url, remoteOptions),
+        devices,
+        label:
+          deviceGroups.length > 1
+            ? `${this.config.broker_id}#${index + 1}`
+            : this.config.broker_id,
+      };
+    });
+    for (const connection of this.remoteConnections) {
+      for (const device of connection.devices) {
+        this.remoteClientByDevice.set(device, connection.client);
+      }
+    }
 
     this.setupBrokerEventHandlers();
   }
@@ -97,30 +148,37 @@ export class MQTTForwarder {
     });
 
     // Remote broker event handlers
-    this.remoteBroker.on("connect", () => {
-      this.logger.info("Connected to remote broker");
-    });
-    this.setupRemoteSubscriptions();
+    for (const connection of this.remoteConnections) {
+      // Only name the individual connection when there is more than one.
+      const which =
+        this.remoteConnections.length > 1
+          ? ` connection ${connection.label}`
+          : "";
+      connection.client.on("connect", () => {
+        this.logger.info(`Connected to remote broker${which}`);
+      });
+      this.setupRemoteSubscriptions(connection);
 
-    this.remoteBroker.on("error", (error: Error) => {
-      this.logger.error(error, "Remote broker error");
-    });
+      connection.client.on("error", (error: Error) => {
+        this.logger.error(error, `Remote broker${which} error`);
+      });
 
-    this.remoteBroker.on("disconnect", () => {
-      this.logger.warn("Remote broker disconnected");
-    });
+      connection.client.on("disconnect", () => {
+        this.logger.warn(`Remote broker${which} disconnected`);
+      });
 
-    this.remoteBroker.on("offline", () => {
-      this.logger.warn("Remote broker went offline");
-    });
+      connection.client.on("offline", () => {
+        this.logger.warn(`Remote broker${which} went offline`);
+      });
+    }
   }
 
   private setupConfigSubscriptions(): void {
-    this.setupSubscriptions(this.configBroker);
+    this.setupSubscriptions(this.configBroker, this.config.devices);
   }
 
-  private setupRemoteSubscriptions(): void {
-    this.setupSubscriptions(this.remoteBroker);
+  private setupRemoteSubscriptions(connection: RemoteConnection): void {
+    this.setupSubscriptions(connection.client, connection.devices);
   }
 
   /**
@@ -132,11 +190,11 @@ export class MQTTForwarder {
    *   - If use_remote_topic_id=true: Uses remote structure (topic_prefix + remote_id)
    *   - If use_remote_topic_id=false: Uses local structure (local_topic_prefix + mac)
    *
-   * For REMOTE broker (remoteBroker):
+   * For REMOTE broker (any of the remote connections):
    *   - Always uses remote structure (topic_prefix + remote_id)
    *
    * @param device The device configuration
-   * @param broker The MQTT broker (configBroker for local, remoteBroker for remote)
+   * @param broker The MQTT broker (configBroker for local, a remote connection otherwise)
    * @returns Object containing prefix and identifier to use for this device on this broker
    */
   private getTopicStructureForDevice(
@@ -168,10 +226,10 @@ export class MQTTForwarder {
     };
   }
 
-  private setupSubscriptions(broker: MqttClient): void {
+  private setupSubscriptions(broker: MqttClient, devices: Device[]): void {
     const brokerName = broker === this.configBroker ? "local" : "remote";
 
-    const topics = this.config.devices.map((device) => {
+    const topics = devices.map((device) => {
       // Get the appropriate topic structure for this device on this broker
       const { prefix, identifier } = this.getTopicStructureForDevice(
         device,
@@ -206,12 +264,7 @@ export class MQTTForwarder {
     broker.on(
       "message",
       (topic: string, message: Buffer, packet: IPublishPacket) => {
-        this.forwardMessage(
-          topic,
-          message,
-          broker === this.configBroker ? this.remoteBroker : this.configBroker,
-          packet,
-        );
+        this.forwardMessage(topic, message, broker, packet);
       },
     );
   }
@@ -249,10 +302,21 @@ export class MQTTForwarder {
     }
   }
 
+  /**
+   * The remote connection that subscribes to, and publishes for, a device.
+   */
+  private remoteClientForDevice(device: Device): MqttClient {
+    // Every device belongs to exactly one connection; fall back to the first
+    // one so an unexpected device still reaches the broker.
+    return (
+      this.remoteClientByDevice.get(device) ?? this.remoteConnections[0].client
+    );
+  }
+
   private forwardMessage(
     topic: string,
     message: Buffer,
-    targetClient: MqttClient,
+    sourceClient: MqttClient,
     packet?: IPublishPacket,
   ): void {
     // Check if this is a looped message that should be skipped
@@ -260,18 +324,22 @@ export class MQTTForwarder {
       return;
     }
 
+    const fromLocal = sourceClient === this.configBroker;
+    // Only the devices of the source connection can match a remote message;
+    // a local message can match any device.
+    const candidateDevices = fromLocal
+      ? this.config.devices
+      : (this.remoteConnections.find(
+          (connection) => connection.client === sourceClient,
+        )?.devices ?? this.config.devices);
+
     // Try to match the topic and find the corresponding device
     let matchedDevice: Device | undefined;
     let topicType = "";
     let isDevice = false;
 
     // Try to match against all possible topic patterns for all devices
-    for (const device of this.config.devices) {
-      const sourceClient =
-        targetClient === this.configBroker
-          ? this.remoteBroker
-          : this.configBroker;
-
+    for (const device of candidateDevices) {
       // Get the expected topic structure for this device on the source broker
       const { prefix: expectedPrefix, identifier: expectedIdentifier } =
         this.getTopicStructureForDevice(device, sourceClient);
@@ -302,6 +370,12 @@ export class MQTTForwarder {
       return;
     }
     this.logger.debug(`Matched device: ${matchedDevice?.device_id}`);
+
+    // A local message goes out over the remote connection that owns this
+    // device; a remote message goes to the single local connection.
+    const targetClient = fromLocal
+      ? this.remoteClientForDevice(matchedDevice)
+      : this.configBroker;
 
     const inverseForwarding =
       matchedDevice.inverse_forwarding ?? this.config.inverse_forwarding;
@@ -386,7 +460,9 @@ export class MQTTForwarder {
 
   public close(): void {
     this.configBroker.end();
-    this.remoteBroker.end();
+    for (const connection of this.remoteConnections) {
+      connection.client.end();
+    }
   }
 
   // Clean up old message history entries periodically
