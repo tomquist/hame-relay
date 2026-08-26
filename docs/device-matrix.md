@@ -104,10 +104,13 @@ fw 100 is back on the 2024 broker with plaintext ones (#212). TPM-CN is on the
 2025 broker either way, but the same split governs its topic ids: off the main
 line it encrypts at any firmware rather than from fw 101.
 
-Only whole versions are modelled. The table compares numbers, which reproduces
-the app's length rule exactly for whole firmware versions; a fractional version
-inside 100-999 would be on the second line for the app and on the main line
-here. CT firmware is reported whole.
+The table's numbers reproduce that length rule exactly for whole firmware
+versions, and the shape of the reported version settles the rest: a version like
+`116.5` reads as main-line by value but is five characters, so it is second-line
+firmware and takes the second line's thresholds on both columns. Zeros at either
+end are the one gap: the version reaches the table as a number, so `116.0`
+arrives as `116` and `050` as `50`, and each is placed on the line its shortened
+shape implies rather than the one the app would pick.
 
 ## Unverified rows
 

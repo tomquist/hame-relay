@@ -1,6 +1,7 @@
 # Changelog
 ## [Next]
 - Fixed Marstek `TPM-CN` meters on a two-digit firmware version exchanging no data in either direction, because the relay addressed them under the wrong id. Like the HME meters, TPM-CN ships two firmware lines and the second one needs different handling (#234)
+- Fixed HME and TPM-CN meters whose firmware version contains a decimal point being treated as if they were on the other firmware line, which put them on the wrong cloud connection and addressed them under the wrong id (#234)
 - Fixed the cloud connection being dropped immediately, so no data was exchanged at all, when the account has more than 8 devices. Accounts with a large number of devices now forward as many as the cloud accepts and log which devices were left out, instead of failing entirely (#232)
 
 
