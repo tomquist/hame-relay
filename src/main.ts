@@ -71,7 +71,7 @@ function autoDetermineBroker(device: Device): string | undefined {
   if (device.version == null) {
     return undefined;
   }
-  return brokerForVersion(device.type, device.version);
+  return brokerForVersion(device.type, device.version_text ?? device.version);
 }
 
 function cleanAndValidate(config: { devices: Device[] }): void {
@@ -203,6 +203,10 @@ async function start() {
           type: deviceType,
           name: device.name,
           version: isNaN(v) ? 1 : v,
+          // Only when it read as a version: an approximate one ("116foo" ->
+          // 116) is not the string the app saw, and handing it on would put
+          // the matrix back to guessing from a shape that was never reported.
+          version_text: isNaN(exact) ? undefined : device.version,
           salt: device.salt,
         } as Device;
       });
@@ -337,7 +341,7 @@ async function start() {
         } else if (
           device.salt &&
           device.version &&
-          supportsVid(device.type, device.version)
+          supportsVid(device.type, device.version_text ?? device.version)
         ) {
           logger.debug(
             `Device ${device.device_id} supports CommonHelper.cq method, using salt-based calculation`,

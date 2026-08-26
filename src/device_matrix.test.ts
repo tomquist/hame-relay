@@ -179,6 +179,14 @@ describe("device_matrix", () => {
         assert.strictEqual(brokerForVersion("HME-3", "115.5"), "hame-2025");
         assert.strictEqual(brokerForVersion("HME-3", "115"), "hame-2024");
       });
+      // A trailing ".0" is the shape a number cannot carry, which is why the
+      // relay hands the matrix the string the API reported.
+      test("a trailing zero only survives as text", () => {
+        assert.strictEqual(supportsVid("HME-2", "116.0"), true);
+        assert.strictEqual(supportsVid("HME-2", 116), false);
+        assert.strictEqual(brokerForVersion("HME-2", "116.0"), "hame-2025");
+        assert.strictEqual(brokerForVersion("HME-2", 116), "hame-2024");
+      });
       test("a number reaching the broker keeps its shape", () => {
         assert.strictEqual(
           brokerForVersion("HME-2", parseVersion("116.5")),

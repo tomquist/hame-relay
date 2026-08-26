@@ -94,6 +94,13 @@ export interface Device {
   mac: string;
   type: DeviceTypeIdentifier;
   version?: number;
+  /**
+   * The firmware version exactly as the API reported it, kept only when it
+   * read as a version. Some families pick their firmware line off the *shape*
+   * of that string, which {@link version} no longer carries once "116.0" has
+   * become 116 — so the device matrix is given this where it exists.
+   */
+  version_text?: string;
   inverse_forwarding?: boolean;
   name?: string;
   broker_id?: string;
