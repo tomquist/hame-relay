@@ -114,8 +114,8 @@ shape implies rather than the one the app would pick.
 
 ## Unverified rows
 
-Every other row here has been checked against the app's own code. Two groups
-have not:
+The broker and topic-id columns of every other row have been checked against the
+app's own code. Two groups have not:
 
 - **The Venus broker column.** HMG, the VNS models, VAAC2, VEPRO and VDAC pick
   their broker through a per-device object the app builds at run time, behind a
