@@ -74,13 +74,19 @@ export interface DeviceProfile {
   /**
    * For families whose firmware runs in two lines, the app reads the line off
    * the *shape* of the raw version string rather than its numeric value, so
-   * {@link vidRoutes} alone cannot place a version like `"150.5"`: it is
-   * numerically inside the first line but is not shaped like one. `shape`
-   * matches the raw versions that really are on the first line, and
-   * `endsBefore` is where the second line starts — below it, a version that
-   * does not match `shape` belongs to the second line and is not encrypted.
+   * the steps alone cannot place a version like `"150.5"`: it is numerically
+   * inside the first line but is not shaped like one. `shape` matches the raw
+   * versions that really are on the first line, and `endsBefore` is where the
+   * second line starts — below it, a version that does not match `shape`
+   * belongs to the second line and is answered from the second line's own
+   * steps, the ones at or above `endsBefore`.
+   *
+   * Like {@link mainLine} this governs {@link brokerRoutes} and
+   * {@link vidRoutes} alike: `JupiterVersionController.isRelease()` decides the
+   * line once, and both `isSupportMqttEncrypt` and `isSupportVid` follow it.
+   * Set this *or* {@link mainLine}.
    */
-  vidFirstLine?: { shape: RegExp; endsBefore: number };
+  firstLine?: { shape: RegExp; endsBefore: number };
   /**
    * The other shape rule, for families whose *off-line* firmware is not simply
    * unencrypted (see the CT entries, where the second line reaches both the
@@ -89,10 +95,11 @@ export interface DeviceProfile {
    * below `startsAt` alone — the second line's own thresholds — instead of from
    * the whole table.
    *
-   * Unlike {@link vidFirstLine}, which only guards topic-id encryption, this
-   * governs {@link brokerRoutes} and {@link vidRoutes} alike, because the app
-   * reads the line once and both of its answers follow from it. Set this *or*
-   * {@link vidFirstLine}.
+   * The difference from {@link firstLine} is where the off-line steps sit: here
+   * they are the ones *below* `startsAt`, because the second line is the lower
+   * range. Both rules govern {@link brokerRoutes} and {@link vidRoutes} alike,
+   * because the app reads the line once and both of its answers follow from it.
+   * Set this *or* {@link firstLine}.
    */
   mainLine?: { shape: RegExp; startsAt: number };
   /**
@@ -213,7 +220,7 @@ function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
  * anything below it takes the "supported" branch on both axes — so a two-digit
  * HMI firmware is on the 2025 broker with encrypted topic ids, exactly like the
  * Jupiter and HME second lines. The comparison is numeric (`double.parse`), so
- * no {@link DeviceProfile.vidFirstLine} shape rule is needed here.
+ * no {@link DeviceProfile.firstLine} shape rule is needed here.
  */
 const HMI_MAIN_LINE_START = 100;
 
@@ -416,7 +423,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("HMM"),
     brokerRoutes: jupiterBrokerRoutes(230),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -424,7 +431,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("HMN"),
     brokerRoutes: jupiterBrokerRoutes(230),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -432,7 +439,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("JPLS"),
     brokerRoutes: jupiterBrokerRoutes(232),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   // HMD outdoor power stations. The app keys off the sub-type token after the
@@ -618,20 +625,11 @@ export function supportsVid(
   }
   const profile = resolveProfile(type);
   if (profile.vidRoutes) {
-    // Only the raw string carries the shape the app keys off, so check it
-    // before falling back to the numeric steps. A number reaching here keeps
-    // any fractional part the API reported (`main.ts` uses parseFloat) and so
-    // stringifies back to the same shape the app saw.
-    const raw = String(version).trim();
-    const firstLine = profile.vidFirstLine;
-    if (
-      firstLine &&
-      parsed < firstLine.endsBefore &&
-      !firstLine.shape.test(raw)
-    ) {
-      return false;
-    }
-    const routes = onLine(profile.vidRoutes, profile.mainLine, raw);
+    // Only the raw string carries the shape the app keys off, so `onLine` gets
+    // it rather than the number. A number reaching here keeps any fractional
+    // part the API reported (`main.ts` uses parseFloat) and so stringifies back
+    // to the same shape the app saw.
+    const routes = onLine(profile, profile.vidRoutes, version);
     let supported = false;
     for (const route of routes) {
       if (parsed >= route.since) {
@@ -656,12 +654,14 @@ export function brokerForVersion(
 ): string {
   const profile = resolveProfile(type);
   const routes = onLine(
+    profile,
     profile.brokerRoutes ?? DEFAULT_BROKER_ROUTES,
-    profile.mainLine,
     version,
   );
   const parsed = parseVersion(version);
-  let chosen = routes[0].broker;
+  // `onLine` narrows to one line's steps, so start from that line's own base
+  // rather than the table's.
+  let chosen = routes[0]?.broker ?? DEFAULT_BROKER_ROUTES[0].broker;
   for (const route of routes) {
     if (parsed >= route.since) {
       chosen = route.broker;
@@ -671,19 +671,38 @@ export function brokerForVersion(
 }
 
 /**
- * The steps that apply to a version's firmware line. Off the main line only the
- * second line's own steps count, however high the version reads: the app picks
- * the line first and never looks at the other one's thresholds.
+ * The steps that apply to a version's firmware line. Off the line its shape
+ * names, only the other line's own steps count, however the version reads
+ * numerically: the app picks the line first and never looks back at the steps
+ * belonging to the line it did not pick.
+ *
+ * Both shape rules feed this, and both govern the broker and topic-id answers
+ * alike — they differ only in which side of the split the off-line steps are
+ * on. {@link DeviceProfile.mainLine} puts the second line below `startsAt`;
+ * {@link DeviceProfile.firstLine} puts it at or above `endsBefore`, and applies
+ * only to a version numerically inside the first line's range (above it the
+ * second line's steps already answer on their own).
  */
 function onLine<T extends { since: number }>(
+  profile: DeviceProfile,
   routes: T[],
-  mainLine: DeviceProfile["mainLine"],
   version: string | number,
 ): T[] {
-  if (!mainLine || mainLine.shape.test(String(version).trim())) {
-    return routes;
+  const raw = String(version).trim();
+  const { mainLine, firstLine } = profile;
+  if (mainLine) {
+    return mainLine.shape.test(raw)
+      ? routes
+      : routes.filter((route) => route.since < mainLine.startsAt);
   }
-  return routes.filter((route) => route.since < mainLine.startsAt);
+  if (
+    firstLine &&
+    parseVersion(version) < firstLine.endsBefore &&
+    !firstLine.shape.test(raw)
+  ) {
+    return routes.filter((route) => route.since >= firstLine.endsBefore);
+  }
+  return routes;
 }
 
 /** Whether the remote topic id should be used on the local broker. */

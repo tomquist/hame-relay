@@ -71,7 +71,7 @@ switches to encrypted topic ids, and how forwarding is configured.
 | VNSGPV              | hame-2024                   | never | —               | auto        | Venus G PV; unlike its VNSG sibling |
 | VNSG, VNSEMINI, VNSB | hame-2025                  | never | —               | auto        | VNS-prefixed but not Venus devices |
 | VAAC2               | hame-2025                   | never | —               | auto        | |
-| _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device; incl. `VEPRO`, `VDAC` — but see "Unverified rows" |
+| _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device; incl. `VEPRO`, `VDAC` — but see "Deliberate differences from the app" |
 
 ## Jupiter firmware lines
 
@@ -81,6 +81,13 @@ firmware is not simply "newer" than a 1xx one: the line starts over on the 2024
 broker with plaintext topic ids and migrates again at its own thresholds. So a
 JPLS on fw 231 is on the 2024 broker without topic encryption, while the same
 family on fw 136 is already on the 2025 broker with encrypted topic ids.
+
+Which line a device is on is read off the *shape* of the reported version, not
+its value: `JupiterVersionController.isRelease()` is true only for a raw version
+of exactly three digits starting with "1". A version like `150.5` is
+numerically inside the 1xx range but is not shaped like a 1xx one, so it is
+answered by the 2xx line's thresholds — on the broker as well as on topic ids,
+because the app reads the line once and both answers follow from it.
 
 ## HMI firmware lines
 
@@ -112,27 +119,67 @@ end are the one gap: the version reaches the table as a number, so `116.0`
 arrives as `116` and `050` as `50`, and each is placed on the line its shortened
 shape implies rather than the one the app would pick.
 
-## Unverified rows
+## How this table was checked
 
-The broker and topic-id columns of every other row have been checked against the
-app's own code. Two groups have not:
+Every broker and topic-id value above has been read out of the Marstek app's own
+code with [marstool](https://github.com/tomquist/marstool). The two functions
+the whole table reduces to are:
 
-- **The Venus broker column.** HMG, the VNS models, VAAC2, VEPRO and VDAC pick
-  their broker through a per-device object the app builds at run time, behind a
-  dispatch that neither running the app's code nor reading it resolves. Their
-  topic-id thresholds are confirmed; the broker column is unverified rather than
-  contradicted. All of them sit on `hame-2025` at every firmware except HMG,
-  whose migration at fw 153 is the one value in this group a device could
-  disagree with.
-- **`VEPRO` and `VDAC`.** The app groups both with the Venus family, while this
-  table leaves them to the unknown default. The two agree on the broker and
-  differ on topic ids: the default encrypts at any firmware, the Venus rule from
-  fw 123. Neither has been observed on a real device, so the default stands
-  until one is.
+```sh
+marstool app rules --blutter-out <dir> --class MqttUtil \
+  --member isSupportNewMqttCertificate     # broker column
+marstool app rules --blutter-out <dir> --class CommonHelper --member isSupportVid
+```
 
-The `inverse` column and the AstraMeter placeholder-MAC rule are Hame Relay's
-own handling rather than app behaviour, and cannot be confirmed from the app at
-all.
+`MqttUtil.isSupportNewMqttCertificate` is what the app's connection code calls;
+it keys off the token before the first `-` in the device type and either answers
+directly (`HMJ` ≥108; `HMA`/`HMF`/`HMK` ≥226; `HMD` by sub-type; `SDH`, `HMH`,
+`VENX`, `VNSB`, `HMHL`, `VNSG`, `VNSEMINI` unconditionally) or hands off to the
+per-family controller (`JupiterVersionController`, `CtVersionController`,
+`InvertVersionController`, and `AccouplerVersionController` for the Venus
+family). `CommonHelper.isSupportVid` dispatches the same way for topic ids.
+Anything neither names — `HMB`, `HMC`, `SCH`, `HML`, `UB`, `VNSGPV` — falls
+through to "no", which is the 2024 broker with plaintext topic ids.
+
+Two caveats are worth keeping in mind when re-checking this table:
+
+- **Do not read the answer off `marstool mqtt certificate` or `mqtt topics`.**
+  Those ask the strategy classes under `Mqtt/simpleMqtt/`, which belong to the
+  app's built-in MQTT debug page, not to its connection code. They carry their
+  own, older thresholds — `HMA` at 154, `HMF` at 102, `HMK` at 205, `HMB` at 133
+  — and are reached from nothing but that page.
+- **The app matches device types by substring, not by prefix.** This table (and
+  `device_matrix.ts`) matches by prefix, which agrees for every real device id,
+  since those start with their family token.
+
+### Deliberate differences from the app
+
+- **Unknown device types.** The app answers "no" for a type it does not
+  recognise, which is the 2024 broker without topic encryption. This table
+  assumes the opposite — the 2025 broker, topic-encryption capable — because a
+  device new enough to be unknown here is far more likely to be on the current
+  infrastructure than on the one being retired. `VEPRO` and `VDAC` reach this
+  row and are Venus devices to the app, which would answer them from the Venus
+  rule (topic ids from fw 123) instead of always. Neither has been observed on a
+  real device.
+- **Venus pre-release firmware.** The Venus rules have a second threshold, a
+  few tenths lower, for a firmware version whose raw text is not exactly three
+  characters: HMG reaches the 2025 broker at 153.2 rather than 153 and encrypts
+  topic ids from 154.5 rather than 154, and VNSD/VNSE3 encrypt from 114.8 rather
+  than 123. This table carries the release thresholds only, so an HMG on, say,
+  fw 154.2 is treated as encrypting where the app would not. No such firmware
+  has been seen in the wild.
+- **The `inverse` column and the AstraMeter placeholder-MAC rule** are Hame
+  Relay's own handling rather than app behaviour, and cannot be confirmed from
+  the app at all.
+
+### What the app leaves open
+
+For the Venus sub-types built on `BasePVDeviceStrategy` — `VNSD`, `VNSA`,
+`VNSD2` and the VA2 variant — the app has no `isSupportMqttEncrypt`
+implementation at all, so there is no threshold there to agree or disagree with;
+`hame-2025` stands. The Venus types that do implement it (`VNSE3`, `VNSE4`,
+`VNSEMAX`, `VAAC2`) return true at every firmware, and HMG's 153 is confirmed.
 
 ## Matching precedence
 

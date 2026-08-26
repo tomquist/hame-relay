@@ -450,6 +450,23 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("JPLS-8H", 135), "hame-2025");
     });
 
+    // `JupiterVersionController.isRelease()` decides the line once, and both
+    // `isSupportMqttEncrypt` and `isSupportVid` follow it — so a version that
+    // is numerically inside 135-199 but not shaped like a 1xx one is answered
+    // by the 2xx line's thresholds on the broker too, not only on topic ids.
+    test("versions not shaped like 1xx take the 2xx line's broker steps", () => {
+      assert.strictEqual(brokerForVersion("HMN", "150.5"), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMN", "150"), "hame-2025");
+      assert.strictEqual(brokerForVersion("JPLS", "136.0"), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS", "136"), "hame-2025");
+      assert.strictEqual(brokerForVersion("HMM", "199.9"), "hame-2024");
+      // Below the 1xx line both readings agree, and above 200 the shape rule
+      // no longer applies: the 2xx steps already answer on their own.
+      assert.strictEqual(brokerForVersion("HMM", "50"), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMM", "230.5"), "hame-2025");
+      assert.strictEqual(brokerForVersion("JPLS", "231.5"), "hame-2024");
+    });
+
     test("Jupiter 2xx firmware line restarts on hame-2024 (#209)", () => {
       // JPLS migrates at 232, HMM/HMN at 230.
       assert.strictEqual(brokerForVersion("JPLS-8H", 200), "hame-2024");
