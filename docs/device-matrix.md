@@ -175,11 +175,18 @@ Two caveats are worth keeping in mind when re-checking this table:
 
 ### What the app leaves open
 
-For the Venus sub-types built on `BasePVDeviceStrategy` — `VNSD`, `VNSA`,
-`VNSD2` and the VA2 variant — the app has no `isSupportMqttEncrypt`
-implementation at all, so there is no threshold there to agree or disagree with;
-`hame-2025` stands. The Venus types that do implement it (`VNSE3`, `VNSE4`,
-`VNSEMAX`, `VAAC2`) return true at every firmware, and HMG's 153 is confirmed.
+The Venus family answers from a per-device strategy object, and several of those
+objects simply do not implement the rule being asked for — the call would fail
+rather than return a threshold. So for these rows there is nothing in the app to
+agree or disagree with, and the values below stand on the app's silence:
+
+- **Broker.** `VNSD`, `VNSA`, `VNSD2` and the VA2 variant have no
+  `isSupportMqttEncrypt`. The Venus types that do (`VNSE3`, `VNSE4`, `VNSEMAX`,
+  `VAAC2`) return true at every firmware, and HMG's 153 is confirmed outright.
+- **Topic ids.** Only three strategies implement `isSupportVid` — HMG (154),
+  VNSD (123) and the VNSE3 group (123, or unconditionally for `VNSE3US`,
+  `VNSE3CH` and `VNSE3CH-1`). `VNSA`, `VNSD2`, `VNSE4`, `VNSEMAX`, `VAAC2` and
+  the VA2 variant have none.
 
 ## Matching precedence
 
