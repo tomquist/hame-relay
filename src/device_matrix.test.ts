@@ -130,13 +130,24 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("TPM-CN - require firmware >= 101.0", () => {
-      test("true at/above 101", () => {
+    describe("TPM-CN - two firmware lines, like the HME meters", () => {
+      test("true at/above 101 on the main line", () => {
         assert.strictEqual(supportsVid("TPM-CN", "101.0"), true);
         assert.strictEqual(supportsVid("TPM-CN", "130.0"), true);
       });
-      test("false below 101", () => {
+      test("false below 101 on the main line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "100"), false);
         assert.strictEqual(supportsVid("TPM-CN", "100.9"), false);
+      });
+      // The app splits the CT family by the length of the version string and
+      // encrypts unconditionally off the main line, so a two-digit TPM-CN is
+      // encrypted where the main line would still be plaintext.
+      test("true at any version on the second line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "50"), true);
+        assert.strictEqual(supportsVid("TPM-CN", "1"), true);
+      });
+      test("true again above the main line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "1000"), true);
       });
     });
 

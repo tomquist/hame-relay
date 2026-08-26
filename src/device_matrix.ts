@@ -139,16 +139,17 @@ const JUPITER_VID_ROUTES: VidRoute[] = [
 const JUPITER_FIRST_LINE = { shape: /^1\d\d$/u, endsBefore: 200 };
 
 /**
- * Where the HME meters' main firmware line starts. `CtVersionController` reads
- * the line off the *length* of the raw version string: a three-character
- * version ("116", "119") is on the main line, anything else — a two-digit
- * version such as "50", or a four-digit one — is on the second line. For whole
- * versions that is exactly the range 100–999, so the numeric steps below
- * reproduce the app's choice; only a fractional version inside that range
- * would need the {@link DeviceProfile.vidFirstLine} treatment, and HME
- * firmware is always reported whole.
+ * Where a CT meter's main firmware line starts. `CtVersionController` reads the
+ * line off the *length* of the raw version string: a three-character version
+ * ("116", "119") is on the main line, anything else — a two-digit version such
+ * as "50", or a four-digit one — is on the second line. The split covers the
+ * whole CT family, TPM-CN included, not only the HME meters. For whole versions
+ * it is exactly the range 100–999, so the numeric steps below reproduce the
+ * app's choice; only a fractional version inside that range would need the
+ * {@link DeviceProfile.vidFirstLine} treatment, and CT firmware is always
+ * reported whole.
  */
-const HME_MAIN_LINE_START = 100;
+const CT_MAIN_LINE_START = 100;
 
 /**
  * Broker routing for an HME meter across both of its firmware lines (#212).
@@ -165,7 +166,7 @@ function hmeBrokerRoutes(
   return [
     { since: 0, broker: BROKER_2024 },
     { since: secondLineMigration, broker: BROKER_2025 },
-    { since: HME_MAIN_LINE_START, broker: BROKER_2024 },
+    { since: CT_MAIN_LINE_START, broker: BROKER_2024 },
     { since: mainLineMigration, broker: BROKER_2025 },
   ];
 }
@@ -174,7 +175,7 @@ function hmeBrokerRoutes(
 function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
   return [
     { since: secondLineVid, supported: true },
-    { since: HME_MAIN_LINE_START, supported: false },
+    { since: CT_MAIN_LINE_START, supported: false },
     { since: mainLineVid, supported: true },
   ];
 }
@@ -251,9 +252,18 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     astraMeter: true,
   },
   {
+    // TPM-CN runs the same two firmware lines as the HME meters, and the app
+    // reads the line the same way — off the length of the version string. Only
+    // the main line has a threshold: on the second line the app encrypts topic
+    // ids at any version, so a TPM-CN reporting "50" encrypts where a flat
+    // `vidSupportVersion: 101` would have sent plaintext.
     name: "TPM-CN",
     matches: exact("TPM-CN"),
-    vidSupportVersion: 101,
+    vidRoutes: [
+      { since: 0, supported: true },
+      { since: CT_MAIN_LINE_START, supported: false },
+      { since: 101, supported: true },
+    ],
     inverse: "auto",
   },
   {

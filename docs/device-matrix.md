@@ -46,11 +46,12 @@ switches to encrypted topic ids, and how forwarding is configured.
 | HMD-N               | hame-2024 → hame-2025 @1.42 | never | —               | auto        | outdoor power station |
 | HMD (other)         | hame-2024                   | never | —               | auto        | `HMD-1`…`HMD-7`, `HMD-41/61/71/72`, bare `HMD`; never offered the 2025 broker |
 | HME (base / other)  | hame-2024                   | never | —               | auto        | AstraMeter family; non-2/3/4/5 |
-| HME-2, HME-4 (3-digit fw) | hame-2024 → hame-2025 @119  | 122   | —               | auto        | AstraMeter family; see "HME firmware lines" |
+| HME-2, HME-4 (3-digit fw) | hame-2024 → hame-2025 @119  | 122   | —               | auto        | AstraMeter family; see "CT firmware lines" |
 | HME-2, HME-4 (other fw)   | hame-2024 → hame-2025 @24   | 25    | —               | auto        | |
 | HME-3, HME-5 (3-digit fw) | hame-2024 → hame-2025 @116  | 120   | —               | auto        | AstraMeter family |
 | HME-3, HME-5 (other fw)   | hame-2024 → hame-2025 @33   | 34    | —               | auto        | |
-| TPM-CN              | hame-2025                   | 101   | —               | auto        | standalone identifier |
+| TPM-CN (3-digit fw) | hame-2025                   | 101   | —               | auto        | standalone identifier; see "CT firmware lines" |
+| TPM-CN (other fw)   | hame-2025                   | 0     | —               | auto        | |
 | TPM2-0              | hame-2025                   | 0     | —               | auto        | CT002 new generation (#201) |
 | TPM2 (other)        | hame-2024                   | never | —               | auto        | unrecognised; only `TPM2-0` ships today |
 | SMR-0, SMR-1, SMR-2 | hame-2025                   | 0     | —               | auto        | CT003 meter readers: P1 (NL) / IR (DE) / TIC (FR) |
@@ -70,7 +71,7 @@ switches to encrypted topic ids, and how forwarding is configured.
 | VNSGPV              | hame-2024                   | never | —               | auto        | Venus G PV; unlike its VNSG sibling |
 | VNSG, VNSEMINI, VNSB | hame-2025                  | never | —               | auto        | VNS-prefixed but not Venus devices |
 | VAAC2               | hame-2025                   | never | —               | auto        | |
-| _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device; incl. `VEPRO`, `VDAC` |
+| _unknown_           | hame-2025                   | 0     | —               | auto        | assume a 2025-broker device; incl. `VEPRO`, `VDAC` — but see "Unverified rows" |
 
 ## Jupiter firmware lines
 
@@ -91,15 +92,44 @@ broker with encrypted topic ids, while the same inverter on fw 100 is back on
 the 2024 broker with plaintext ones until it reaches 113 (129 for route 2).
 Routes 0 and 1 return false unconditionally and have no second line.
 
-## HME firmware lines
+## CT firmware lines
 
-The HME meters (HME-2/HME-4 and HME-3/HME-5) have the same two-line split. The
+The CT meters (HME-2/HME-4, HME-3/HME-5 and TPM-CN) share a two-line split. The
 line is picked from the *length* of the firmware version string: a three-digit
 version (`116`, `119`) is on the main line, any other length (a two-digit
 version such as `50`, or a four-digit one) is on the second line, which reached
 the 2025 broker and encrypted topic ids at much lower versions. So an HME-2 on
 fw 50 is on the 2025 broker with encrypted topic ids, while the same meter on
-fw 100 is back on the 2024 broker with plaintext ones (#212).
+fw 100 is back on the 2024 broker with plaintext ones (#212). TPM-CN is on the
+2025 broker either way, but the same split governs its topic ids: off the main
+line it encrypts at any firmware rather than from fw 101.
+
+Only whole versions are modelled. The table compares numbers, which reproduces
+the app's length rule exactly for whole firmware versions; a fractional version
+inside 100-999 would be on the second line for the app and on the main line
+here. CT firmware is reported whole.
+
+## Unverified rows
+
+Every other row here has been checked against the app's own code. Two groups
+have not:
+
+- **The Venus broker column.** HMG, the VNS models, VAAC2, VEPRO and VDAC pick
+  their broker through a per-device object the app builds at run time, behind a
+  dispatch that neither running the app's code nor reading it resolves. Their
+  topic-id thresholds are confirmed; the broker column is unverified rather than
+  contradicted. All of them sit on `hame-2025` at every firmware except HMG,
+  whose migration at fw 153 is the one value in this group a device could
+  disagree with.
+- **`VEPRO` and `VDAC`.** The app groups both with the Venus family, while this
+  table leaves them to the unknown default. The two agree on the broker and
+  differ on topic ids: the default encrypts at any firmware, the Venus rule from
+  fw 123. Neither has been observed on a real device, so the default stands
+  until one is.
+
+The `inverse` column and the AstraMeter placeholder-MAC rule are Hame Relay's
+own handling rather than app behaviour, and cannot be confirmed from the app at
+all.
 
 ## Matching precedence
 
