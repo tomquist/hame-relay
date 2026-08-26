@@ -82,6 +82,20 @@ export interface DeviceProfile {
    */
   vidFirstLine?: { shape: RegExp; endsBefore: number };
   /**
+   * The other shape rule, for families whose *off-line* firmware is not simply
+   * unencrypted (see the CT entries, where the second line reaches both the
+   * 2025 broker and encrypted topic ids from a much lower version than the main
+   * one). A raw version that does not match `shape` is answered from the steps
+   * below `startsAt` alone — the second line's own thresholds — instead of from
+   * the whole table.
+   *
+   * Unlike {@link vidFirstLine}, which only guards topic-id encryption, this
+   * governs {@link brokerRoutes} and {@link vidRoutes} alike, because the app
+   * reads the line once and both of its answers follow from it. Set this *or*
+   * {@link vidFirstLine}.
+   */
+  mainLine?: { shape: RegExp; startsAt: number };
+  /**
    * Exact firmware versions that enable the remote topic id on the local
    * broker. Matched by equality, so a device reporting a fractional version
    * (e.g. `226.5`) does not match the `226` entry.
@@ -139,16 +153,30 @@ const JUPITER_VID_ROUTES: VidRoute[] = [
 const JUPITER_FIRST_LINE = { shape: /^1\d\d$/u, endsBefore: 200 };
 
 /**
- * Where the HME meters' main firmware line starts. `CtVersionController` reads
- * the line off the *length* of the raw version string: a three-character
- * version ("116", "119") is on the main line, anything else — a two-digit
- * version such as "50", or a four-digit one — is on the second line. For whole
- * versions that is exactly the range 100–999, so the numeric steps below
- * reproduce the app's choice; only a fractional version inside that range
- * would need the {@link DeviceProfile.vidFirstLine} treatment, and HME
- * firmware is always reported whole.
+ * Where a CT meter's main firmware line starts. `CtVersionController` reads the
+ * line off the *length* of the raw version string: a three-character version
+ * ("116", "119") is on the main line, anything else — a two-digit version such
+ * as "50", or a four-digit one — is on the second line. The split covers the
+ * whole CT family, TPM-CN included, not only the HME meters. For whole versions
+ * it is exactly the range 100–999, so the numeric steps below reproduce the
+ * app's choice on their own; {@link CT_MAIN_LINE} covers the versions where
+ * length and value disagree.
  */
-const HME_MAIN_LINE_START = 100;
+const CT_MAIN_LINE_START = 100;
+
+/**
+ * The shape half of that rule. `CtVersionController` counts characters, so a
+ * version is on the main line when it is exactly three of them — which for a
+ * whole version is the same as the range 100–999 the steps use, and for
+ * anything else is not: "116.5" sits inside that range but is five characters,
+ * so the app reads it as second-line firmware. Matching on the raw string
+ * keeps those with the line the app puts them on.
+ *
+ * A version that survives `parseVersion` reaches here with its shape intact,
+ * apart from trailing zeros and leading zeros ("116.0", "050"), which the
+ * number has already dropped.
+ */
+const CT_MAIN_LINE = { shape: /^.{3}$/u, startsAt: CT_MAIN_LINE_START };
 
 /**
  * Broker routing for an HME meter across both of its firmware lines (#212).
@@ -165,7 +193,7 @@ function hmeBrokerRoutes(
   return [
     { since: 0, broker: BROKER_2024 },
     { since: secondLineMigration, broker: BROKER_2025 },
-    { since: HME_MAIN_LINE_START, broker: BROKER_2024 },
+    { since: CT_MAIN_LINE_START, broker: BROKER_2024 },
     { since: mainLineMigration, broker: BROKER_2025 },
   ];
 }
@@ -174,7 +202,7 @@ function hmeBrokerRoutes(
 function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
   return [
     { since: secondLineVid, supported: true },
-    { since: HME_MAIN_LINE_START, supported: false },
+    { since: CT_MAIN_LINE_START, supported: false },
     { since: mainLineVid, supported: true },
   ];
 }
@@ -239,6 +267,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: exact("HME-2", "HME-4"),
     brokerRoutes: hmeBrokerRoutes(24, 119),
     vidRoutes: hmeVidRoutes(25, 122),
+    mainLine: CT_MAIN_LINE,
     inverse: "auto",
     astraMeter: true,
   },
@@ -247,13 +276,24 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: exact("HME-3", "HME-5"),
     brokerRoutes: hmeBrokerRoutes(33, 116),
     vidRoutes: hmeVidRoutes(34, 120),
+    mainLine: CT_MAIN_LINE,
     inverse: "auto",
     astraMeter: true,
   },
   {
+    // TPM-CN runs the same two firmware lines as the HME meters, and the app
+    // reads the line the same way — off the length of the version string. Only
+    // the main line has a threshold: on the second line the app encrypts topic
+    // ids at any version, so a TPM-CN reporting "50" encrypts where a flat
+    // `vidSupportVersion: 101` would have sent plaintext.
     name: "TPM-CN",
     matches: exact("TPM-CN"),
-    vidSupportVersion: 101,
+    vidRoutes: [
+      { since: 0, supported: true },
+      { since: CT_MAIN_LINE_START, supported: false },
+      { since: 101, supported: true },
+    ],
+    mainLine: CT_MAIN_LINE,
     inverse: "auto",
   },
   {
@@ -591,8 +631,9 @@ export function supportsVid(
     ) {
       return false;
     }
+    const routes = onLine(profile.vidRoutes, profile.mainLine, raw);
     let supported = false;
-    for (const route of profile.vidRoutes) {
+    for (const route of routes) {
       if (parsed >= route.since) {
         supported = route.supported;
       }
@@ -609,15 +650,40 @@ export function supportsVid(
  * given firmware. Replaces the `autoDetermineBroker` / `resolveBrokerMinVersion`
  * / `isLegacyOnlyDevice` logic.
  */
-export function brokerForVersion(type: string, version: number): string {
-  const routes = resolveProfile(type).brokerRoutes ?? DEFAULT_BROKER_ROUTES;
+export function brokerForVersion(
+  type: string,
+  version: string | number,
+): string {
+  const profile = resolveProfile(type);
+  const routes = onLine(
+    profile.brokerRoutes ?? DEFAULT_BROKER_ROUTES,
+    profile.mainLine,
+    version,
+  );
+  const parsed = parseVersion(version);
   let chosen = routes[0].broker;
   for (const route of routes) {
-    if (version >= route.since) {
+    if (parsed >= route.since) {
       chosen = route.broker;
     }
   }
   return chosen;
+}
+
+/**
+ * The steps that apply to a version's firmware line. Off the main line only the
+ * second line's own steps count, however high the version reads: the app picks
+ * the line first and never looks at the other one's thresholds.
+ */
+function onLine<T extends { since: number }>(
+  routes: T[],
+  mainLine: DeviceProfile["mainLine"],
+  version: string | number,
+): T[] {
+  if (!mainLine || mainLine.shape.test(String(version).trim())) {
+    return routes;
+  }
+  return routes.filter((route) => route.since < mainLine.startsAt);
 }
 
 /** Whether the remote topic id should be used on the local broker. */

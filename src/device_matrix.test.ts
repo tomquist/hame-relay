@@ -130,13 +130,72 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("TPM-CN - require firmware >= 101.0", () => {
-      test("true at/above 101", () => {
-        assert.strictEqual(supportsVid("TPM-CN", "101.0"), true);
-        assert.strictEqual(supportsVid("TPM-CN", "130.0"), true);
+    describe("TPM-CN - two firmware lines, like the HME meters", () => {
+      test("true at/above 101 on the main line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "101"), true);
+        assert.strictEqual(supportsVid("TPM-CN", "130"), true);
       });
-      test("false below 101", () => {
-        assert.strictEqual(supportsVid("TPM-CN", "100.9"), false);
+      test("false below 101 on the main line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "100"), false);
+      });
+      // The app splits the CT family by the length of the version string and
+      // encrypts unconditionally off the main line, so a two-digit TPM-CN is
+      // encrypted where the main line would still be plaintext.
+      test("true at any version on the second line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "50"), true);
+        assert.strictEqual(supportsVid("TPM-CN", "1"), true);
+      });
+      test("true again above the main line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "1000"), true);
+      });
+    });
+
+    // The app counts characters rather than comparing numbers, so a version
+    // that reads as main-line but is not shaped like one is second-line
+    // firmware, which encrypts from far lower.
+    describe("CT meters - a version's shape picks its line, not its value", () => {
+      test("a fractional version inside 100-999 is on the second line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "100.9"), true);
+        assert.strictEqual(supportsVid("HME-2", "116.5"), true);
+        assert.strictEqual(supportsVid("HME-3", "115.5"), true);
+      });
+      test("the same versions whole stay on the main line", () => {
+        assert.strictEqual(supportsVid("HME-2", "116"), false);
+        assert.strictEqual(supportsVid("HME-3", "115"), false);
+      });
+      test("a four-character version is second line too", () => {
+        assert.strictEqual(supportsVid("HME-2", "1000"), true);
+      });
+      test("below the second line's own threshold it is still false", () => {
+        assert.strictEqual(supportsVid("HME-2", "24.5"), false);
+        assert.strictEqual(supportsVid("HME-3", "33.5"), false);
+      });
+      // The app reads the line once and both answers follow from it, so the
+      // broker moves with the topic ids rather than staying behind on the
+      // main line's own threshold.
+      test("the broker follows the same line", () => {
+        assert.strictEqual(brokerForVersion("HME-2", "116.5"), "hame-2025");
+        assert.strictEqual(brokerForVersion("HME-2", "116"), "hame-2024");
+        assert.strictEqual(brokerForVersion("HME-3", "115.5"), "hame-2025");
+        assert.strictEqual(brokerForVersion("HME-3", "115"), "hame-2024");
+      });
+      // A trailing ".0" is the shape a number cannot carry, which is why the
+      // relay hands the matrix the string the API reported.
+      test("a trailing zero only survives as text", () => {
+        assert.strictEqual(supportsVid("HME-2", "116.0"), true);
+        assert.strictEqual(supportsVid("HME-2", 116), false);
+        assert.strictEqual(brokerForVersion("HME-2", "116.0"), "hame-2025");
+        assert.strictEqual(brokerForVersion("HME-2", 116), "hame-2024");
+      });
+      test("a number reaching the broker keeps its shape", () => {
+        assert.strictEqual(
+          brokerForVersion("HME-2", parseVersion("116.5")),
+          "hame-2025",
+        );
+        assert.strictEqual(
+          brokerForVersion("HME-2", parseVersion("116")),
+          "hame-2024",
+        );
       });
     });
 
