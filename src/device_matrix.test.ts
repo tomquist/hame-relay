@@ -148,6 +148,15 @@ describe("device_matrix", () => {
       test("true again above the main line", () => {
         assert.strictEqual(supportsVid("TPM-CN", "1000"), true);
       });
+      // Three characters puts a version on the main line however low it reads,
+      // and the main line's threshold is the only one it is measured against —
+      // "1.5" is not the second line's "encrypt at any version".
+      test("a three-character version below 101 is main-line plaintext", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "1.5"), false);
+        assert.strictEqual(supportsVid("TPM-CN", "9.9"), false);
+        // Two characters is second-line firmware, which does encrypt.
+        assert.strictEqual(supportsVid("TPM-CN", "50"), true);
+      });
     });
 
     // The app counts characters rather than comparing numbers, so a version
@@ -461,6 +470,24 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMN-1", 230), "hame-2025");
       // The 1xx line keeps its own thresholds.
       assert.strictEqual(brokerForVersion("JPLS-8H", 199), "hame-2025");
+    });
+
+    // The app reads the firmware line off the shape of the version string once
+    // and answers both questions from it, so a version that is numerically
+    // inside 135-199 but not shaped like a 1xx release is 2xx-line firmware for
+    // the broker exactly as it is for topic ids — and 2xx-line firmware that low
+    // is still on the 2024 broker.
+    test("versions not shaped like 1xx take the 2xx line's broker too", () => {
+      assert.strictEqual(brokerForVersion("HMM-1", "135.5"), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMN-1", "150.5"), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", "199.5"), "hame-2024");
+      // Above 200 the shape no longer decides: the 2xx thresholds apply either
+      // way, and they differ per model.
+      assert.strictEqual(brokerForVersion("HMM-1", "230.5"), "hame-2025");
+      assert.strictEqual(brokerForVersion("JPLS-8H", "230.5"), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", "236.5"), "hame-2025");
+      // A properly shaped 1xx version still migrates at 135.
+      assert.strictEqual(brokerForVersion("HMM-1", "136"), "hame-2025");
     });
 
     test("HME-2/HME-4 main line: hame-2024 below 119, hame-2025 at/above (#145)", () => {
