@@ -137,13 +137,17 @@ disagreed with none of them. What it could not answer:
 - **The Venus and HMG broker column.** HMG, `VNSD2`, `VNSA2`, the `VNSE3`
   models, `VNSE4`, `VNSEMAX`, `VAAC2`, `VEPRO` and `VDAC` pick their broker
   through a per-device object the app builds at run time, and the rule dies in
-  the app's dependency injection instead of answering for them. Asked directly,
-  each of those per-device objects reports the 2025 broker at any firmware,
-  which is what this table has; the dispatch that picks the object is what stays
-  unconfirmed. HMG is the exception on both counts — its object cannot be asked
-  either — so its migration at fw 153 is the one value in this group a device
-  could disagree with. `VNSG`, `VNSGPV`, `VNSEMINI` and `VNSB` are *not* in this
-  group: the app answers for them, and agrees.
+  the app's dependency injection instead of answering for them. Those objects
+  can be reached one at a time, but what they say is thinner than it looks: the
+  `VNSE3`, `VNSE4`, `VNSEMAX` and `VAAC2` objects share a single inherited
+  implementation, which dispatches on the object it is called on, so asking each
+  in turn measures one function four times — and on an object built with no
+  firmware in it, which is the question that matters. `VNSD2` and `VNSA2` sit on
+  a different base and do not answer at all, and HMG's brings the runtime down.
+  So this group's `hame-2025` rests on the reading of the app's code, not on
+  running it, and HMG's migration at fw 153 remains the one value in it a device
+  is most likely to disagree with. `VNSG`, `VNSGPV`, `VNSEMINI` and `VNSB` are
+  *not* in this group: the app answers for them, and agrees.
 - **The HMI, HMG and Venus topic-id column.** `CommonHelper.isSupportVid` routes
   these through that same run-time dispatch, so those thresholds rest on a
   reading of the app's code rather than on running it. The families whose
