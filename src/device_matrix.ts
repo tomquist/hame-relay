@@ -74,25 +74,30 @@ export interface DeviceProfile {
   /**
    * For families whose firmware runs in two lines, the app reads the line off
    * the *shape* of the raw version string rather than its numeric value, so
-   * {@link vidRoutes} alone cannot place a version like `"150.5"`: it is
-   * numerically inside the first line but is not shaped like one. `shape`
-   * matches the raw versions that really are on the first line, and
-   * `endsBefore` is where the second line starts — below it, a version that
-   * does not match `shape` belongs to the second line and is not encrypted.
+   * the steps alone cannot place a version like `"150.5"`: it is numerically
+   * inside the first line but is not shaped like one. `shape` matches the raw
+   * versions that really are on the first line, and `endsBefore` is where the
+   * second line starts — below it, a version that does not match `shape`
+   * belongs to the second line and is answered from the steps at or above
+   * `endsBefore` alone.
+   *
+   * Like {@link mainLine}, this governs {@link brokerRoutes} and
+   * {@link vidRoutes} alike: the app reads the line once and both of its
+   * answers follow from it. Set this *or* {@link mainLine}.
    */
-  vidFirstLine?: { shape: RegExp; endsBefore: number };
+  firstLine?: { shape: RegExp; endsBefore: number };
   /**
    * The other shape rule, for families whose *off-line* firmware is not simply
    * unencrypted (see the CT entries, where the second line reaches both the
    * 2025 broker and encrypted topic ids from a much lower version than the main
    * one). A raw version that does not match `shape` is answered from the steps
-   * below `startsAt` alone — the second line's own thresholds — instead of from
-   * the whole table.
+   * below `startsAt` alone — the second line's own thresholds; one that does
+   * match is answered from the steps at or above `startsAt`, the main line's
+   * own. Neither line ever sees the other's thresholds, which is what keeps a
+   * main-line version *below* `startsAt` off the second line's steps.
    *
-   * Unlike {@link vidFirstLine}, which only guards topic-id encryption, this
-   * governs {@link brokerRoutes} and {@link vidRoutes} alike, because the app
-   * reads the line once and both of its answers follow from it. Set this *or*
-   * {@link vidFirstLine}.
+   * This governs {@link brokerRoutes} and {@link vidRoutes} alike. Set this
+   * *or* {@link firstLine}.
    */
   mainLine?: { shape: RegExp; startsAt: number };
   /**
@@ -146,9 +151,10 @@ const JUPITER_VID_ROUTES: VidRoute[] = [
 /**
  * `JupiterVersionController.isRelease()` puts a device on the 1xx line only
  * when its raw firmware string is exactly three digits starting with "1" — so
- * "150.5" is *not* on that line even though it sits between 100 and 200.
- * Numbers and 1xx strings agree with the steps above; this only keeps
- * differently shaped versions out of the encrypted 1xx range.
+ * "150.5" is *not* on that line even though it sits between 100 and 200, and
+ * the app answers it from the 2xx line's thresholds on *both* axes: broker as
+ * well as topic ids. Numbers and 1xx strings agree with the steps above; this
+ * only keeps differently shaped versions off the 1xx line.
  */
 const JUPITER_FIRST_LINE = { shape: /^1\d\d$/u, endsBefore: 200 };
 
@@ -213,7 +219,7 @@ function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
  * anything below it takes the "supported" branch on both axes — so a two-digit
  * HMI firmware is on the 2025 broker with encrypted topic ids, exactly like the
  * Jupiter and HME second lines. The comparison is numeric (`double.parse`), so
- * no {@link DeviceProfile.vidFirstLine} shape rule is needed here.
+ * no {@link DeviceProfile.firstLine} shape rule is needed here.
  */
 const HMI_MAIN_LINE_START = 100;
 
@@ -416,7 +422,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("HMM"),
     brokerRoutes: jupiterBrokerRoutes(230),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -424,7 +430,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("HMN"),
     brokerRoutes: jupiterBrokerRoutes(230),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -432,7 +438,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("JPLS"),
     brokerRoutes: jupiterBrokerRoutes(232),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   // HMD outdoor power stations. The app keys off the sub-type token after the
@@ -618,20 +624,11 @@ export function supportsVid(
   }
   const profile = resolveProfile(type);
   if (profile.vidRoutes) {
-    // Only the raw string carries the shape the app keys off, so check it
-    // before falling back to the numeric steps. A number reaching here keeps
-    // any fractional part the API reported (`main.ts` uses parseFloat) and so
-    // stringifies back to the same shape the app saw.
-    const raw = String(version).trim();
-    const firstLine = profile.vidFirstLine;
-    if (
-      firstLine &&
-      parsed < firstLine.endsBefore &&
-      !firstLine.shape.test(raw)
-    ) {
-      return false;
-    }
-    const routes = onLine(profile.vidRoutes, profile.mainLine, raw);
+    // Only the raw string carries the shape the app keys off, so the line is
+    // picked from it rather than from the numeric steps. A number reaching here
+    // keeps any fractional part the API reported (`main.ts` uses parseFloat) and
+    // so stringifies back to the same shape the app saw.
+    const routes = onLine(profile.vidRoutes, profile, version);
     let supported = false;
     for (const route of routes) {
       if (parsed >= route.since) {
@@ -657,7 +654,7 @@ export function brokerForVersion(
   const profile = resolveProfile(type);
   const routes = onLine(
     profile.brokerRoutes ?? DEFAULT_BROKER_ROUTES,
-    profile.mainLine,
+    profile,
     version,
   );
   const parsed = parseVersion(version);
@@ -671,19 +668,45 @@ export function brokerForVersion(
 }
 
 /**
- * The steps that apply to a version's firmware line. Off the main line only the
- * second line's own steps count, however high the version reads: the app picks
- * the line first and never looks at the other one's thresholds.
+ * The steps that apply to a version's firmware line. The app picks the line
+ * from the raw version string and then never looks at the other line's
+ * thresholds, so neither does this: a version off the main line is answered
+ * from the second line's steps however high it reads, and one on the main line
+ * from the main line's steps however low it reads.
+ *
+ * A family whose table has no step for the chosen line does not distinguish the
+ * lines on that axis at all — TPM-CN is on the 2025 broker either way — so the
+ * whole table stands rather than nothing.
  */
 function onLine<T extends { since: number }>(
   routes: T[],
-  mainLine: DeviceProfile["mainLine"],
+  profile: DeviceProfile,
   version: string | number,
 ): T[] {
-  if (!mainLine || mainLine.shape.test(String(version).trim())) {
-    return routes;
+  const raw = String(version).trim();
+  const { mainLine, firstLine } = profile;
+  if (mainLine) {
+    return keepOrFall(
+      routes,
+      mainLine.shape.test(raw)
+        ? (route) => route.since >= mainLine.startsAt
+        : (route) => route.since < mainLine.startsAt,
+    );
   }
-  return routes.filter((route) => route.since < mainLine.startsAt);
+  if (
+    firstLine &&
+    parseVersion(version) < firstLine.endsBefore &&
+    !firstLine.shape.test(raw)
+  ) {
+    return keepOrFall(routes, (route) => route.since >= firstLine.endsBefore);
+  }
+  return routes;
+}
+
+/** `routes.filter(keep)`, or all of them when that would leave nothing. */
+function keepOrFall<T>(routes: T[], keep: (route: T) => boolean): T[] {
+  const kept = routes.filter((route) => keep(route));
+  return kept.length > 0 ? kept : routes;
 }
 
 /** Whether the remote topic id should be used on the local broker. */
