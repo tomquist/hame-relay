@@ -160,21 +160,29 @@ call` runs `MqttUtil.isSupportNewMqttCertificate` and the app's per-family
 version controllers out of the shipped snapshot, once per device type and
 firmware. The Venus families, which that route could not reach, are answered by
 building the app's own `DeviceInfo`, asking `DeviceStrategyFactory` for the
-strategy it picks, and calling that strategy directly. Together those sweeps
-answered 2,193 broker cells and 1,653 topic-id cells of this table. They
-disagree with one row, deliberately (see below), and disagreed with the HMG and
-Venus release-line thresholds until this table was corrected to match.
+strategy it picks, and calling that strategy directly. Over 69 device ids and 82
+firmware versions — every threshold in this table from either side, and both
+shapes around each of them — those sweeps answered 5,248 broker cells and 5,002
+topic-id cells. They disagree with one row, deliberately (see below), and with
+one cell of three others where the app reads a missing firmware as an instruction
+of its own (also below); they disagreed with the HMG and Venus release-line
+thresholds until this table was corrected to match.
 
 What the app still cannot be made to answer:
 
-- **The Venus broker column.** `VNSD`, `VNSA`, `VNSD2`, `VNSA2`, the `VNSE3`
-  models, `VNSE4`, `VNSEMAX`, `VAAC2`, `VEPRO` and `VDAC` reach their broker rule
-  through a per-device strategy object, and none of those objects implements the
-  member the rule ends at — only `HmgDevStrategy` does, which is how HMG's
-  migration at fw 153 is confirmed. So this group's `hame-2025` rests on a
-  reading of the app's code, not on running it. `VNSG`, `VNSGPV`, `VNSEMINI` and
-  `VNSB` are *not* in this group: the factory hands them the unknown-device
-  strategy, so the app answers for them through its own rule, and agrees.
+- **The broker column for `VNSD`, `VNSA`, `VNSD2`, `VNSA2` and `VEPRO`.** These
+  five reach their broker rule through a strategy descending from
+  `BasePVDeviceStrategy`, which declares neither the member the rule ends at nor
+  anything that member forwards to, so there is nothing to run: their
+  `hame-2025` rests on a reading of the app's code and on the rest of the family
+  agreeing. The other Venus models do answer. `BaseDeviceStrategy` carries the
+  member and hands it to the strategy's own `isSupportNowData`, so `VNSE3`,
+  `VNSE3AU`, `VNSE3US`, `VNSE3CH`, `VNSE4`, `VNSEMAX`, `VAAC2` and `VDAC` return
+  the 2025 broker at every firmware, and `HmgDevStrategy`'s override of that
+  member reproduces HMG's migration at 153 — and at 153.2 off the release line —
+  exactly. `VNSG`, `VNSGPV`, `VNSEMINI` and `VNSB` are in neither group: the
+  factory hands them the unknown-device strategy, so the app answers for them
+  through its own rule, and agrees.
 - **The topic-id column of the Venus models without a strategy of their own.**
   `VNSA`, `VNSD2`, `VNSA2`, `VNSE4`, `VNSEMAX` and `VAAC2` reach a strategy that
   does not implement it either. `VNSD` and the `VNSE3` models (`VNSE3US` and
@@ -182,10 +190,21 @@ What the app still cannot be made to answer:
   same numbers on the assumption that the family shares them, and `VAAC2`'s
   `never` is an assumption in the other direction.
 - **`VEPRO` and `VDAC`.** The app groups both with the Venus family, while this
-  table leaves them to the unknown default. The two agree on the broker and
-  differ on topic ids: the default encrypts at any firmware, the Venus rule from
-  fw 123 (114.8 off the release line). Neither has been observed on a real
+  table leaves them to the unknown default. The two agree on the broker —
+  `VDAC`'s 2025 broker is confirmed by execution, `VEPRO`'s is the reading above
+  — and differ on topic ids: the default encrypts at any firmware, the Venus rule
+  from fw 123 (114.8 off the release line). Neither has been observed on a real
   device, so the default stands until one is.
+- **A Venus device that has not reported its firmware.** `VNSDDevStrategy` and
+  `VnSe3DevStrategy` open `isSupportVid` with `DeviceInfo.isVersionInvalid`,
+  which holds for a version reading as `0` or `-1`, and encrypt topic ids when it
+  does — where this table sends plaintext below 114.8. `HmgDevStrategy` answers
+  `false` in the same place, which is what this table already says for HMG, and
+  `VNSE3US`/`VNSE3CH` encrypt at every firmware anyway. Hame Relay reads a
+  firmware of `0` as no firmware at all and leaves topic ids plain, so a `VNSD`,
+  `VNSA`, `VNSD2`, `VNSA2`, `VNSE3`, `VNSE3AU`, `VNSE4` or `VNSEMAX` the cloud
+  reports without a version is the one place the two differ in what a device
+  would see, rather than in a table cell alone.
 - **The _unknown_ row, on purpose.** An id the app does not recognise falls
   through its broker rule to `false` — the 2024 broker — where this table assumes
   the 2025 one. Marstek has only added 2025-broker devices since that broker
