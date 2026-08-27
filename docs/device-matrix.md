@@ -156,25 +156,32 @@ the assumption that the family shares it.
 
 Every other row's broker and topic-id columns have been checked against the app's
 own code by *executing* it, most recently against Marstek 1.6.72: `marstool app
-call` runs `MqttUtil.isSupportNewMqttCertificate` and the app's per-family
+run` runs `MqttUtil.isSupportNewMqttCertificate` and the app's per-family
 version controllers out of the shipped snapshot, once per device type and
-firmware. The Venus families, which that route could not reach, are answered by
-building the app's own `DeviceInfo`, asking `DeviceStrategyFactory` for the
-strategy it picks, and calling that strategy directly. Together those sweeps
-answered 2,193 broker cells and 1,653 topic-id cells of this table. They
-disagree with one row, deliberately (see below), and disagreed with the HMG and
-Venus release-line thresholds until this table was corrected to match.
+firmware. The topic-id sweep follows `CommonHelper.isSupportVid`'s own dispatch —
+each family's `is…` predicate is executed first, and whichever one claims the id
+decides which controller answers for it. The Venus families, which that route
+could not reach, are answered by building the app's own `DeviceInfo`, asking
+`DeviceStrategyFactory` for the strategy it picks, and calling that strategy
+directly. Together those sweeps answered 4,420 broker cells and 4,222 topic-id
+cells of this table. They disagree with one row, deliberately (see below), and
+disagreed with the HMG and Venus release-line thresholds until this table was
+corrected to match.
 
 What the app still cannot be made to answer:
 
-- **The Venus broker column.** `VNSD`, `VNSA`, `VNSD2`, `VNSA2`, the `VNSE3`
-  models, `VNSE4`, `VNSEMAX`, `VAAC2`, `VEPRO` and `VDAC` reach their broker rule
-  through a per-device strategy object, and none of those objects implements the
-  member the rule ends at — only `HmgDevStrategy` does, which is how HMG's
-  migration at fw 153 is confirmed. So this group's `hame-2025` rests on a
-  reading of the app's code, not on running it. `VNSG`, `VNSGPV`, `VNSEMINI` and
-  `VNSB` are *not* in this group: the factory hands them the unknown-device
-  strategy, so the app answers for them through its own rule, and agrees.
+- **The broker column of the Venus PV models.** `VNSD`, `VNSD2`, `VNSA`, `VNSA2`
+  and `VEPRO` reach their broker rule through a per-device strategy object, and
+  theirs extend `BasePVDeviceStrategy`, which carries no such member — so the
+  call the app makes has nothing to land on and this group's `hame-2025` rests on
+  a reading of the app's code rather than on running it. The rest of the family
+  does answer: the strategies that extend `BaseDeviceStrategy` — `VNSE3` and its
+  variants, `VNSE4`, `VNSEMAX`, `VAAC2`, and the bare base object `VDAC` is
+  handed — answer `hame-2025` at every firmware, and `HmgDevStrategy` answers
+  with HMG's migration at fw 153 (153.2 off the release line). `VNSG`, `VNSGPV`,
+  `VNSEMINI` and `VNSB` are *not* in this group either: the factory hands them
+  the unknown-device strategy, so the app answers for them through its own rule,
+  and agrees.
 - **The topic-id column of the Venus models without a strategy of their own.**
   `VNSA`, `VNSD2`, `VNSA2`, `VNSE4`, `VNSEMAX` and `VAAC2` reach a strategy that
   does not implement it either. `VNSD` and the `VNSE3` models (`VNSE3US` and
@@ -192,6 +199,15 @@ What the app still cannot be made to answer:
   shipped, so the assumption is the better guess for hardware newer than the app
   build this was checked against, and it is the one row where disagreeing with
   the app is the point.
+- **A firmware the app calls invalid, for the Venus topic-id column.** The app
+  treats a version that reads as `0` or `-1` — which includes one it cannot parse
+  at all — as no version, and each Venus strategy then answers from a constant
+  rather than from its threshold: `VNSD` and the `VNSE3` models encrypt topic
+  ids, `HmgDevStrategy` does not. This table has no such constant and answers
+  from the thresholds, so it says plaintext for all of them. No device reaches it
+  in that state — an unreadable version is read as fw 1 before the table is
+  consulted, and a device reported at version 0 is never asked the topic-id
+  question at all — so the two differ only on paper.
 
 The `inverse` column, the `remote-topic-id` column and the AstraMeter
 placeholder-MAC rule are Hame Relay's own handling rather than app behaviour, and
