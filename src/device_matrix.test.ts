@@ -272,18 +272,25 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("HMG - require firmware >= 154.0", () => {
-      test("true at/above 154", () => {
-        assert.strictEqual(supportsVid("HMG", "154.0"), true);
-        assert.strictEqual(supportsVid("HMG", "160.0"), true);
+    describe("HMG - 154 on the release line, 154.5 off it", () => {
+      test("true at/above 154 on the release line", () => {
+        assert.strictEqual(supportsVid("HMG", "154"), true);
+        assert.strictEqual(supportsVid("HMG", "160"), true);
       });
-      test("false below 154", () => {
-        assert.strictEqual(supportsVid("HMG", "153.9"), false);
-        assert.strictEqual(supportsVid("HMG", "150.0"), false);
+      test("false below 154 on the release line", () => {
+        assert.strictEqual(supportsVid("HMG", "153"), false);
+        assert.strictEqual(supportsVid("HMG", "150"), false);
+      });
+      test("a version that is not three characters takes 154.5", () => {
+        // "154.0" reads as 154 but is five characters, so `DeviceInfo.isRelease`
+        // puts it off the release line and it is measured against 154.5.
+        assert.strictEqual(supportsVid("HMG", "154.0"), false);
+        assert.strictEqual(supportsVid("HMG", "154.5"), true);
+        assert.strictEqual(supportsVid("HMG", "1550"), true);
       });
       test("case insensitive", () => {
-        assert.strictEqual(supportsVid("hmg", "154.0"), true);
-        assert.strictEqual(supportsVid("hmg", "153.9"), false);
+        assert.strictEqual(supportsVid("hmg", "154"), true);
+        assert.strictEqual(supportsVid("hmg", "153"), false);
       });
     });
 
@@ -332,26 +339,36 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("Venus series (VNSE3, VNSA, VNSD) - require firmware >= 123.0", () => {
+    describe("Venus series (VNSE3, VNSA, VNSD) - 123 on the release line, 114.8 off it", () => {
       test("true at/above 123", () => {
-        assert.strictEqual(supportsVid("VNSE3", "123.0"), true);
-        assert.strictEqual(supportsVid("VNSA", "135.0"), true);
-        assert.strictEqual(supportsVid("VNSD", "135.0"), true);
+        assert.strictEqual(supportsVid("VNSE3", "123"), true);
+        assert.strictEqual(supportsVid("VNSA", "135"), true);
+        assert.strictEqual(supportsVid("VNSD", "135"), true);
       });
-      test("false below 123", () => {
-        assert.strictEqual(supportsVid("VNSE3", "122.9"), false);
+      test("false below 123 on the release line", () => {
+        assert.strictEqual(supportsVid("VNSE3", "122"), false);
+        assert.strictEqual(supportsVid("VNSE3", "115"), false);
+      });
+      test("a version that is not three characters takes 114.8", () => {
+        // The same shape rule as HMG, with the two lines far enough apart that
+        // it decides most of the range: "122.9" is second-line firmware and
+        // encrypts, where the release line would still be plaintext.
+        assert.strictEqual(supportsVid("VNSE3", "122.9"), true);
+        assert.strictEqual(supportsVid("VNSD", "114.8"), true);
+        assert.strictEqual(supportsVid("VNSD", "114.7"), false);
+        assert.strictEqual(supportsVid("VNSE3", "1150"), true);
       });
       test("case insensitive", () => {
-        assert.strictEqual(supportsVid("vnse3", "123.0"), true);
-        assert.strictEqual(supportsVid("vnsa", "122.9"), false);
+        assert.strictEqual(supportsVid("vnse3", "123"), true);
+        assert.strictEqual(supportsVid("vnsa", "122"), false);
       });
       test("VNSE3US / VNSE3CH encrypt unconditionally", () => {
         assert.strictEqual(supportsVid("VNSE3US", "0"), true);
-        assert.strictEqual(supportsVid("VNSE3US", "122.9"), true);
-        assert.strictEqual(supportsVid("VNSE3CH", "122.9"), true);
-        // VNSE3AU is a plain Venus and keeps the 123 threshold.
-        assert.strictEqual(supportsVid("VNSE3AU", "122.9"), false);
-        assert.strictEqual(supportsVid("VNSE3AU", "123.0"), true);
+        assert.strictEqual(supportsVid("VNSE3US", "122"), true);
+        assert.strictEqual(supportsVid("VNSE3CH", "122"), true);
+        // VNSE3AU is a plain Venus and keeps the release line's 123 threshold.
+        assert.strictEqual(supportsVid("VNSE3AU", "122"), false);
+        assert.strictEqual(supportsVid("VNSE3AU", "123"), true);
       });
       test("VNS-prefixed non-Venus devices never encrypt", () => {
         for (const type of ["VNSG-0", "VNSGPV-0", "VNSEMINI-0", "VNSB-0"]) {
@@ -388,6 +405,11 @@ describe("device_matrix", () => {
         for (const type of ["SMR-0", "SMR-1", "SMR-2"]) {
           assert.strictEqual(supportsVid(type, "0"), true, type);
         }
+      });
+      test("an unrecognized SMR id never encrypts", () => {
+        // The app's CT controller answers for SMR-0/1/2 by name and returns
+        // false for anything else that starts with "SMR-".
+        assert.strictEqual(supportsVid("SMR-3", "999"), false);
       });
     });
 
@@ -449,6 +471,13 @@ describe("device_matrix", () => {
     test("HMG: hame-2024 below 153, hame-2025 at/above", () => {
       assert.strictEqual(brokerForVersion("HMG-50", 152), "hame-2024");
       assert.strictEqual(brokerForVersion("HMG-50", 153), "hame-2025");
+    });
+
+    test("HMG firmware off the release line migrates at 153.2", () => {
+      // Five characters, so `DeviceInfo.isRelease` is false and the app answers
+      // "153.0" from the second line's threshold rather than the release one.
+      assert.strictEqual(brokerForVersion("HMG-50", "153.0"), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMG-50", "153.2"), "hame-2025");
     });
 
     test("HMM/HMN/JPLS: hame-2024 below 135, hame-2025 at/above", () => {
@@ -773,6 +802,13 @@ describe("device_matrix", () => {
       assert.strictEqual(resolveProfile("HME-3").name, "HME-3/HME-5");
       assert.strictEqual(resolveProfile("HME-25").name, "HME");
       assert.strictEqual(resolveProfile("HME-1").name, "HME");
+    });
+
+    test("SMR resolves the three known ids apart from the rest", () => {
+      assert.strictEqual(resolveProfile("SMR-0").name, "SMR (CT003)");
+      assert.strictEqual(resolveProfile("SMR-2").name, "SMR (CT003)");
+      assert.strictEqual(resolveProfile("SMR-3").name, "SMR (other)");
+      assert.strictEqual(resolveProfile("SMR").name, "SMR (other)");
     });
 
     test("TPM2 resolves to its own profile without colliding with TPM-CN", () => {
