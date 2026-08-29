@@ -333,6 +333,20 @@ async function start() {
       }
       device.broker_id = brokerId;
       if (!device.remote_id) {
+        // The salt pair only sometimes yields a topic id: it also encodes that
+        // no id is in use yet, in which case the app falls back to the
+        // topic-encryption id below rather than hashing what it was given.
+        const saltTopicId =
+          device.salt &&
+          device.version &&
+          supportsVid(device.type, device.version_text ?? device.version)
+            ? CommonHelper.resolveTopicId(device.salt, device.mac, device.type)
+            : undefined;
+        if (saltTopicId && !saltTopicId.id) {
+          logger.debug(
+            `Device ${device.device_id} has no encrypted topic id in use (${saltTopicId.kind}); addressing it by topic encryption instead`,
+          );
+        }
         // Cloud placeholder MACs from AstraMeter are not real firmware: cq/salt
         // paths do not apply; remote topics use the same AES id as other HME.
         // Gate on the HME family too (mirrors the inverse-forwarding check) so a
@@ -353,30 +367,11 @@ async function start() {
           logger.debug(
             `AstraMeter synthetic MAC: remote_id from topic encryption for device ${device.device_id}`,
           );
-        } else if (
-          device.salt &&
-          device.version &&
-          supportsVid(device.type, device.version_text ?? device.version)
-        ) {
+        } else if (saltTopicId?.id) {
+          device.remote_id = saltTopicId.id;
           logger.debug(
-            `Device ${device.device_id} supports CommonHelper.cq method, using salt-based calculation`,
+            `Calculated remote ID using CommonHelper.cq: ${device.remote_id} for device ${device.device_id} (${saltTopicId.kind})`,
           );
-          const firstSalt = CommonHelper.extractFirstSalt(device.salt);
-          if (firstSalt) {
-            device.remote_id = CommonHelper.cq(
-              firstSalt,
-              device.mac,
-              device.type,
-            );
-            logger.debug(
-              `Calculated remote ID using CommonHelper.cq: ${device.remote_id} for device ${device.device_id}`,
-            );
-          } else {
-            logger.warn(
-              `Failed to extract salt for device ${device.device_id}, falling back to alternative method`,
-            );
-            device.remote_id = device.device_id;
-          }
         } else if (broker.topic_encryption_key) {
           logger.debug(
             `Using topic encryption key for device ${device.device_id}`,

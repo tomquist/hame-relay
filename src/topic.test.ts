@@ -122,40 +122,67 @@ describe("CommonHelper", () => {
     });
   });
 
-  describe("extractFirstSalt method", () => {
-    test("should extract first salt from comma-separated pair", () => {
-      assert.strictEqual(CommonHelper.extractFirstSalt("salt1,salt2"), "salt1");
+  describe("resolveTopicId method", () => {
+    const MAC = "112233445566";
+    const TYPE = "HMI-1";
+
+    test("uses the issued salt when both halves agree", () => {
+      const result = CommonHelper.resolveTopicId(
+        "abc123def456789a,abc123def456789a",
+        MAC,
+        TYPE,
+      );
+      assert.strictEqual(result.kind, "confirmed");
       assert.strictEqual(
-        CommonHelper.extractFirstSalt("first,second,third"),
-        "first",
+        result.id,
+        CommonHelper.cq("abc123def456789a", MAC, TYPE),
       );
     });
 
-    test("should handle single salt value", () => {
-      assert.strictEqual(CommonHelper.extractFirstSalt("onlysalt"), "onlysalt");
+    // A rotation in progress: a new salt has been issued, but the device still
+    // answers on the id from the old one until it is told otherwise.
+    test("keeps the old id while the salts differ", () => {
+      const result = CommonHelper.resolveTopicId("oldsalt,newsalt", MAC, TYPE);
+      assert.strictEqual(result.kind, "rotating");
+      assert.strictEqual(result.id, CommonHelper.cq("oldsalt", MAC, TYPE));
     });
 
-    test("should handle salt with whitespace", () => {
-      assert.strictEqual(
-        CommonHelper.extractFirstSalt(" salt1 , salt2 "),
-        "salt1",
-      );
-      assert.strictEqual(
-        CommonHelper.extractFirstSalt("  trimmed  ,  other  "),
-        "trimmed",
-      );
+    // The regression behind #182: hashing the literal "0" yields a plausible
+    // 24-character id that nothing on the cloud is listening to.
+    test("reports no id when the device is not on one yet", () => {
+      const result = CommonHelper.resolveTopicId("0,newsalt", MAC, TYPE);
+      assert.strictEqual(result.kind, "pending");
+      assert.strictEqual(result.id, undefined);
+      assert.notStrictEqual(CommonHelper.cq("0", MAC, TYPE), "");
     });
 
-    test("should return empty string for invalid input", () => {
-      assert.strictEqual(CommonHelper.extractFirstSalt(""), "");
-      assert.strictEqual(CommonHelper.extractFirstSalt(null as any), "");
-      assert.strictEqual(CommonHelper.extractFirstSalt(undefined as any), "");
+    test("reports no id for a pair that carries none", () => {
+      for (const pair of ["salt,", "salt,0", ",", "0,"]) {
+        const result = CommonHelper.resolveTopicId(pair, MAC, TYPE);
+        assert.strictEqual(result.id, undefined, `for "${pair}"`);
+      }
     });
 
-    test("should handle edge cases", () => {
-      assert.strictEqual(CommonHelper.extractFirstSalt(",second"), "");
-      assert.strictEqual(CommonHelper.extractFirstSalt("first,"), "first");
-      assert.strictEqual(CommonHelper.extractFirstSalt(","), "");
+    test("reports no id when there is no pair at all", () => {
+      for (const pair of ["", "onlysalt", null as any, undefined as any]) {
+        const result = CommonHelper.resolveTopicId(pair, MAC, TYPE);
+        assert.strictEqual(result.kind, "unusable", `for "${pair}"`);
+        assert.strictEqual(result.id, undefined);
+      }
+    });
+
+    // The cloud has handed out devices with no MAC (#182). cq cannot hash one,
+    // and an empty id would subscribe to a topic with an empty segment.
+    test("reports no id for a MAC too short to hash", () => {
+      const result = CommonHelper.resolveTopicId("salt,salt", "abc", TYPE);
+      assert.strictEqual(result.kind, "unusable");
+      assert.strictEqual(result.id, undefined);
+    });
+
+    test("does not trim, because the app does not either", () => {
+      const padded = CommonHelper.resolveTopicId(" salt , salt ", MAC, TYPE);
+      assert.strictEqual(padded.kind, "confirmed");
+      assert.strictEqual(padded.id, CommonHelper.cq(" salt ", MAC, TYPE));
     });
   });
 });
