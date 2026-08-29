@@ -156,8 +156,21 @@ describe("CommonHelper", () => {
       assert.notStrictEqual(CommonHelper.cq("0", MAC, TYPE), "");
     });
 
+    // A third value is ignored rather than rejected: only the first two slots
+    // mean anything, and refusing the pair would strand a device that has a
+    // perfectly good id in them.
+    test("reads the first two halves of a longer list", () => {
+      const result = CommonHelper.resolveTopicId(
+        "oldsalt,newsalt,extra",
+        MAC,
+        TYPE,
+      );
+      assert.strictEqual(result.kind, "rotating");
+      assert.strictEqual(result.id, CommonHelper.cq("oldsalt", MAC, TYPE));
+    });
+
     test("reports no id for a pair that carries none", () => {
-      for (const pair of ["salt,", "salt,0", ",", "0,"]) {
+      for (const pair of ["salt,", "salt,0", ",", "0,", ",issued", ",,"]) {
         const result = CommonHelper.resolveTopicId(pair, MAC, TYPE);
         assert.strictEqual(result.id, undefined, `for "${pair}"`);
       }

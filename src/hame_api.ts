@@ -159,6 +159,9 @@ export interface DeviceMqttStatus {
   salt?: string;
 }
 
+/** How long one device's status lookup may take before it is given up on. */
+const STATUS_TIMEOUT_MS = 5000;
+
 interface HameDeviceMqttStatusResponse {
   code: number;
   msg: string;
@@ -304,7 +307,13 @@ export class HameApi {
     url.searchParams.append("token", token);
 
     try {
-      const resp = await fetch(url.toString(), { headers: this.headers });
+      // Bounded, because this runs once per device before the relay starts
+      // forwarding: a cloud that accepts the connection and then never answers
+      // would otherwise hold up startup indefinitely for a diagnostic.
+      const resp = await fetch(url.toString(), {
+        headers: this.headers,
+        signal: AbortSignal.timeout(STATUS_TIMEOUT_MS),
+      });
       if (!resp.ok) {
         logger.debug(
           `Cloud MQTT status for ${devid}: HTTP ${resp.status} ${resp.statusText}`,

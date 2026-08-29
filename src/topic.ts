@@ -351,7 +351,9 @@ class CommonHelper {
     if (current === "0") {
       return { kind: "pending" };
     }
-    if (issued === "" || issued === "0") {
+    // An empty half is not a salt. Hashing one produces an id as meaningless as
+    // hashing "0" did, so a malformed pair falls back like an absent one.
+    if (current === "" || issued === "" || issued === "0") {
       return { kind: "unusable" };
     }
     if (issued === current) {
