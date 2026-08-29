@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- The startup log now says when a device is not connected to the Marstek cloud. Until now a device that was simply offline looked identical to a misconfigured one: requests were forwarded every minute and nothing ever came back, with nothing in the log to say why (#182)
 - Fixed Venus devices (including Venus C and Venus E 2.0) whose firmware version contains a decimal point being addressed under the wrong id, and in some cases connecting to the wrong cloud service. Like the Jupiter and meter families, these devices ship a second firmware line that needs different handling
 - Fixed a Marstek CT003 meter reader with an identifier the app does not yet know being given the newest devices' handling, so it exchanged no data
 - Fixed Marstek Jupiter devices (JPLS, HMM, HMN) whose firmware version contains a decimal point connecting to the wrong cloud service, so they exchanged no data at all. Such a version belongs to the second firmware line, which was already handled correctly for how these devices are addressed but not for where they connect

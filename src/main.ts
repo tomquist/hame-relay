@@ -3,7 +3,7 @@ import { join, dirname } from "path";
 import { calculateNewVersionTopicId } from "./encryption.js";
 import { HealthServer } from "./health.js";
 import { logger } from "./logger.js";
-import { HameApi, type DeviceInfo } from "./hame_api.js";
+import { HameApi, readOnlineFlag, type DeviceInfo } from "./hame_api.js";
 import {
   MAX_SUBSCRIPTIONS_PER_CONNECTION,
   MQTTForwarder,
@@ -185,6 +185,21 @@ async function start() {
         // pick the wrong broker and strand the device, so fall back to its
         // numeric prefix. Either way, say so rather than routing silently on a
         // version we could not read exactly.
+        // A device with no cloud MQTT session cannot answer anything the relay
+        // forwards, and the symptom — polls going out, nothing coming back —
+        // looks exactly like a topic or broker bug from the logs alone. Say so
+        // here rather than leaving it to be guessed at (#182).
+        const cloudOnline = readOnlineFlag(device.cloud_mqtt?.mqtt);
+        if (cloudOnline === false) {
+          logger.warn(
+            `Device ${device.devid} (${device.type}) is not connected to the Marstek cloud: the relay can forward messages to it, but nothing will come back until the device is online.`,
+          );
+        } else if (device.cloud_mqtt) {
+          logger.debug(
+            `Cloud MQTT status for ${device.devid}: mqtt=${String(device.cloud_mqtt.mqtt)} ms=${String(device.cloud_mqtt.ms)} datetime=${String(device.cloud_mqtt.datetime)}`,
+          );
+        }
+
         const exact = parseVersion(device.version);
         // The numeric prefix is exactly what we want here; `Number` would
         // report NaN for a suffixed version.

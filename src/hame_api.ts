@@ -144,6 +144,54 @@ export interface HameDeviceListResponse {
   }>;
 }
 
+/**
+ * What the cloud knows about a device's own MQTT session, from
+ * `/ems/api/v1/getDeviceMqttStatus`. It answers the question the relay has
+ * whenever a device never replies: is anyone connected on the other side?
+ *
+ * The encoding of these fields is undocumented, so nothing here is interpreted
+ * beyond an unambiguous yes/no — see {@link readOnlineFlag}.
+ */
+export interface DeviceMqttStatus {
+  mqtt?: unknown;
+  ms?: unknown;
+  datetime?: unknown;
+  salt?: string;
+}
+
+interface HameDeviceMqttStatusResponse {
+  code: number;
+  msg: string;
+  data?: DeviceMqttStatus;
+}
+
+/**
+ * `true`/`false` only for values that say so plainly, `undefined` for anything
+ * else. A status we cannot read must not be reported as "offline": that would
+ * turn an unrecognised encoding into a false accusation about the device.
+ */
+export function readOnlineFlag(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    if (value === 1) {
+      return true;
+    }
+    return value === 0 ? false : undefined;
+  }
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    if (v === "1" || v === "true" || v === "online" || v === "connected") {
+      return true;
+    }
+    if (v === "0" || v === "false" || v === "offline" || v === "disconnected") {
+      return false;
+    }
+  }
+  return undefined;
+}
+
 export interface DeviceInfo {
   devid: string;
   name: string;
@@ -151,6 +199,7 @@ export interface DeviceInfo {
   type: string;
   version: string;
   salt?: string; // Optional salt field from device list
+  cloud_mqtt?: DeviceMqttStatus; // Best-effort, from getDeviceMqttStatus
 }
 
 export class HameApi {
@@ -238,6 +287,48 @@ export class HameApi {
     }, "Fetch device list");
   }
 
+  /**
+   * What the cloud says about one device's MQTT session. Best-effort: a device
+   * list that arrived is worth more than this, so every failure here is a debug
+   * line and an undefined result rather than an error.
+   */
+  async fetchDeviceMqttStatus(
+    devid: string,
+    token: string,
+  ): Promise<DeviceMqttStatus | undefined> {
+    const url = new URL(
+      "/ems/api/v1/getDeviceMqttStatus",
+      this.baseUrl.replace(/\/$/u, ""),
+    );
+    url.searchParams.append("devid", devid);
+    url.searchParams.append("token", token);
+
+    try {
+      const resp = await fetch(url.toString(), { headers: this.headers });
+      if (!resp.ok) {
+        logger.debug(
+          `Cloud MQTT status for ${devid}: HTTP ${resp.status} ${resp.statusText}`,
+        );
+        return undefined;
+      }
+
+      const body = (await resp.json()) as HameDeviceMqttStatusResponse;
+      if (body.code !== 1 || !body.data) {
+        logger.debug(
+          `Cloud MQTT status for ${devid}: ${body.code} - ${body.msg}`,
+        );
+        return undefined;
+      }
+
+      return body.data;
+    } catch (error) {
+      logger.debug(
+        `Cloud MQTT status for ${devid} unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return undefined;
+    }
+  }
+
   async fetchDevices(mailbox: string, password: string): Promise<DeviceInfo[]> {
     return await withRetry(
       async () => {
@@ -246,7 +337,17 @@ export class HameApi {
         logger.info(
           `Successfully fetched ${list.data.length} devices from Hame API`,
         );
-        return list.data;
+        // Sequential rather than in parallel: this is a startup diagnostic, and
+        // a device list is allowed to be long.
+        const devices: DeviceInfo[] = [];
+        for (const device of list.data) {
+          const cloud_mqtt = await this.fetchDeviceMqttStatus(
+            device.devid,
+            tokenResp.token!,
+          );
+          devices.push(cloud_mqtt ? { ...device, cloud_mqtt } : device);
+        }
+        return devices;
       },
       "Fetch devices from Hame API",
       { maxRetries: 2 }, // Fewer retries for the overall operation since individual calls already retry
