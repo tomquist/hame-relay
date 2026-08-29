@@ -3,7 +3,7 @@ import { join, dirname } from "path";
 import { calculateNewVersionTopicId } from "./encryption.js";
 import { HealthServer } from "./health.js";
 import { logger } from "./logger.js";
-import { HameApi, type DeviceInfo } from "./hame_api.js";
+import { HameApi, readOnlineFlag, type DeviceInfo } from "./hame_api.js";
 import {
   MAX_SUBSCRIPTIONS_PER_CONNECTION,
   MQTTForwarder,
@@ -185,6 +185,21 @@ async function start() {
         // pick the wrong broker and strand the device, so fall back to its
         // numeric prefix. Either way, say so rather than routing silently on a
         // version we could not read exactly.
+        // A device with no cloud MQTT session cannot answer anything the relay
+        // forwards, and the symptom — polls going out, nothing coming back —
+        // looks exactly like a topic or broker bug from the logs alone. Say so
+        // here rather than leaving it to be guessed at (#182).
+        const cloudOnline = readOnlineFlag(device.cloud_mqtt?.mqtt);
+        if (cloudOnline === false) {
+          logger.warn(
+            `Device ${device.devid} (${device.type}) is not connected to the Marstek cloud: the relay can forward messages to it, but nothing will come back until the device is online.`,
+          );
+        } else if (device.cloud_mqtt) {
+          logger.debug(
+            `Cloud MQTT status for ${device.devid}: mqtt=${String(device.cloud_mqtt.mqtt)} ms=${String(device.cloud_mqtt.ms)} datetime=${String(device.cloud_mqtt.datetime)}`,
+          );
+        }
+
         const exact = parseVersion(device.version);
         // The numeric prefix is exactly what we want here; `Number` would
         // report NaN for a suffixed version.
@@ -318,6 +333,20 @@ async function start() {
       }
       device.broker_id = brokerId;
       if (!device.remote_id) {
+        // The salt pair only sometimes yields a topic id: it also encodes that
+        // no id is in use yet, in which case the app falls back to the
+        // topic-encryption id below rather than hashing what it was given.
+        const saltTopicId =
+          device.salt &&
+          device.version &&
+          supportsVid(device.type, device.version_text ?? device.version)
+            ? CommonHelper.resolveTopicId(device.salt, device.mac, device.type)
+            : undefined;
+        if (saltTopicId && !saltTopicId.id) {
+          logger.debug(
+            `Device ${device.device_id} has no encrypted topic id in use (${saltTopicId.kind}); addressing it by topic encryption instead`,
+          );
+        }
         // Cloud placeholder MACs from AstraMeter are not real firmware: cq/salt
         // paths do not apply; remote topics use the same AES id as other HME.
         // Gate on the HME family too (mirrors the inverse-forwarding check) so a
@@ -338,30 +367,11 @@ async function start() {
           logger.debug(
             `AstraMeter synthetic MAC: remote_id from topic encryption for device ${device.device_id}`,
           );
-        } else if (
-          device.salt &&
-          device.version &&
-          supportsVid(device.type, device.version_text ?? device.version)
-        ) {
+        } else if (saltTopicId?.id) {
+          device.remote_id = saltTopicId.id;
           logger.debug(
-            `Device ${device.device_id} supports CommonHelper.cq method, using salt-based calculation`,
+            `Calculated remote ID using CommonHelper.cq: ${device.remote_id} for device ${device.device_id} (${saltTopicId.kind})`,
           );
-          const firstSalt = CommonHelper.extractFirstSalt(device.salt);
-          if (firstSalt) {
-            device.remote_id = CommonHelper.cq(
-              firstSalt,
-              device.mac,
-              device.type,
-            );
-            logger.debug(
-              `Calculated remote ID using CommonHelper.cq: ${device.remote_id} for device ${device.device_id}`,
-            );
-          } else {
-            logger.warn(
-              `Failed to extract salt for device ${device.device_id}, falling back to alternative method`,
-            );
-            device.remote_id = device.device_id;
-          }
         } else if (broker.topic_encryption_key) {
           logger.debug(
             `Using topic encryption key for device ${device.device_id}`,
