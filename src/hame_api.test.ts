@@ -1,6 +1,36 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { readOnlineFlag } from "./hame_api.js";
+import { readOnlineFlag, redactSecrets } from "./hame_api.js";
+
+describe("redactSecrets", () => {
+  // node-fetch puts the whole URL in its error message, which is how the
+  // account's credentials would otherwise reach the log.
+  test("masks the credentials a failed request reports back", () => {
+    const message =
+      "request to https://eu.hamedata.com/ems/api/v1/getDeviceMqttStatus?devid=abc&token=SUPERSECRET failed, reason: getaddrinfo ENOTFOUND";
+    const redacted = redactSecrets(message);
+    assert.ok(!redacted.includes("SUPERSECRET"));
+    assert.ok(redacted.includes("devid=abc"));
+    assert.ok(redacted.includes("token=***"));
+  });
+
+  test("masks the login call's mailbox and password hash", () => {
+    const redacted = redactSecrets(
+      "request to https://eu.hamedata.com/app/Solar/v2_get_device.php?mailbox=user%40example.com&pwd=5f4dcc3b5aa765d61d8327deb882cf99 failed",
+    );
+    assert.ok(!redacted.includes("example.com"));
+    assert.ok(!redacted.includes("5f4dcc3b5aa765d61d8327deb882cf99"));
+    assert.strictEqual(
+      redacted,
+      "request to https://eu.hamedata.com/app/Solar/v2_get_device.php?mailbox=***&pwd=*** failed",
+    );
+  });
+
+  test("leaves a message without credentials alone", () => {
+    const message = "HTTP 503: Service Unavailable";
+    assert.strictEqual(redactSecrets(message), message);
+  });
+});
 
 describe("readOnlineFlag", () => {
   test("reads the values that plainly mean connected", () => {

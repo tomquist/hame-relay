@@ -51,6 +51,19 @@ function shouldRetryError(error: Error, statusCode?: number): boolean {
   return false;
 }
 
+/**
+ * Masks the credentials that ride in these URLs' query strings. A failed
+ * request reports itself as `request to <full url> failed, reason: ...`, so any
+ * log line carrying an error message from here would otherwise print the
+ * account's token — or, for the login call, the mailbox and password hash.
+ */
+export function redactSecrets(text: string): string {
+  return text.replaceAll(
+    /\b(?<key>token|pwd|mailbox)=[^&\s]*/giu,
+    "$<key>=***",
+  );
+}
+
 async function withRetry<T>(
   operation: () => Promise<T>,
   operationName: string,
@@ -89,7 +102,7 @@ async function withRetry<T>(
 
         const statusInfo = lastStatusCode ? ` (HTTP ${lastStatusCode})` : "";
         logger.warn(
-          `${operationName} failed on attempt ${attempt}/${maxRetries + 1}: ${lastError.message}${statusInfo}. Retrying in ${delay}ms...`,
+          `${operationName} failed on attempt ${attempt}/${maxRetries + 1}: ${redactSecrets(lastError.message)}${statusInfo}. Retrying in ${delay}ms...`,
         );
 
         await new Promise((resolve) => {
@@ -99,11 +112,11 @@ async function withRetry<T>(
         if (attempt <= maxRetries) {
           const statusInfo = lastStatusCode ? ` (HTTP ${lastStatusCode})` : "";
           logger.info(
-            `${operationName} failed with non-retryable error: ${lastError.message}${statusInfo}. Not retrying.`,
+            `${operationName} failed with non-retryable error: ${redactSecrets(lastError.message)}${statusInfo}. Not retrying.`,
           );
         } else {
           logger.error(
-            `${operationName} failed after ${maxRetries + 1} attempts. Final error: ${lastError.message}`,
+            `${operationName} failed after ${maxRetries + 1} attempts. Final error: ${redactSecrets(lastError.message)}`,
           );
         }
         break;
@@ -332,7 +345,7 @@ export class HameApi {
       return body.data;
     } catch (error) {
       logger.debug(
-        `Cloud MQTT status for ${devid} unavailable: ${error instanceof Error ? error.message : String(error)}`,
+        `Cloud MQTT status for ${devid} unavailable: ${redactSecrets(error instanceof Error ? error.message : String(error))}`,
       );
       return undefined;
     }
