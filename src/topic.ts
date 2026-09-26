@@ -316,18 +316,66 @@ class CommonHelper {
   }
 
   /**
-   * Extracts the first salt value from a comma-separated salt pair
-   * @param saltPair The comma-separated salt pair (e.g., "salt1,salt2")
-   * @returns The first salt value, or empty string if invalid
+   * What the salt pair says about a device's encrypted topic id.
+   *
+   * - `confirmed`: the device is on the id in `id`.
+   * - `rotating`: a new id has been issued but the device still answers on the
+   *   old one, which is what `id` holds.
+   * - `pending`: an id exists that the device has not taken up. It is only ever
+   *   written to a device over Bluetooth, so this state can last indefinitely.
+   * - `unusable`: the pair carries no id at all.
+   *
+   * The last two have no `id`: the app addresses such a device by its
+   * topic-encryption id instead, and so must we.
    */
-  static extractFirstSalt(saltPair: string): string {
+  static resolveTopicId(
+    saltPair: string,
+    mac: string,
+    vid: string,
+  ): SaltTopicId {
     if (!saltPair || typeof saltPair !== "string") {
-      return "";
+      return { kind: "unusable" };
     }
 
+    // Deliberately not trimmed: the app splits on "," and compares and hashes
+    // the parts as they come, so a padded salt is a different salt there too.
     const parts = saltPair.split(",");
-    return parts.length > 0 ? parts[0].trim() : "";
+    if (parts.length < 2) {
+      return { kind: "unusable" };
+    }
+    const [current, issued] = parts;
+
+    // "0" in the first slot is the app's "no id in use yet", whatever the
+    // second slot holds. Hashing that literal is what produced a plausible but
+    // meaningless topic id, and a device that never answers (#182).
+    if (current === "0") {
+      return { kind: "pending" };
+    }
+    // An empty half is not a salt. Hashing one produces an id as meaningless as
+    // hashing "0" did, so a malformed pair falls back like an absent one.
+    if (current === "" || issued === "" || issued === "0") {
+      return { kind: "unusable" };
+    }
+    if (issued === current) {
+      return withId({ kind: "confirmed" }, CommonHelper.cq(issued, mac, vid));
+    }
+    return withId({ kind: "rotating" }, CommonHelper.cq(current, mac, vid));
   }
+}
+
+/** How a device's encrypted topic id stands, per {@link CommonHelper.resolveTopicId}. */
+export interface SaltTopicId {
+  kind: "confirmed" | "rotating" | "pending" | "unusable";
+  id?: string;
+}
+
+/**
+ * `cq` answers with an empty string for a MAC too short to hash — a device the
+ * cloud reported without one. An id of "" would subscribe to a topic with an
+ * empty segment, so treat it as no id and let the caller fall back (#182).
+ */
+function withId(result: SaltTopicId, id: string): SaltTopicId {
+  return id ? { ...result, id } : { kind: "unusable" };
 }
 
 export { StreamUtil, CodeUtil, HexUtil, CommonHelper };

@@ -1,4 +1,16 @@
 # Changelog
+## [1.5.1] - 2026-09-26
+- Fixed devices exchanging no data in either direction because the relay addressed them under the wrong id (#182)
+- The log now says when a device is not connected to the cloud, instead of leaving it looking like a broken setup (#182)
+- Fixed Venus devices (including Venus C and Venus E 2.0) whose firmware version contains a decimal point being addressed under the wrong id, and in some cases connecting to the wrong cloud service. Like the Jupiter and meter families, these devices ship a second firmware line that needs different handling
+- Fixed a Marstek CT003 meter reader with an identifier the app does not yet know being given the newest devices' handling, so it exchanged no data
+- Fixed Marstek Jupiter devices (JPLS, HMM, HMN) whose firmware version contains a decimal point connecting to the wrong cloud service, so they exchanged no data at all. Such a version belongs to the second firmware line, which was already handled correctly for how these devices are addressed but not for where they connect
+- Fixed Marstek TPM-CN meters on a short firmware version containing a decimal point exchanging no data in either direction, because the relay addressed them under the wrong id
+- Fixed Marstek `TPM-CN` meters on a two-digit firmware version exchanging no data in either direction, because the relay addressed them under the wrong id. Like the HME meters, TPM-CN ships two firmware lines and the second one needs different handling (#234)
+- Fixed HME and TPM-CN meters whose firmware version contains a decimal point being treated as if they were on the other firmware line, which put them on the wrong cloud connection and addressed them under the wrong id (#234)
+- Fixed the cloud connection being dropped immediately, so no data was exchanged at all, when the account has more than 8 devices. Accounts with a large number of devices now forward as many as the cloud accepts and log which devices were left out, instead of failing entirely (#232)
+
+
 ## [1.5.0] - 2026-07-28
 - Add support for the Marstek CT002 new generation (device type `TPM2-0`) (#201)
 - Fixed Marstek Jupiter devices (JPLS, HMM, HMN) on firmware 2xx never receiving device data: messages were forwarded to the app but nothing came back, so no entities were created. Jupiter ships two separate firmware lines and the 2xx line needs different handling than the 1xx line (#209)

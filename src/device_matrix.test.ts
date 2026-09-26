@@ -130,13 +130,81 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("TPM-CN - require firmware >= 101.0", () => {
-      test("true at/above 101", () => {
-        assert.strictEqual(supportsVid("TPM-CN", "101.0"), true);
-        assert.strictEqual(supportsVid("TPM-CN", "130.0"), true);
+    describe("TPM-CN - two firmware lines, like the HME meters", () => {
+      test("true at/above 101 on the main line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "101"), true);
+        assert.strictEqual(supportsVid("TPM-CN", "130"), true);
       });
-      test("false below 101", () => {
-        assert.strictEqual(supportsVid("TPM-CN", "100.9"), false);
+      test("false below 101 on the main line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "100"), false);
+      });
+      // The app splits the CT family by the length of the version string and
+      // encrypts unconditionally off the main line, so a two-digit TPM-CN is
+      // encrypted where the main line would still be plaintext.
+      test("true at any version on the second line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "50"), true);
+        assert.strictEqual(supportsVid("TPM-CN", "1"), true);
+      });
+      test("true again above the main line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "1000"), true);
+      });
+      // Three characters puts a version on the main line however low it reads,
+      // and the main line's threshold is the only one it is measured against —
+      // "1.5" is not the second line's "encrypt at any version".
+      test("a three-character version below 101 is main-line plaintext", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "1.5"), false);
+        assert.strictEqual(supportsVid("TPM-CN", "9.9"), false);
+        // Two characters is second-line firmware, which does encrypt.
+        assert.strictEqual(supportsVid("TPM-CN", "50"), true);
+      });
+    });
+
+    // The app counts characters rather than comparing numbers, so a version
+    // that reads as main-line but is not shaped like one is second-line
+    // firmware, which encrypts from far lower.
+    describe("CT meters - a version's shape picks its line, not its value", () => {
+      test("a fractional version inside 100-999 is on the second line", () => {
+        assert.strictEqual(supportsVid("TPM-CN", "100.9"), true);
+        assert.strictEqual(supportsVid("HME-2", "116.5"), true);
+        assert.strictEqual(supportsVid("HME-3", "115.5"), true);
+      });
+      test("the same versions whole stay on the main line", () => {
+        assert.strictEqual(supportsVid("HME-2", "116"), false);
+        assert.strictEqual(supportsVid("HME-3", "115"), false);
+      });
+      test("a four-character version is second line too", () => {
+        assert.strictEqual(supportsVid("HME-2", "1000"), true);
+      });
+      test("below the second line's own threshold it is still false", () => {
+        assert.strictEqual(supportsVid("HME-2", "24.5"), false);
+        assert.strictEqual(supportsVid("HME-3", "33.5"), false);
+      });
+      // The app reads the line once and both answers follow from it, so the
+      // broker moves with the topic ids rather than staying behind on the
+      // main line's own threshold.
+      test("the broker follows the same line", () => {
+        assert.strictEqual(brokerForVersion("HME-2", "116.5"), "hame-2025");
+        assert.strictEqual(brokerForVersion("HME-2", "116"), "hame-2024");
+        assert.strictEqual(brokerForVersion("HME-3", "115.5"), "hame-2025");
+        assert.strictEqual(brokerForVersion("HME-3", "115"), "hame-2024");
+      });
+      // A trailing ".0" is the shape a number cannot carry, which is why the
+      // relay hands the matrix the string the API reported.
+      test("a trailing zero only survives as text", () => {
+        assert.strictEqual(supportsVid("HME-2", "116.0"), true);
+        assert.strictEqual(supportsVid("HME-2", 116), false);
+        assert.strictEqual(brokerForVersion("HME-2", "116.0"), "hame-2025");
+        assert.strictEqual(brokerForVersion("HME-2", 116), "hame-2024");
+      });
+      test("a number reaching the broker keeps its shape", () => {
+        assert.strictEqual(
+          brokerForVersion("HME-2", parseVersion("116.5")),
+          "hame-2025",
+        );
+        assert.strictEqual(
+          brokerForVersion("HME-2", parseVersion("116")),
+          "hame-2024",
+        );
       });
     });
 
@@ -204,18 +272,25 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("HMG - require firmware >= 154.0", () => {
-      test("true at/above 154", () => {
-        assert.strictEqual(supportsVid("HMG", "154.0"), true);
-        assert.strictEqual(supportsVid("HMG", "160.0"), true);
+    describe("HMG - 154 on the release line, 154.5 off it", () => {
+      test("true at/above 154 on the release line", () => {
+        assert.strictEqual(supportsVid("HMG", "154"), true);
+        assert.strictEqual(supportsVid("HMG", "160"), true);
       });
-      test("false below 154", () => {
-        assert.strictEqual(supportsVid("HMG", "153.9"), false);
-        assert.strictEqual(supportsVid("HMG", "150.0"), false);
+      test("false below 154 on the release line", () => {
+        assert.strictEqual(supportsVid("HMG", "153"), false);
+        assert.strictEqual(supportsVid("HMG", "150"), false);
+      });
+      test("a version that is not three characters takes 154.5", () => {
+        // "154.0" reads as 154 but is five characters, so `DeviceInfo.isRelease`
+        // puts it off the release line and it is measured against 154.5.
+        assert.strictEqual(supportsVid("HMG", "154.0"), false);
+        assert.strictEqual(supportsVid("HMG", "154.5"), true);
+        assert.strictEqual(supportsVid("HMG", "1550"), true);
       });
       test("case insensitive", () => {
-        assert.strictEqual(supportsVid("hmg", "154.0"), true);
-        assert.strictEqual(supportsVid("hmg", "153.9"), false);
+        assert.strictEqual(supportsVid("hmg", "154"), true);
+        assert.strictEqual(supportsVid("hmg", "153"), false);
       });
     });
 
@@ -264,26 +339,36 @@ describe("device_matrix", () => {
       });
     });
 
-    describe("Venus series (VNSE3, VNSA, VNSD) - require firmware >= 123.0", () => {
+    describe("Venus series (VNSE3, VNSA, VNSD) - 123 on the release line, 114.8 off it", () => {
       test("true at/above 123", () => {
-        assert.strictEqual(supportsVid("VNSE3", "123.0"), true);
-        assert.strictEqual(supportsVid("VNSA", "135.0"), true);
-        assert.strictEqual(supportsVid("VNSD", "135.0"), true);
+        assert.strictEqual(supportsVid("VNSE3", "123"), true);
+        assert.strictEqual(supportsVid("VNSA", "135"), true);
+        assert.strictEqual(supportsVid("VNSD", "135"), true);
       });
-      test("false below 123", () => {
-        assert.strictEqual(supportsVid("VNSE3", "122.9"), false);
+      test("false below 123 on the release line", () => {
+        assert.strictEqual(supportsVid("VNSE3", "122"), false);
+        assert.strictEqual(supportsVid("VNSE3", "115"), false);
+      });
+      test("a version that is not three characters takes 114.8", () => {
+        // The same shape rule as HMG, with the two lines far enough apart that
+        // it decides most of the range: "122.9" is second-line firmware and
+        // encrypts, where the release line would still be plaintext.
+        assert.strictEqual(supportsVid("VNSE3", "122.9"), true);
+        assert.strictEqual(supportsVid("VNSD", "114.8"), true);
+        assert.strictEqual(supportsVid("VNSD", "114.7"), false);
+        assert.strictEqual(supportsVid("VNSE3", "1150"), true);
       });
       test("case insensitive", () => {
-        assert.strictEqual(supportsVid("vnse3", "123.0"), true);
-        assert.strictEqual(supportsVid("vnsa", "122.9"), false);
+        assert.strictEqual(supportsVid("vnse3", "123"), true);
+        assert.strictEqual(supportsVid("vnsa", "122"), false);
       });
       test("VNSE3US / VNSE3CH encrypt unconditionally", () => {
         assert.strictEqual(supportsVid("VNSE3US", "0"), true);
-        assert.strictEqual(supportsVid("VNSE3US", "122.9"), true);
-        assert.strictEqual(supportsVid("VNSE3CH", "122.9"), true);
-        // VNSE3AU is a plain Venus and keeps the 123 threshold.
-        assert.strictEqual(supportsVid("VNSE3AU", "122.9"), false);
-        assert.strictEqual(supportsVid("VNSE3AU", "123.0"), true);
+        assert.strictEqual(supportsVid("VNSE3US", "122"), true);
+        assert.strictEqual(supportsVid("VNSE3CH", "122"), true);
+        // VNSE3AU is a plain Venus and keeps the release line's 123 threshold.
+        assert.strictEqual(supportsVid("VNSE3AU", "122"), false);
+        assert.strictEqual(supportsVid("VNSE3AU", "123"), true);
       });
       test("VNS-prefixed non-Venus devices never encrypt", () => {
         for (const type of ["VNSG-0", "VNSGPV-0", "VNSEMINI-0", "VNSB-0"]) {
@@ -320,6 +405,11 @@ describe("device_matrix", () => {
         for (const type of ["SMR-0", "SMR-1", "SMR-2"]) {
           assert.strictEqual(supportsVid(type, "0"), true, type);
         }
+      });
+      test("an unrecognized SMR id never encrypts", () => {
+        // The app's CT controller answers for SMR-0/1/2 by name and returns
+        // false for anything else that starts with "SMR-".
+        assert.strictEqual(supportsVid("SMR-3", "999"), false);
       });
     });
 
@@ -383,6 +473,13 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMG-50", 153), "hame-2025");
     });
 
+    test("HMG firmware off the release line migrates at 153.2", () => {
+      // Five characters, so `DeviceInfo.isRelease` is false and the app answers
+      // "153.0" from the second line's threshold rather than the release one.
+      assert.strictEqual(brokerForVersion("HMG-50", "153.0"), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMG-50", "153.2"), "hame-2025");
+    });
+
     test("HMM/HMN/JPLS: hame-2024 below 135, hame-2025 at/above", () => {
       assert.strictEqual(brokerForVersion("HMM-1", 134), "hame-2024");
       assert.strictEqual(brokerForVersion("HMM-1", 135), "hame-2025");
@@ -402,6 +499,24 @@ describe("device_matrix", () => {
       assert.strictEqual(brokerForVersion("HMN-1", 230), "hame-2025");
       // The 1xx line keeps its own thresholds.
       assert.strictEqual(brokerForVersion("JPLS-8H", 199), "hame-2025");
+    });
+
+    // The app reads the firmware line off the shape of the version string once
+    // and answers both questions from it, so a version that is numerically
+    // inside 135-199 but not shaped like a 1xx release is 2xx-line firmware for
+    // the broker exactly as it is for topic ids — and 2xx-line firmware that low
+    // is still on the 2024 broker.
+    test("versions not shaped like 1xx take the 2xx line's broker too", () => {
+      assert.strictEqual(brokerForVersion("HMM-1", "135.5"), "hame-2024");
+      assert.strictEqual(brokerForVersion("HMN-1", "150.5"), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", "199.5"), "hame-2024");
+      // Above 200 the shape no longer decides: the 2xx thresholds apply either
+      // way, and they differ per model.
+      assert.strictEqual(brokerForVersion("HMM-1", "230.5"), "hame-2025");
+      assert.strictEqual(brokerForVersion("JPLS-8H", "230.5"), "hame-2024");
+      assert.strictEqual(brokerForVersion("JPLS-8H", "236.5"), "hame-2025");
+      // A properly shaped 1xx version still migrates at 135.
+      assert.strictEqual(brokerForVersion("HMM-1", "136"), "hame-2025");
     });
 
     test("HME-2/HME-4 main line: hame-2024 below 119, hame-2025 at/above (#145)", () => {
@@ -687,6 +802,13 @@ describe("device_matrix", () => {
       assert.strictEqual(resolveProfile("HME-3").name, "HME-3/HME-5");
       assert.strictEqual(resolveProfile("HME-25").name, "HME");
       assert.strictEqual(resolveProfile("HME-1").name, "HME");
+    });
+
+    test("SMR resolves the three known ids apart from the rest", () => {
+      assert.strictEqual(resolveProfile("SMR-0").name, "SMR (CT003)");
+      assert.strictEqual(resolveProfile("SMR-2").name, "SMR (CT003)");
+      assert.strictEqual(resolveProfile("SMR-3").name, "SMR (other)");
+      assert.strictEqual(resolveProfile("SMR").name, "SMR (other)");
     });
 
     test("TPM2 resolves to its own profile without colliding with TPM-CN", () => {

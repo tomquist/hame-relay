@@ -45,6 +45,17 @@ export interface VidRoute {
   supported: boolean;
 }
 
+/**
+ * The tables that answer for firmware off a family's release line: `shape`
+ * matches the versions that are *on* it, and everything else is answered from
+ * whichever of these two the axis needs.
+ */
+export interface OffLine {
+  shape: RegExp;
+  brokerRoutes?: BrokerRoute[];
+  vidRoutes?: VidRoute[];
+}
+
 export interface DeviceProfile {
   /** Stable name for logging/debugging (not used for matching). */
   name: string;
@@ -74,13 +85,45 @@ export interface DeviceProfile {
   /**
    * For families whose firmware runs in two lines, the app reads the line off
    * the *shape* of the raw version string rather than its numeric value, so
-   * {@link vidRoutes} alone cannot place a version like `"150.5"`: it is
-   * numerically inside the first line but is not shaped like one. `shape`
-   * matches the raw versions that really are on the first line, and
-   * `endsBefore` is where the second line starts — below it, a version that
-   * does not match `shape` belongs to the second line and is not encrypted.
+   * the steps alone cannot place a version like `"150.5"`: it is numerically
+   * inside the first line but is not shaped like one. `shape` matches the raw
+   * versions that really are on the first line, and `endsBefore` is where the
+   * second line starts — below it, a version that does not match `shape`
+   * belongs to the second line and is answered from the steps at or above
+   * `endsBefore` alone.
+   *
+   * Like {@link mainLine}, this governs {@link brokerRoutes} and
+   * {@link vidRoutes} alike: the app reads the line once and both of its
+   * answers follow from it. Set this *or* {@link mainLine}.
    */
-  vidFirstLine?: { shape: RegExp; endsBefore: number };
+  firstLine?: { shape: RegExp; endsBefore: number };
+  /**
+   * The other shape rule, for families whose *off-line* firmware is not simply
+   * unencrypted (see the CT entries, where the second line reaches both the
+   * 2025 broker and encrypted topic ids from a much lower version than the main
+   * one). A raw version that does not match `shape` is answered from the steps
+   * below `startsAt` alone — the second line's own thresholds; one that does
+   * match is answered from the steps at or above `startsAt`, the main line's
+   * own. Neither line ever sees the other's thresholds, which is what keeps a
+   * main-line version *below* `startsAt` off the second line's steps.
+   *
+   * This governs {@link brokerRoutes} and {@link vidRoutes} alike. Set this
+   * *or* {@link firstLine}.
+   */
+  mainLine?: { shape: RegExp; startsAt: number };
+  /**
+   * The third shape rule, for families whose two lines have thresholds of their
+   * own rather than ranges of their own. The Venus strategies read the line the
+   * CT meters' way — a three-character version is on the release line — but
+   * their two thresholds sit next to each other (the HMG broker moves at 153 on
+   * the release line and at 153.2 off it), so there is no boundary to split one
+   * table at and the off-line firmware needs a table of its own.
+   *
+   * Like {@link mainLine} and {@link firstLine} this governs both axes at once;
+   * set it instead of either. A table the off line does not name is taken from
+   * the profile, which is how a family that splits on one axis only says so.
+   */
+  offLine?: OffLine;
   /**
    * Exact firmware versions that enable the remote topic id on the local
    * broker. Matched by equality, so a device reporting a fractional version
@@ -132,23 +175,57 @@ const JUPITER_VID_ROUTES: VidRoute[] = [
 /**
  * `JupiterVersionController.isRelease()` puts a device on the 1xx line only
  * when its raw firmware string is exactly three digits starting with "1" — so
- * "150.5" is *not* on that line even though it sits between 100 and 200.
- * Numbers and 1xx strings agree with the steps above; this only keeps
- * differently shaped versions out of the encrypted 1xx range.
+ * "150.5" is *not* on that line even though it sits between 100 and 200, and
+ * the app answers it from the 2xx line's thresholds on *both* axes: broker as
+ * well as topic ids. Numbers and 1xx strings agree with the steps above; this
+ * only keeps differently shaped versions off the 1xx line.
  */
 const JUPITER_FIRST_LINE = { shape: /^1\d\d$/u, endsBefore: 200 };
 
 /**
- * Where the HME meters' main firmware line starts. `CtVersionController` reads
- * the line off the *length* of the raw version string: a three-character
- * version ("116", "119") is on the main line, anything else — a two-digit
- * version such as "50", or a four-digit one — is on the second line. For whole
- * versions that is exactly the range 100–999, so the numeric steps below
- * reproduce the app's choice; only a fractional version inside that range
- * would need the {@link DeviceProfile.vidFirstLine} treatment, and HME
- * firmware is always reported whole.
+ * Where a CT meter's main firmware line starts. `CtVersionController` reads the
+ * line off the *length* of the raw version string: a three-character version
+ * ("116", "119") is on the main line, anything else — a two-digit version such
+ * as "50", or a four-digit one — is on the second line. The split covers the
+ * whole CT family, TPM-CN included, not only the HME meters. For whole versions
+ * it is exactly the range 100–999, so the numeric steps below reproduce the
+ * app's choice on their own; {@link CT_MAIN_LINE} covers the versions where
+ * length and value disagree.
  */
-const HME_MAIN_LINE_START = 100;
+const CT_MAIN_LINE_START = 100;
+
+/**
+ * A firmware version of exactly three characters, which is how two of the app's
+ * controllers tell one of a family's firmware lines from the other. Both count
+ * characters rather than compare numbers, so a version reaches the shorter line
+ * on its shape: "116.5" is five characters however it reads as a number.
+ *
+ * A version that survives `parseVersion` reaches here with its shape intact,
+ * apart from trailing zeros and leading zeros ("116.0", "050"), which the
+ * number has already dropped.
+ */
+const THREE_CHARACTER_VERSION = /^.{3}$/u;
+
+/**
+ * The shape half of the CT rule. A three-character version is on the main line —
+ * which for a whole version is the same as the range 100–999 the steps use, and
+ * for anything else is not: "116.5" sits inside that range but the app reads it
+ * as second-line firmware. Matching on the raw string keeps those versions with
+ * the line the app puts them on.
+ */
+const CT_MAIN_LINE = {
+  shape: THREE_CHARACTER_VERSION,
+  startsAt: CT_MAIN_LINE_START,
+};
+
+/**
+ * The same three-character rule, for the Venus families. `DeviceInfo.isRelease`
+ * counts characters exactly as `CtVersionController` does, so an HMG or Venus
+ * firmware written with a decimal point ("153.0", "122.9") is off the release
+ * line however it reads as a number, and answers from {@link OffLine} tables of
+ * its own on both axes.
+ */
+const VENUS_RELEASE_LINE = THREE_CHARACTER_VERSION;
 
 /**
  * Broker routing for an HME meter across both of its firmware lines (#212).
@@ -165,7 +242,7 @@ function hmeBrokerRoutes(
   return [
     { since: 0, broker: BROKER_2024 },
     { since: secondLineMigration, broker: BROKER_2025 },
-    { since: HME_MAIN_LINE_START, broker: BROKER_2024 },
+    { since: CT_MAIN_LINE_START, broker: BROKER_2024 },
     { since: mainLineMigration, broker: BROKER_2025 },
   ];
 }
@@ -174,7 +251,7 @@ function hmeBrokerRoutes(
 function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
   return [
     { since: secondLineVid, supported: true },
-    { since: HME_MAIN_LINE_START, supported: false },
+    { since: CT_MAIN_LINE_START, supported: false },
     { since: mainLineVid, supported: true },
   ];
 }
@@ -185,7 +262,7 @@ function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
  * anything below it takes the "supported" branch on both axes — so a two-digit
  * HMI firmware is on the 2025 broker with encrypted topic ids, exactly like the
  * Jupiter and HME second lines. The comparison is numeric (`double.parse`), so
- * no {@link DeviceProfile.vidFirstLine} shape rule is needed here.
+ * no {@link DeviceProfile.firstLine} shape rule is needed here.
  */
 const HMI_MAIN_LINE_START = 100;
 
@@ -239,6 +316,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: exact("HME-2", "HME-4"),
     brokerRoutes: hmeBrokerRoutes(24, 119),
     vidRoutes: hmeVidRoutes(25, 122),
+    mainLine: CT_MAIN_LINE,
     inverse: "auto",
     astraMeter: true,
   },
@@ -247,13 +325,24 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: exact("HME-3", "HME-5"),
     brokerRoutes: hmeBrokerRoutes(33, 116),
     vidRoutes: hmeVidRoutes(34, 120),
+    mainLine: CT_MAIN_LINE,
     inverse: "auto",
     astraMeter: true,
   },
   {
+    // TPM-CN runs the same two firmware lines as the HME meters, and the app
+    // reads the line the same way — off the length of the version string. Only
+    // the main line has a threshold: on the second line the app encrypts topic
+    // ids at any version, so a TPM-CN reporting "50" encrypts where a flat
+    // `vidSupportVersion: 101` would have sent plaintext.
     name: "TPM-CN",
     matches: exact("TPM-CN"),
-    vidSupportVersion: 101,
+    vidRoutes: [
+      { since: 0, supported: true },
+      { since: CT_MAIN_LINE_START, supported: false },
+      { since: 101, supported: true },
+    ],
+    mainLine: CT_MAIN_LINE,
     inverse: "auto",
   },
   {
@@ -365,10 +454,19 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     inverse: "selectable",
   },
   {
+    // The app reaches HMG through the Venus code (HMG-1/25/50 are Venus C and
+    // Venus E 2.0), so it runs `HmgDevStrategy` and reads the release line off
+    // the shape of the version: 153/154 for a three-character firmware, 153.2
+    // and 154.5 for anything else.
     name: "HMG",
     matches: startsWith("HMG"),
     brokerRoutes: migrate2024to2025(153),
-    vidSupportVersion: 154,
+    vidRoutes: [{ since: 154, supported: true }],
+    offLine: {
+      shape: VENUS_RELEASE_LINE,
+      brokerRoutes: migrate2024to2025(153.2),
+      vidRoutes: [{ since: 154.5, supported: true }],
+    },
     inverse: "auto",
   },
   {
@@ -376,7 +474,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("HMM"),
     brokerRoutes: jupiterBrokerRoutes(230),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -384,7 +482,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("HMN"),
     brokerRoutes: jupiterBrokerRoutes(230),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   {
@@ -392,7 +490,7 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     matches: startsWith("JPLS"),
     brokerRoutes: jupiterBrokerRoutes(232),
     vidRoutes: JUPITER_VID_ROUTES,
-    vidFirstLine: JUPITER_FIRST_LINE,
+    firstLine: JUPITER_FIRST_LINE,
     inverse: "auto",
   },
   // HMD outdoor power stations. The app keys off the sub-type token after the
@@ -461,10 +559,22 @@ const DEVICE_PROFILES: DeviceProfile[] = [
   },
   {
     // Marstek CT003 meter readers: SMR-0 (P1, NL), SMR-1 (IR, DE), SMR-2
-    // (TIC, FR).
+    // (TIC, FR). Only those three ids are recognized — see the SMR catch-all
+    // below.
     name: "SMR (CT003)",
-    matches: startsWith("SMR-"),
+    matches: exact("SMR-0", "SMR-1", "SMR-2"),
     vidSupportVersion: 0,
+    inverse: "auto",
+  },
+  {
+    // Any other SMR id is unrecognized by the app's CT controller, which claims
+    // every "SMR-" but answers only for those three: it stays on the 2024
+    // broker and never uses topic encryption. Same shape as the TPM2 pair
+    // above, and wrong on both axes without this entry.
+    name: "SMR (other)",
+    matches: startsWith("SMR"),
+    brokerRoutes: ALWAYS_2024,
+    vidSupportVersion: Infinity,
     inverse: "auto",
   },
   {
@@ -515,9 +625,19 @@ const DEVICE_PROFILES: DeviceProfile[] = [
     // VNSEMAX): always on the 2025 broker, at any firmware — the whole family
     // runs on the 2025 infrastructure and never used the 2024 broker. VEPRO/VDAC
     // do not start with "VNS" and reach the default (also always-2025).
+    //
+    // Topic ids follow the same release-line split as HMG: 123 for a
+    // three-character firmware, 114.8 for anything else. Only the VNSD and
+    // VNSE3 strategies carry that rule in the app; the models whose strategy
+    // answers neither question (VNSA, VNSD2, VNSA2, VNSE4, VNSEMAX) are covered
+    // here on the assumption that the family shares it.
     name: "VNS",
     matches: startsWith("VNS"),
-    vidSupportVersion: 123,
+    vidRoutes: [{ since: 123, supported: true }],
+    offLine: {
+      shape: VENUS_RELEASE_LINE,
+      vidRoutes: [{ since: 114.8, supported: true }],
+    },
     inverse: "auto",
   },
 ];
@@ -577,22 +697,15 @@ export function supportsVid(
     return false;
   }
   const profile = resolveProfile(type);
-  if (profile.vidRoutes) {
-    // Only the raw string carries the shape the app keys off, so check it
-    // before falling back to the numeric steps. A number reaching here keeps
-    // any fractional part the API reported (`main.ts` uses parseFloat) and so
-    // stringifies back to the same shape the app saw.
-    const raw = String(version).trim();
-    const firstLine = profile.vidFirstLine;
-    if (
-      firstLine &&
-      parsed < firstLine.endsBefore &&
-      !firstLine.shape.test(raw)
-    ) {
-      return false;
-    }
+  const { vidRoutes } = offLineTables(profile, version);
+  if (vidRoutes) {
+    // Only the raw string carries the shape the app keys off, so the line is
+    // picked from it rather than from the numeric steps. A number reaching here
+    // keeps any fractional part the API reported (`main.ts` uses parseFloat) and
+    // so stringifies back to the same shape the app saw.
+    const routes = onLine(vidRoutes, profile, version);
     let supported = false;
-    for (const route of profile.vidRoutes) {
+    for (const route of routes) {
       if (parsed >= route.since) {
         supported = route.supported;
       }
@@ -609,15 +722,87 @@ export function supportsVid(
  * given firmware. Replaces the `autoDetermineBroker` / `resolveBrokerMinVersion`
  * / `isLegacyOnlyDevice` logic.
  */
-export function brokerForVersion(type: string, version: number): string {
-  const routes = resolveProfile(type).brokerRoutes ?? DEFAULT_BROKER_ROUTES;
+export function brokerForVersion(
+  type: string,
+  version: string | number,
+): string {
+  const profile = resolveProfile(type);
+  const routes = onLine(
+    offLineTables(profile, version).brokerRoutes ?? DEFAULT_BROKER_ROUTES,
+    profile,
+    version,
+  );
+  const parsed = parseVersion(version);
   let chosen = routes[0].broker;
   for (const route of routes) {
-    if (version >= route.since) {
+    if (parsed >= route.since) {
       chosen = route.broker;
     }
   }
   return chosen;
+}
+
+/**
+ * The tables a version is answered from, once {@link DeviceProfile.offLine} has
+ * said which line it is on. A family without that rule, and a version on the
+ * release line, are answered from the profile itself; a table the off line does
+ * not carry falls back to the profile's, so a family that splits on one axis
+ * only leaves the other alone.
+ */
+function offLineTables(
+  profile: DeviceProfile,
+  version: string | number,
+): { brokerRoutes?: BrokerRoute[]; vidRoutes?: VidRoute[] } {
+  const { offLine } = profile;
+  if (!offLine || offLine.shape.test(String(version).trim())) {
+    return profile;
+  }
+  return {
+    brokerRoutes: offLine.brokerRoutes ?? profile.brokerRoutes,
+    vidRoutes: offLine.vidRoutes ?? profile.vidRoutes,
+  };
+}
+
+/**
+ * The steps that apply to a version's firmware line. The app picks the line
+ * from the raw version string and then never looks at the other line's
+ * thresholds, so neither does this: a version off the main line is answered
+ * from the second line's steps however high it reads, and one on the main line
+ * from the main line's steps however low it reads.
+ *
+ * A family whose table has no step for the chosen line does not distinguish the
+ * lines on that axis at all — TPM-CN is on the 2025 broker either way — so the
+ * whole table stands rather than nothing.
+ */
+function onLine<T extends { since: number }>(
+  routes: T[],
+  profile: DeviceProfile,
+  version: string | number,
+): T[] {
+  const raw = String(version).trim();
+  const { mainLine, firstLine } = profile;
+  if (mainLine) {
+    return keepOrFall(
+      routes,
+      mainLine.shape.test(raw)
+        ? (route) => route.since >= mainLine.startsAt
+        : (route) => route.since < mainLine.startsAt,
+    );
+  }
+  if (
+    firstLine &&
+    parseVersion(version) < firstLine.endsBefore &&
+    !firstLine.shape.test(raw)
+  ) {
+    return keepOrFall(routes, (route) => route.since >= firstLine.endsBefore);
+  }
+  return routes;
+}
+
+/** `routes.filter(keep)`, or all of them when that would leave nothing. */
+function keepOrFall<T>(routes: T[], keep: (route: T) => boolean): T[] {
+  const kept = routes.filter((route) => keep(route));
+  return kept.length > 0 ? kept : routes;
 }
 
 /** Whether the remote topic id should be used on the local broker. */
