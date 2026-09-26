@@ -1,5 +1,5 @@
 # Changelog
-## [Next]
+## [1.5.1] - 2026-09-26
 - Fixed devices exchanging no data in either direction because the relay addressed them under the wrong id (#182)
 - The log now says when a device is not connected to the cloud, instead of leaving it looking like a broken setup (#182)
 - Fixed Venus devices (including Venus C and Venus E 2.0) whose firmware version contains a decimal point being addressed under the wrong id, and in some cases connecting to the wrong cloud service. Like the Jupiter and meter families, these devices ship a second firmware line that needs different handling
