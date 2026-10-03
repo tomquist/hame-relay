@@ -1,19 +1,28 @@
 #!/usr/bin/with-contenv bashio
 
+# Run a bashio command with bashio's own logging capped at info. bashio logs
+# every Supervisor API response at debug level, and the values it caches at
+# trace level; for the MQTT service that includes the broker password. Only
+# that debug and trace output is dropped; warnings and errors still show.
+without_bashio_debug_logs() {
+    local __BASHIO_LOG_LEVEL="${__BASHIO_LOG_LEVEL_INFO}"
+    "$@"
+}
+
 # Function to get MQTT URI
 get_mqtt_uri() {
     if bashio::config.has_value 'mqtt_uri'; then
         bashio::config 'mqtt_uri'
-    elif bashio::services.available "mqtt"; then
-        local ssl=$(bashio::services mqtt "ssl")
+    elif without_bashio_debug_logs bashio::services.available "mqtt"; then
+        local ssl=$(without_bashio_debug_logs bashio::services mqtt "ssl")
         local protocol="mqtt"
         if [[ "$ssl" == "true" ]]; then
             protocol="mqtts"
         fi
-        local host=$(bashio::services mqtt "host")
-        local port=$(bashio::services mqtt "port")
-        local username=$(bashio::services mqtt "username")
-        local password=$(bashio::services mqtt "password")
+        local host=$(without_bashio_debug_logs bashio::services mqtt "host")
+        local port=$(without_bashio_debug_logs bashio::services mqtt "port")
+        local username=$(without_bashio_debug_logs bashio::services mqtt "username")
+        local password=$(without_bashio_debug_logs bashio::services mqtt "password")
 
         local uri="${protocol}://"
         if [[ -n "$username" && -n "$password" ]]; then
