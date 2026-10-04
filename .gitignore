@@ -41,3 +41,8 @@ npm-debug.log*
 
 # Sensitive test data
 test-data.json
+
+# Memory measurement rig
+bench/memory/work/
+bench/memory/results/
+bench/memory/package-lock.json

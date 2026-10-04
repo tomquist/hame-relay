@@ -1,0 +1,10 @@
+{
+  "name": "hame-relay-memory-bench",
+  "private": true,
+  "type": "module",
+  "description": "Measurement rig for the relay's memory use; not part of the relay",
+  "dependencies": {
+    "aedes": "0.51.3",
+    "mqtt": "5.16.0"
+  }
+}
