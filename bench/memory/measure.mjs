@@ -32,14 +32,29 @@ writeFileSync(
   }),
 );
 
-const env = fork(`${dir}env.mjs`, { stdio: ["ignore", "inherit", "inherit", "ipc"] });
-let counters = {};
-await new Promise((r) => env.on("message", (m) => (m.ready ? r() : (counters = m.counters))));
-env.on("message", (m) => m.counters && (counters = m.counters));
+function fail(message) {
+  console.error(`${label}: ${message}`);
+  env?.kill();
+  if (IMAGE) spawnSync("docker", ["rm", "-f", "relay-meas"]);
+  else relay?.kill();
+  process.exit(1);
+}
 
-const relayArgs = (process.env.RELAY_NODE_ARGS ?? "").split(" ").filter(Boolean);
+const STARTUP_TIMEOUT_MS = 60_000;
+let finishing = false;
 const IMAGE = process.env.RELAY_IMAGE;
 let relay;
+const env = fork(`${dir}env.mjs`, { stdio: ["ignore", "inherit", "inherit", "ipc"] });
+let counters = {};
+env.on("message", (m) => m.counters && (counters = m.counters));
+await new Promise((resolve) => {
+  const timer = setTimeout(() => fail("environment did not become ready"), STARTUP_TIMEOUT_MS);
+  env.on("message", (m) => m.ready && (clearTimeout(timer), resolve()));
+  env.on("error", (error) => fail(`environment failed: ${error.message}`));
+  env.on("exit", (code) => finishing || fail(`environment exited (code ${code})`));
+});
+
+const relayArgs = (process.env.RELAY_NODE_ARGS ?? "").split(" ").filter(Boolean);
 if (IMAGE) {
   // Run the shipped image as is (its own CMD), against the rig.
   spawnSync("docker", ["rm", "-f", "relay-meas"]);
@@ -52,8 +67,14 @@ if (IMAGE) {
     "-e", `LOG_LEVEL=${process.env.LOG_LEVEL ?? "info"}`,
     IMAGE,
   ], { stdio: ["ignore", "pipe", "pipe"] });
+  let exited = false;
+  relay.on("exit", () => (exited = true));
+  relay.on("error", (error) => fail(`docker failed: ${error.message}`));
+  const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   let pid = 0;
   while (!pid) {
+    if (exited) fail("container exited before it started");
+    if (Date.now() > deadline) fail("container did not start");
     await new Promise((r) => setTimeout(r, 100));
     pid = Number(spawnSync("docker", ["inspect", "-f", "{{.State.Pid}}", "relay-meas"]).stdout?.toString().trim() || 0);
   }
@@ -105,6 +126,7 @@ await new Promise((resolve) => {
     }
   }, 1000);
 });
+finishing = true;
 if (IMAGE) spawnSync("docker", ["kill", "-s", "INT", "relay-meas"]); else relay.kill("SIGINT");
 env.kill();
 
@@ -127,6 +149,13 @@ const result = {
   cloud_app_recv: last.cloudAppRecv - (startCounters?.cloudAppRecv ?? 0),
   device_recv: last.deviceRecv - (startCounters?.deviceRecv ?? 0),
 };
+// A run that carried no traffic did not measure the workload: whatever its
+// memory looks like, it is not a result. The log is kept for diagnosis.
+if (!(result.app_sent > 0 && result.cloud_app_recv > 0 && result.device_recv > 0)) {
+  fail(
+    `no traffic forwarded (sent ${result.app_sent}, delivered ${result.cloud_app_recv}, replies ${result.device_recv}); see results/${label}.log`,
+  );
+}
 writeFileSync(`${dir}results/${label}.json`, JSON.stringify({ result, samples }, null, 1));
 const fmt = (v) => (typeof v === "number" && !Number.isInteger(v) ? v.toFixed(1) : v);
 console.log(Object.entries(result).map(([k, v]) => `${k}=${fmt(v)}`).join(" "));
