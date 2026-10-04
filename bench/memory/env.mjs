@@ -90,7 +90,8 @@ async function broker(port, secure) {
     done(null, !(refusing && isRelay));
     if (refusing && isRelay) client.conn.destroy();
   };
-  const listen = () => new Promise((r) => server.listen(port, r));
+  // Loopback only: the brokers take any client without credentials.
+  const listen = () => new Promise((r) => server.listen(port, "127.0.0.1", r));
   await listen();
   return {
     aedes,

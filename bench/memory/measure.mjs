@@ -156,6 +156,21 @@ if (!(result.app_sent > 0 && result.cloud_app_recv > 0 && result.device_recv > 0
     `no traffic forwarded (sent ${result.app_sent}, delivered ${result.cloud_app_recv}, replies ${result.device_recv}); see results/${label}.log`,
   );
 }
+// Traffic from before an outage says nothing about whether the relay came
+// back: replies must flow again once the cloud is reachable. The grace period
+// covers reconnecting and the clocks of this script and env.mjs being offset.
+const OUTAGE_AT_S = Number(process.env.OUTAGE_AT_S ?? 0);
+const OUTAGE_FOR_S = Number(process.env.OUTAGE_FOR_S ?? 0);
+if (OUTAGE_FOR_S > 0) {
+  const recoveredBy = OUTAGE_AT_S + OUTAGE_FOR_S + 10;
+  const recovered = samples.find((x) => x.t >= recoveredBy);
+  if (!recovered || recovered === last) {
+    fail(`run ends before the relay could recover from the outage (needs > ${recoveredBy} s)`);
+  }
+  if (!(last.deviceRecv > recovered.deviceRecv)) {
+    fail(`no replies forwarded after the outage ended; see results/${label}.log`);
+  }
+}
 writeFileSync(`${dir}results/${label}.json`, JSON.stringify({ result, samples }, null, 1));
 const fmt = (v) => (typeof v === "number" && !Number.isInteger(v) ? v.toFixed(1) : v);
 console.log(Object.entries(result).map(([k, v]) => `${k}=${fmt(v)}`).join(" "));
