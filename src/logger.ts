@@ -2,8 +2,8 @@ import { pino } from "pino";
 import pretty from "pino-pretty";
 
 // Pretty-printed in-process rather than through a pino transport: a transport
-// runs in a worker thread, which is a second JavaScript engine instance and
-// costs more memory than the rest of the relay put together. Writes are
+// runs in a worker thread, a second JavaScript engine instance with a heap of
+// its own, which costs 15 to 30 MB depending on the log volume. Writes are
 // synchronous so nothing is lost when the process exits right after logging.
 export const logger = pino(
   { level: process.env.LOG_LEVEL || "info" },
