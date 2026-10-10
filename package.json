@@ -17,7 +17,7 @@
   "dependencies": {
     "mqtt": "^5.16.0",
     "node-fetch": "^3.3.2",
-    "pino": "^10.3.1",
+    "pino": "^10.4.0",
     "pino-pretty": "^13.2.0"
   },
   "engines": {
