@@ -6,7 +6,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/main.js",
+    "start": "node --max-semi-space-size=2 dist/main.js",
     "dev": "tsx src/main.ts",
     "test": "npm run build && node --test --import tsx/esm",
     "clean": "rimraf dist",

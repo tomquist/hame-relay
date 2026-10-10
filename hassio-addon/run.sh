@@ -127,4 +127,5 @@ bashio::log.info "Configuration file generated successfully."
 # Start the application
 export LOG_LEVEL
 bashio::log.info "Starting MQTT forwarder..."
-cd /app && node dist/main.js
+# See the root Dockerfile for the semi-space cap.
+cd /app && node --max-semi-space-size=2 dist/main.js

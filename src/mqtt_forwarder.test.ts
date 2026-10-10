@@ -6,6 +6,7 @@ import {
   limitToSubscribable,
   remoteClientOptions,
 } from "./mqtt_forwarder.js";
+import { createSecureContext } from "tls";
 
 const devices = (count: number) =>
   Array.from({ length: count }, (_, i) => `device-${i}`);
@@ -46,16 +47,15 @@ describe("limitToSubscribable", () => {
 });
 
 describe("remoteClientOptions", () => {
-  const certs = {
-    ca: Buffer.from("ca"),
-    cert: Buffer.from("cert"),
-    key: Buffer.from("key"),
-  };
+  const secureContext = createSecureContext();
 
   test("splits SUBSCRIBE packets to what the broker accepts", () => {
     // Without this the client sends one SUBSCRIBE for the whole device list
     // and the broker drops the connection, which is the bug behind #232.
-    const { subscribeBatchSize } = remoteClientOptions(certs, "hm_test");
+    const { subscribeBatchSize } = remoteClientOptions(
+      secureContext,
+      "hm_test",
+    );
     assert.ok(
       subscribeBatchSize !== undefined &&
         subscribeBatchSize <= MAX_TOPICS_PER_SUBSCRIBE,
@@ -63,14 +63,13 @@ describe("remoteClientOptions", () => {
     );
   });
 
-  test("connects with the given identity and certificates", () => {
-    const options = remoteClientOptions(certs, "hm_test");
+  test("connects with the given identity and TLS context", () => {
+    const options = remoteClientOptions(secureContext, "hm_test");
     assert.strictEqual(options.clientId, "hm_test");
     assert.strictEqual(options.protocol, "mqtts");
-    assert.deepStrictEqual(
-      { ca: options.ca, cert: options.cert, key: options.key },
-      certs,
-    );
+    // The very same context, so reconnects reuse it instead of building one
+    // per attempt.
+    assert.strictEqual(options.secureContext, secureContext);
   });
 });
 

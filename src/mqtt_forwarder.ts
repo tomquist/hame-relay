@@ -5,6 +5,7 @@ import {
   type MqttClient,
 } from "mqtt";
 import { createHash } from "crypto";
+import { createSecureContext, type SecureContext } from "tls";
 import { logger } from "./logger.js";
 import { type Device, type ForwarderConfig } from "./types.js";
 
@@ -39,13 +40,20 @@ export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 50;
  * packet over the per-packet limit by closing the connection. It applies to
  * the automatic re-subscribe after a reconnect as well, which is the path a
  * one-off split at startup would miss.
+ *
+ * `secureContext` carries the certificates, created once and reused for every
+ * reconnect. Given the certificates themselves, each connection attempt would
+ * build its own context, whose native memory is only released by a full
+ * garbage collection; while the broker is unreachable and the client retries
+ * every second, that adds up to megabytes a minute. mqtt.js hands its options
+ * to `tls.connect` as they are, but does not declare this one.
  */
 export function remoteClientOptions(
-  certs: { ca: Buffer; cert: Buffer; key: Buffer },
+  secureContext: SecureContext,
   clientId: string,
-): IClientOptions {
+): IClientOptions & { secureContext: SecureContext } {
   return {
-    ...certs,
+    secureContext,
     protocol: "mqtts",
     keepalive: 30,
     clientId,
@@ -98,13 +106,13 @@ export class MQTTForwarder {
     return this.configBroker;
   }
 
-  private loadCertificates(): { ca: Buffer; cert: Buffer; key: Buffer } {
+  private loadCertificates(): SecureContext {
     try {
-      return {
+      return createSecureContext({
         ca: Buffer.from(this.config.remote.ca, "utf8"),
         cert: Buffer.from(this.config.remote.cert, "utf8"),
         key: Buffer.from(this.config.remote.key, "utf8"),
-      };
+      });
     } catch (error: unknown) {
       this.logger.error(error, "Failed to load certificates");
       throw error;

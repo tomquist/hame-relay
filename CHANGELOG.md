@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Lower memory usage, and memory no longer climbs while the cloud is unreachable or keeps dropping the connection (#258)
 - The password of Home Assistant's MQTT broker no longer shows up in the add-on log when debug logging is enabled (#257)
 
 ## [1.5.1] - 2026-09-26

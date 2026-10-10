@@ -61,5 +61,8 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-# Run the application
-CMD ["node", "dist/main.js"]
+# Run the application. The semi-space cap keeps the young generation of the
+# JavaScript heap small: by default it grows with the message rate, which costs
+# tens of megabytes on busy setups for no measurable gain in speed. Keep in sync
+# with hassio-addon/run.sh and the start script in package.json.
+CMD ["node", "--max-semi-space-size=2", "dist/main.js"]
