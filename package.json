@@ -24,7 +24,7 @@
     "node": ">=22"
   },
   "devDependencies": {
-    "@types/node": "^22.20.4",
+    "@types/node": "^22.20.5",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
     "rimraf": "^6.1.3",
