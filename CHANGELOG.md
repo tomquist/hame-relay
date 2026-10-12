@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- Fixed Marstek HMI inverters (e.g. MI800) on firmware 2xx exchanging no data, because the relay connected them to the wrong cloud service (hm2mqtt#453, PR #266)
 - The password of Home Assistant's MQTT broker no longer shows up in the add-on log when debug logging is enabled (#257)
 
 ## [1.5.1] - 2026-09-26

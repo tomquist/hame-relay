@@ -330,6 +330,18 @@ describe("device_matrix", () => {
           assert.strictEqual(supportsVid(type, "50"), false, type);
         }
       });
+      // Routes 2 and 4 send firmware 201-299 back to plaintext topic ids before
+      // their own threshold is consulted; from 300 the thresholds apply again.
+      test("firmware 201-299 does not encrypt on routes 2 and 4", () => {
+        for (const type of ["HMI-2000", "HMI-02KS", "HMI-1"]) {
+          assert.strictEqual(supportsVid(type, "200"), true, type);
+          assert.strictEqual(supportsVid(type, "200.9"), true, type);
+          assert.strictEqual(supportsVid(type, "201"), false, type);
+          assert.strictEqual(supportsVid(type, "202"), false, type);
+          assert.strictEqual(supportsVid(type, "299.9"), false, type);
+          assert.strictEqual(supportsVid(type, "300"), true, type);
+        }
+      });
       // The app classifies by substring, so an id merely containing 350/500 or
       // 2000 takes that route rather than the regular HMI one.
       test("substring matching decides the route", () => {
@@ -592,6 +604,25 @@ describe("device_matrix", () => {
     test("routes 0 and 1 stay on hame-2024 below 100 too", () => {
       for (const type of ["HMI-350", "HMI-500S", "HMI-6"]) {
         assert.strictEqual(brokerForVersion(type, 50), "hame-2024", type);
+      }
+    });
+
+    test("HMI firmware 201-299 is back on hame-2024 for routes 2 and 4", () => {
+      for (const type of ["HMI-2000", "HMI-02KS", "HMI-1"]) {
+        assert.strictEqual(brokerForVersion(type, 200), "hame-2025", type);
+        assert.strictEqual(brokerForVersion(type, 201), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 202), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 299), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 300), "hame-2025", type);
+      }
+    });
+
+    test("routes 0 and 1 are unaffected by the 201-299 band", () => {
+      for (const type of ["HMI-350", "HMI-500S", "HMI-6"]) {
+        assert.strictEqual(brokerForVersion(type, 202), "hame-2024", type);
+        assert.strictEqual(brokerForVersion(type, 300), "hame-2024", type);
+        assert.strictEqual(supportsVid(type, "202"), false, type);
+        assert.strictEqual(supportsVid(type, "300"), false, type);
       }
     });
 
