@@ -58,9 +58,11 @@ switches to encrypted topic ids, and how forwarding is configured.
 | SMR-0, SMR-1, SMR-2 | hame-2025                   | 0     | —               | auto        | CT003 meter readers: P1 (NL) / IR (DE) / TIC (FR) |
 | SMR (other)         | hame-2024                   | never | —               | auto        | unrecognised; only those three ship today |
 | HMI-2000, HMI-02KS (fw ≥100)    | hame-2024 → hame-2025 @113  | 105   | —               | auto        | "route 4"; 4-PV microinverter; see "HMI firmware lines" |
+| HMI-2000, HMI-02KS (fw 201–299) | hame-2024                   | never | —               | auto        | see "HMI firmware lines" |
 | HMI-2000, HMI-02KS (fw <100)    | hame-2025                   | 0     | —               | auto        | second firmware line |
 | HMI-350, HMI-500    | hame-2024                   | never | —               | auto        | "route 1", incl. `HMI-350S` / `HMI-500S`; see #158 / #164 |
 | HMI (regular, fw ≥100)    | hame-2024 → hame-2025 @129  | 120   | —               | auto        | "route 2": any remaining HMI id containing a digit 1-5 |
+| HMI (regular, fw 201–299) | hame-2024                   | never | —               | auto        | see "HMI firmware lines" |
 | HMI (regular, fw <100)    | hame-2025                   | 0     | —               | auto        | second firmware line |
 | HMI (other)         | hame-2024                   | never | —               | auto        | "route 0", e.g. `HMI-6` |
 | HMC, SCH, HML, UB   | hame-2024                   | never | —               | auto        | M5000 (`HMC-1/2/7`, `SCH-1`), Mars-A (other HMC) |
@@ -104,6 +106,12 @@ takes the supported branch on both axes. So an HMI-2000 on fw 50 is on the 2025
 broker with encrypted topic ids, while the same inverter on fw 100 is back on
 the 2024 broker with plaintext ones until it reaches 113 (129 for route 2).
 Routes 0 and 1 return false unconditionally and have no second line.
+
+Before either of those checks, routes 2 and 4 send firmware from 201 up to (but
+not including) 300 back to the 2024 broker with plaintext topic ids. So an
+HMI-1 on fw 202 is on the 2024 broker although it is past the route's migration
+at 129, and from fw 300 the route's own thresholds apply again. Like the line
+split, the comparison is numeric.
 
 ## CT firmware lines
 

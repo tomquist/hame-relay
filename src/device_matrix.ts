@@ -267,25 +267,44 @@ function hmeVidRoutes(secondLineVid: number, mainLineVid: number): VidRoute[] {
 const HMI_MAIN_LINE_START = 100;
 
 /**
+ * A band of HMI firmware the app sends back to the 2024 broker with plaintext
+ * topic ids on both axes. `InvertVersionController` tests for it before
+ * anything else, so neither the second-line check nor the route's own
+ * thresholds see a version inside it: an HMI-1 on fw 202 is on the 2024 broker
+ * although it is past the route's migration at 129. From `end` up, the route's
+ * thresholds apply again. Like {@link HMI_MAIN_LINE_START}, the comparison is
+ * numeric.
+ */
+const HMI_LEGACY_BAND = { start: 201, end: 300 };
+
+/**
  * Broker routing for an HMI inverter across both of its firmware lines. Below
  * {@link HMI_MAIN_LINE_START} the device is on the second line and already on
  * the 2025 broker; the main line starts over on the 2024 broker and migrates
- * again at `mainLineMigration`.
+ * again at `mainLineMigration`. {@link HMI_LEGACY_BAND} is back on the 2024
+ * broker.
  */
 function hmiBrokerRoutes(mainLineMigration: number): BrokerRoute[] {
   return [
     { since: 0, broker: BROKER_2025 },
     { since: HMI_MAIN_LINE_START, broker: BROKER_2024 },
     { since: mainLineMigration, broker: BROKER_2025 },
+    { since: HMI_LEGACY_BAND.start, broker: BROKER_2024 },
+    { since: HMI_LEGACY_BAND.end, broker: BROKER_2025 },
   ];
 }
 
-/** Salt-based (`cq`) topic-id encryption across both HMI firmware lines. */
+/**
+ * Salt-based (`cq`) topic-id encryption across both HMI firmware lines, with
+ * {@link HMI_LEGACY_BAND} back on plaintext topic ids.
+ */
 function hmiVidRoutes(mainLineVid: number): VidRoute[] {
   return [
     { since: 0, supported: true },
     { since: HMI_MAIN_LINE_START, supported: false },
     { since: mainLineVid, supported: true },
+    { since: HMI_LEGACY_BAND.start, supported: false },
+    { since: HMI_LEGACY_BAND.end, supported: true },
   ];
 }
 
