@@ -1,5 +1,5 @@
 # Changelog
-## [Next]
+## [1.5.3] - 2026-10-25
 - Updated the bundled Node.js in the Docker image and the add-on to fix several security vulnerabilities (#272, PR #273)
 
 ## [1.5.2] - 2026-10-12
