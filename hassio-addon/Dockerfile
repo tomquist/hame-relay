@@ -11,7 +11,7 @@ ARG BUILD_FROM
 
 # Build stage. Must stay on the same Node major as the runtime stage; see the
 # armv7 note in the root Dockerfile for why that major is 22.
-FROM node:22-alpine AS builder
+FROM node:22.23.4-alpine AS builder
 
 WORKDIR /build
 
@@ -36,7 +36,13 @@ FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:17.2.1}
 
 # Install Node.js from the base image's Alpine repositories. On Alpine 3.21
 # (base 17.2.1) this is Node 22, matching the builder stage.
-RUN apk add --no-cache nodejs
+#
+# The version floor matches the builder stage's pin. The base image is pinned,
+# so nothing else invalidates this layer in the build cache: without a version
+# in the instruction, a release reuses whatever Node was installed when the
+# layer was first cached. Raise the floor together with the pin above; the
+# build fails if the Alpine repositories don't have that version yet.
+RUN apk add --no-cache 'nodejs>=22.23.4'
 
 # Set work directory
 WORKDIR /app

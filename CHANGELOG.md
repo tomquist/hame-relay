@@ -1,6 +1,6 @@
 # Changelog
 ## [Next]
-- Updated the Docker image's bundled Node.js to fix several security vulnerabilities (#272, PR #273)
+- Updated the bundled Node.js in the Docker image and the add-on to fix several security vulnerabilities (#272, PR #273)
 
 ## [1.5.2] - 2026-10-12
 - Fixed Marstek HMI inverters (e.g. MI800) on firmware 2xx exchanging no data, because the relay connected them to the wrong cloud service (hm2mqtt#453, PR #266)

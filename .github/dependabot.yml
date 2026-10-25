@@ -15,6 +15,28 @@ updates:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 
+  # The Node image pins in both Dockerfiles. Majors are ignored for the same
+  # reason as @types/node above. The add-on Dockerfile's `apk add` floor is not
+  # tracked; raise it by hand together with its builder pin.
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /hassio-addon
+    schedule:
+      interval: weekly
+    target-branch: develop
+    allow:
+      - dependency-name: node
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+    # group-by makes this one PR across both directories instead of one each,
+    # so the two Dockerfiles never end up on different Node versions.
+    groups:
+      node:
+        group-by: dependency-name
+        patterns: ["node"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
