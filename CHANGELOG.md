@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- The add-on now gets the latest Node.js security fixes with each update, instead of staying on an older, vulnerable Node.js version (#272)
 
 
 ## [1.5.2] - 2026-10-12
