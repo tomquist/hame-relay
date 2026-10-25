@@ -6,7 +6,12 @@
 # a prerequisite for moving off Node 22 before that date.
 # Keep this in sync with hassio-addon/Dockerfile, the CI node-version and the
 # @types/node major in package.json.
-FROM node:22-alpine AS builder
+#
+# The exact Node version is pinned so a release ships exactly what is written
+# here rather than whatever node:22-alpine pointed to when the build ran.
+# Dependabot bumps the pin (patch and minor only). Keep both stages, and the
+# builder stage and Node floor in hassio-addon/Dockerfile, on the same version.
+FROM node:22.23.4-alpine AS builder
 
 WORKDIR /build
 
@@ -27,7 +32,7 @@ RUN npm run build
 RUN npm ci --only=production
 
 # Runtime stage
-FROM node:22-alpine
+FROM node:22.23.4-alpine
 
 WORKDIR /app
 
