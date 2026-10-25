@@ -30,8 +30,11 @@ updates:
     ignore:
       - dependency-name: node
         update-types: ["version-update:semver-major"]
+    # group-by makes this one PR across both directories instead of one each,
+    # so the two Dockerfiles never end up on different Node versions.
     groups:
       node:
+        group-by: dependency-name
         patterns: ["node"]
 
   - package-ecosystem: github-actions
