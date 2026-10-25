@@ -31,11 +31,8 @@ RUN npm run build
 # Install production dependencies
 RUN npm ci --only=production
 
-# Final stage. Named so CI can exclude it from the build cache: the base image
-# is pinned, so nothing would otherwise invalidate the `apk add` layer below and
-# the add-on would keep the Node that was current when that layer was first
-# cached, missing every later security release (#272).
-FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:17.2.1} AS runtime
+# Final stage
+FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:17.2.1}
 
 # Install Node.js from the base image's Alpine repositories. On Alpine 3.21
 # (base 17.2.1) this is Node 22, matching the builder stage.

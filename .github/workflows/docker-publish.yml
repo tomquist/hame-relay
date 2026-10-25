@@ -292,10 +292,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           build-args: BUILD_FROM=ghcr.io/hassio-addons/base:17.2.1
-          # Rebuild the final stage every time so `apk add nodejs` picks up the
-          # current Alpine Node package. The base image is pinned, so a cached
-          # layer would otherwise be reused indefinitely (#272).
-          no-cache-filters: runtime
           cache-from: type=gha,scope=addon-${{ matrix.platform }}
           cache-to: type=gha,scope=addon-${{ matrix.platform }},mode=max
           labels: ${{ steps.meta.outputs.labels }}
