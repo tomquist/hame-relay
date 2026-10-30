@@ -11,7 +11,12 @@
 # here rather than whatever node:22-alpine pointed to when the build ran.
 # Dependabot bumps the pin (patch and minor only). Keep both stages, and the
 # builder stage and Node floor in hassio-addon/Dockerfile, on the same version.
-FROM node:22.23.4-alpine AS builder
+# The builder runs on the build host's native platform rather than the target
+# platform: tsrs, the TypeScript compiler, ships no 32-bit ARM binary, and
+# everything the builder produces (the compiled JavaScript and the pure
+# JavaScript production dependencies) is platform independent. This also keeps
+# the armv7 build from type checking under QEMU emulation.
+FROM --platform=$BUILDPLATFORM node:22.23.4-alpine AS builder
 
 WORKDIR /build
 

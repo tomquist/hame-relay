@@ -10,8 +10,9 @@
 ARG BUILD_FROM
 
 # Build stage. Must stay on the same Node major as the runtime stage; see the
-# armv7 note in the root Dockerfile for why that major is 22.
-FROM node:22.23.4-alpine AS builder
+# armv7 note in the root Dockerfile for why that major is 22. Runs on the build
+# host's platform; see the root Dockerfile for why.
+FROM --platform=$BUILDPLATFORM node:22.23.4-alpine AS builder
 
 WORKDIR /build
 
