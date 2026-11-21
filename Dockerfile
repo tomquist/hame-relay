@@ -16,7 +16,7 @@
 # everything the builder produces (the compiled JavaScript and the pure
 # JavaScript production dependencies) is platform independent. This also keeps
 # the armv7 build from type checking under QEMU emulation.
-FROM --platform=$BUILDPLATFORM node:22.23.4-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:22.23.5-alpine AS builder
 
 WORKDIR /build
 
@@ -37,7 +37,7 @@ RUN npm run build
 RUN npm ci --only=production
 
 # Runtime stage
-FROM node:22.23.4-alpine
+FROM node:22.23.5-alpine
 
 WORKDIR /app
 
