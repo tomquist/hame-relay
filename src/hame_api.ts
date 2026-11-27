@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import fetch from "node-fetch";
+import { loadDeviceCache, saveDeviceCache } from "./device_cache.js";
 import { logger } from "./logger.js";
 
 /**
@@ -375,4 +376,47 @@ export class HameApi {
       { maxRetries: 2 }, // Fewer retries for the overall operation since individual calls already retry
     );
   }
+}
+
+/**
+ * The account's devices from the Hame API, remembered after every successful
+ * fetch. When the API cannot be reached — the cloud is down, or the network
+ * resolves its domain elsewhere — the list from the last successful fetch is
+ * used instead, so a restart does not take forwarding down with it (#293).
+ * Without such a list, the API's error is thrown as it was.
+ */
+export async function fetchDevicesWithCache(
+  username: string,
+  password: string,
+  cachePath: string,
+): Promise<DeviceInfo[]> {
+  let devices: DeviceInfo[];
+  try {
+    devices = await new HameApi().fetchDevices(username, password);
+  } catch (apiError) {
+    const cache = loadDeviceCache(cachePath, username);
+    if (!cache) {
+      throw apiError;
+    }
+    const reason = redactSecrets(
+      apiError instanceof Error ? apiError.message : String(apiError),
+    );
+    logger.warn(
+      `Could not fetch devices from the Hame API (${reason}). Using the ${cache.devices.length} devices from the last successful login on ${cache.saved_at}. A device added, updated or re-paired in the app since then may not exchange data until the login works again.`,
+    );
+    return cache.devices;
+  }
+
+  // An empty list is reported by the caller; it must not replace a good cache.
+  if (devices.length > 0) {
+    try {
+      saveDeviceCache(cachePath, username, devices);
+      logger.debug(`Saved the device list to ${cachePath}`);
+    } catch (error) {
+      logger.warn(
+        `Could not save the device list to ${cachePath}, so the relay cannot fall back to it if the Hame API is unreachable on a later start: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  return devices;
 }

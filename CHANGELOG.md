@@ -1,5 +1,6 @@
 # Changelog
 ## [Next]
+- The relay now starts with the devices from its last successful login when the Hame cloud can't be reached, instead of failing to start (#293)
 
 
 ## [1.5.3] - 2026-10-25

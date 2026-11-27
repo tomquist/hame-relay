@@ -124,6 +124,11 @@ fi
 
 bashio::log.info "Configuration file generated successfully."
 
+# Keep the device list from the last successful login in the app's persistent
+# storage: /app/config is recreated with the container, /data survives restarts
+# and updates and is part of the app's backups.
+export DEVICE_CACHE_PATH=/data/device-cache.json
+
 # Start the application
 export LOG_LEVEL
 bashio::log.info "Starting MQTT forwarder..."

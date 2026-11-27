@@ -50,6 +50,12 @@ The app will:
 - Configure the optimal forwarding direction for each device type
 - Handle all the complex technical details behind the scenes
 
+The app remembers the device list from its last successful login. If the Hame
+cloud can't be reached when it starts, it uses that list and logs a warning, so
+your devices keep working. A device added, updated or re-paired in the Marstek
+app since then may not work until the login succeeds again. The very first
+start always needs a working login.
+
 ### Optional Settings
 
 If you need to customize the behavior, you can also configure:

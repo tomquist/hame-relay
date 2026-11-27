@@ -3,7 +3,7 @@ import { join, dirname } from "path";
 import { calculateNewVersionTopicId } from "./encryption.js";
 import { HealthServer } from "./health.js";
 import { logger } from "./logger.js";
-import { HameApi, readOnlineFlag, type DeviceInfo } from "./hame_api.js";
+import { fetchDevicesWithCache, readOnlineFlag } from "./hame_api.js";
 import {
   MAX_SUBSCRIPTIONS_PER_CONNECTION,
   MQTTForwarder,
@@ -155,12 +155,16 @@ async function start() {
       );
     }
 
+    const deviceCachePath =
+      process.env.DEVICE_CACHE_PATH ||
+      join(dirname(configPath), "device-cache.json");
+
     logger.info("Fetching devices from Hame API...");
     try {
-      const api = new HameApi();
-      const apiDevicesRaw: DeviceInfo[] = await api.fetchDevices(
+      const apiDevicesRaw = await fetchDevicesWithCache(
         config.username,
         config.password,
+        deviceCachePath,
       );
 
       if (apiDevicesRaw.length === 0) {
@@ -227,9 +231,7 @@ async function start() {
       });
 
       config.devices = apiDevices;
-      logger.info(
-        `Successfully retrieved ${apiDevices.length} devices from API`,
-      );
+      logger.info(`Loaded ${apiDevices.length} devices`);
     } catch (apiError) {
       logger.error(apiError, "Failed to fetch devices from Hame API");
       throw new Error(
