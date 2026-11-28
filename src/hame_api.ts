@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import fetch from "node-fetch";
+import { loadDeviceCache, saveDeviceCache } from "./device_cache.js";
 import { logger } from "./logger.js";
 
 /**
@@ -175,6 +176,13 @@ export interface DeviceMqttStatus {
 /** How long one device's status lookup may take before it is given up on. */
 const STATUS_TIMEOUT_MS = 5000;
 
+/**
+ * How long the login and device-list requests may take, body included. Without
+ * a bound, a server that answers and then stalls would hold up startup for
+ * good, and the cached device list could never step in.
+ */
+const API_TIMEOUT_MS = 15_000;
+
 interface HameDeviceMqttStatusResponse {
   code: number;
   msg: string;
@@ -219,7 +227,10 @@ export interface DeviceInfo {
 }
 
 export class HameApi {
-  constructor(private readonly baseUrl = "https://eu.hamedata.com") {}
+  constructor(
+    private readonly baseUrl = "https://eu.hamedata.com",
+    private readonly requestTimeoutMs = API_TIMEOUT_MS,
+  ) {}
 
   private get headers() {
     return {
@@ -239,7 +250,12 @@ export class HameApi {
     logger.info(`Fetching device token for ${mailbox}...`);
 
     return await withRetry(async () => {
-      const resp = await fetch(url.toString(), { headers: this.headers });
+      // Created per attempt and left running through the body parse below,
+      // so a response that stalls mid-body times out too.
+      const resp = await fetch(url.toString(), {
+        headers: this.headers,
+        signal: AbortSignal.timeout(this.requestTimeoutMs),
+      });
 
       // Check HTTP status first - we have the response object here
       if (!resp.ok) {
@@ -281,7 +297,12 @@ export class HameApi {
     logger.info("Fetching device list...");
 
     return await withRetry(async () => {
-      const resp = await fetch(url.toString(), { headers: this.headers });
+      // Created per attempt and left running through the body parse below,
+      // so a response that stalls mid-body times out too.
+      const resp = await fetch(url.toString(), {
+        headers: this.headers,
+        signal: AbortSignal.timeout(this.requestTimeoutMs),
+      });
 
       // Check HTTP status first - we have the response object here
       if (!resp.ok) {
@@ -375,4 +396,47 @@ export class HameApi {
       { maxRetries: 2 }, // Fewer retries for the overall operation since individual calls already retry
     );
   }
+}
+
+/**
+ * The account's devices from the Hame API, remembered after every successful
+ * fetch. When the API cannot be reached — the cloud is down, or the network
+ * resolves its domain elsewhere — the list from the last successful fetch is
+ * used instead, so a restart does not take forwarding down with it (#293).
+ * Without such a list, the API's error is thrown as it was.
+ */
+export async function fetchDevicesWithCache(
+  username: string,
+  password: string,
+  cachePath: string,
+): Promise<DeviceInfo[]> {
+  let devices: DeviceInfo[];
+  try {
+    devices = await new HameApi().fetchDevices(username, password);
+  } catch (apiError) {
+    const cache = loadDeviceCache(cachePath, username);
+    if (!cache) {
+      throw apiError;
+    }
+    const reason = redactSecrets(
+      apiError instanceof Error ? apiError.message : String(apiError),
+    );
+    logger.warn(
+      `Could not fetch devices from the Hame API (${reason}). Using the ${cache.devices.length} devices from the last successful login on ${cache.saved_at}. A device added, updated or re-paired in the app since then may not exchange data until the login works again.`,
+    );
+    return cache.devices;
+  }
+
+  // An empty list is reported by the caller; it must not replace a good cache.
+  if (devices.length > 0) {
+    try {
+      saveDeviceCache(cachePath, username, devices);
+      logger.debug(`Saved the device list to ${cachePath}`);
+    } catch (error) {
+      logger.warn(
+        `Could not save the device list to ${cachePath}, so the relay cannot fall back to it if the Hame API is unreachable on a later start: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  return devices;
 }
