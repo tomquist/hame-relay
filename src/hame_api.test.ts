@@ -1,6 +1,8 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { readOnlineFlag, redactSecrets } from "./hame_api.js";
+import { createServer } from "http";
+import { type AddressInfo } from "net";
+import { HameApi, readOnlineFlag, redactSecrets } from "./hame_api.js";
 
 describe("redactSecrets", () => {
   // node-fetch puts the whole URL in its error message, which is how the
@@ -55,6 +57,31 @@ describe("readOnlineFlag", () => {
         undefined,
         `for ${JSON.stringify(value)}`,
       );
+    }
+  });
+});
+
+describe("HameApi request timeout", () => {
+  // A server that sends its headers and then never finishes the body: the
+  // login must give up rather than hold up startup, so the cached device list
+  // can take over.
+  test("gives up on a response that stalls mid-body", async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.write('{"code":');
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    const { port } = server.address() as AddressInfo;
+    try {
+      const api = new HameApi(`http://127.0.0.1:${port}`, 200);
+      const started = Date.now();
+      await assert.rejects(api.fetchDeviceToken("user@example.com", "x"));
+      assert.ok(Date.now() - started < 5000);
+    } finally {
+      server.closeAllConnections();
+      server.close();
     }
   });
 });

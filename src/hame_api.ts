@@ -176,6 +176,13 @@ export interface DeviceMqttStatus {
 /** How long one device's status lookup may take before it is given up on. */
 const STATUS_TIMEOUT_MS = 5000;
 
+/**
+ * How long the login and device-list requests may take, body included. Without
+ * a bound, a server that answers and then stalls would hold up startup for
+ * good, and the cached device list could never step in.
+ */
+const API_TIMEOUT_MS = 15_000;
+
 interface HameDeviceMqttStatusResponse {
   code: number;
   msg: string;
@@ -220,7 +227,10 @@ export interface DeviceInfo {
 }
 
 export class HameApi {
-  constructor(private readonly baseUrl = "https://eu.hamedata.com") {}
+  constructor(
+    private readonly baseUrl = "https://eu.hamedata.com",
+    private readonly requestTimeoutMs = API_TIMEOUT_MS,
+  ) {}
 
   private get headers() {
     return {
@@ -240,7 +250,12 @@ export class HameApi {
     logger.info(`Fetching device token for ${mailbox}...`);
 
     return await withRetry(async () => {
-      const resp = await fetch(url.toString(), { headers: this.headers });
+      // Created per attempt and left running through the body parse below,
+      // so a response that stalls mid-body times out too.
+      const resp = await fetch(url.toString(), {
+        headers: this.headers,
+        signal: AbortSignal.timeout(this.requestTimeoutMs),
+      });
 
       // Check HTTP status first - we have the response object here
       if (!resp.ok) {
@@ -282,7 +297,12 @@ export class HameApi {
     logger.info("Fetching device list...");
 
     return await withRetry(async () => {
-      const resp = await fetch(url.toString(), { headers: this.headers });
+      // Created per attempt and left running through the body parse below,
+      // so a response that stalls mid-body times out too.
+      const resp = await fetch(url.toString(), {
+        headers: this.headers,
+        signal: AbortSignal.timeout(this.requestTimeoutMs),
+      });
 
       // Check HTTP status first - we have the response object here
       if (!resp.ok) {
